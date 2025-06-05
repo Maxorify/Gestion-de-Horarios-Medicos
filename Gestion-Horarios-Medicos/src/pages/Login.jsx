@@ -1,6 +1,7 @@
 import React from "react";
 import TextField from "@mui/material/TextField";
 import fondo from "../assets/fondo.jpg";
+import "../styles.css";
 
 //import './Login.css';
 
