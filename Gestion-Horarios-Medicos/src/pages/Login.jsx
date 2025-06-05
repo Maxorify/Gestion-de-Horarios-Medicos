@@ -8,11 +8,9 @@ import "../styles.css";
 function Login() {
   return (
     <div
-      className="min-h-screen flex items-center justify-start pl-16 relative overflow-hidden"
+      className="login-page"
       style={{
         backgroundImage: `url(${fondo})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
       }}
     >
       <div
@@ -23,7 +21,7 @@ function Login() {
       <div className="absolute right-0 top-0 w-2/3 h-full opacity-30">
         <div className="w-full h-full bg-gradient-to-l from-blue-300 to-transparent"></div>
       </div>
-      <div className="relative z-10 bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md ml-32">
+      <div className="login-container">
         <div className="text-center mb-8">
           <div className="inline-block border-2 border-gray-800 rounded-full px-6 py-2">
             <span className="text-gray-800 font-semibold text-lg">
@@ -36,12 +34,9 @@ function Login() {
           Inicio de sesión
         </h2>
 
-        <form className="space-y-8">
+        <form className="login-form">
           <div>
-            <label
-              for="email"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="email" className="login-label">
               Correo:
             </label>
             <div className="relative">
@@ -49,7 +44,7 @@ function Login() {
                 id="email"
                 type="email"
                 value="admin@admin.com"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                className="login-input"
                 placeholder="correo@ejemplo.com"
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -71,17 +66,14 @@ function Login() {
           </div>
 
           <div>
-            <label
-              for="password"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="password" className="login-label">
               Contraseña:
             </label>
             <div className="relative">
               <input
                 id="password"
                 type="password"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors pr-12"
+                className="login-input login-input-password"
                 placeholder="••••••••"
               />
               <button
@@ -111,10 +103,7 @@ function Login() {
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
+          <button type="submit" className="login-button">
             Login
           </button>
         </form>
@@ -140,5 +129,4 @@ function Login() {
     </div>
   );
 }
-
 export default Login;
