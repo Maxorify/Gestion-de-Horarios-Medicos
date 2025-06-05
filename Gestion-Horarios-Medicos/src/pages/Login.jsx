@@ -1,17 +1,45 @@
-import TextField from "@mui/material/TextField";
 import fondo from "../assets/fondo.jpg";
 import "../styles.css";
-
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useState } from "react";
 
 function Login() {
+  // Estados para login y reset
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showReset, setShowReset] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [loginError, setLoginError] = useState(""); // <--- Estado para error de login
+  const navigate = useNavigate();
 
+  const mockUsers = [
+    { email: "admin@admin.com", password: "1234", type: "admin" },
+    { email: "doctor@admin.com", password: "doctor123", type: "doctor" },
+    { email: "secretaria@admin.com", password: "sec123", type: "secretaria" },
+  ];
+
+  // Handler para login
+  const handleLogin = (e) => {
+    e.preventDefault();
+    const user = mockUsers.find(
+      (u) => u.email === email && u.password === password
+    );
+    if (user) {
+      setLoginError("");
+      setEmail("");
+      setPassword("");
+      if (user.type === "admin") navigate("/admin");
+      else if (user.type === "doctor") navigate("/doctor");
+      else if (user.type === "secretaria") navigate("/secretaria");
+    } else {
+      setLoginError("Credenciales inválidas");
+    }
+  };
+
+  // Handler para reset de password
   const handleReset = (e) => {
     e.preventDefault();
     if (password !== confirmPassword) {
@@ -26,6 +54,21 @@ function Login() {
       setPassword("");
       setConfirmPassword("");
     }, 2000);
+  };
+
+  // Al cambiar de vista, limpia errores/campos
+  const goToReset = () => {
+    setShowReset(true);
+    setLoginError("");
+    setEmail("");
+    setPassword("");
+  };
+
+  const goToLogin = () => {
+    setShowReset(false);
+    setPasswordError("");
+    setPassword("");
+    setConfirmPassword("");
   };
 
   return (
@@ -62,7 +105,7 @@ function Login() {
               Inicio de sesión
             </h2>
 
-            <form className="login-form">
+            <form className="login-form" onSubmit={handleLogin}>
               <div>
                 <label htmlFor="email" className="login-label">
                   Correo:
@@ -71,7 +114,8 @@ function Login() {
                   <input
                     id="email"
                     type="email"
-                    value="admin@admin.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="login-input"
                     placeholder="correo@ejemplo.com"
                   />
@@ -86,11 +130,17 @@ function Login() {
                   <input
                     id="password"
                     type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="login-input login-input-password"
                     placeholder="••••••••"
                   />
                 </div>
               </div>
+
+              {loginError && (
+                <p className="text-red-500 text-sm mt-2">{loginError}</p>
+              )}
 
               <button type="submit" className="login-button">
                 Login
@@ -99,7 +149,7 @@ function Login() {
 
             <div className="text-center mt-6">
               <button
-                onClick={() => setShowReset(true)}
+                onClick={goToReset}
                 className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
               >
                 ¿No tienes cuenta?
@@ -139,7 +189,9 @@ function Login() {
                 <input
                   type="password"
                   id="password"
-                  className="login-input"
+                  className={`login-input ${
+                    passwordError ? "border-red-500" : ""
+                  }`}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -153,7 +205,9 @@ function Login() {
                 <input
                   type="password"
                   id="confirm-password"
-                  className="login-input"
+                  className={`login-input ${
+                    passwordError ? "border-red-500" : ""
+                  }`}
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -170,7 +224,7 @@ function Login() {
 
             <div className="text-center mt-4">
               <button
-                onClick={() => setShowReset(false)}
+                onClick={goToLogin}
                 className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
               >
                 ← Volver al inicio
@@ -180,10 +234,11 @@ function Login() {
         )}
       </AnimatePresence>
 
+      {/* Mensaje de éxito */}
       <AnimatePresence>
         {showSuccess && (
           <motion.div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -218,16 +273,6 @@ function Login() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div className="absolute bottom-10 right-10 opacity-20">
-        <svg
-          className="w-16 h-16 text-white"
-          fill="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path d="M19 8h-2v3h-3v2h3v3h2v-3h3v-2h-3V8zM4 8h2v8H4V8zm4-2h2v12H8V6zm4 4h2v8h-2v-8z" />
-        </svg>
-      </div>
     </motion.div>
   );
 }
