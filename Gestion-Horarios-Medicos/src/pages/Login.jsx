@@ -2,7 +2,7 @@ import fondo from "../assets/fondo.jpg";
 import "../styles.css";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 
@@ -30,6 +30,13 @@ function Login() {
   const [loginError, setLoginError] = useState("");
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const tipoUsuario = localStorage.getItem("isLoggedIn");
+    if (tipoUsuario === "admin") navigate("/admin");
+    else if (tipoUsuario === "doctor") navigate("/doctor");
+    else if (tipoUsuario === "secretaria") navigate("/secretaria");
+  }, [navigate]);
+
   const mockUsers = [
     { email: "admin@admin.com", password: "1234", type: "admin" },
     { email: "doctor@admin.com", password: "doctor123", type: "doctor" },
@@ -46,6 +53,7 @@ function Login() {
       setLoginError("");
       setEmail("");
       setPassword("");
+      localStorage.setItem("isLoggedIn", user.type); // <<--- AQUÍ
       if (user.type === "admin") navigate("/admin");
       else if (user.type === "doctor") navigate("/doctor");
       else if (user.type === "secretaria") navigate("/secretaria");
