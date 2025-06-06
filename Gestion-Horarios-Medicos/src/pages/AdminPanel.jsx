@@ -1,8 +1,15 @@
-export default function AdminPanel() {
+import React from "react";
+import Topbar from "../scenes/global/Topbar"; // ajusta la ruta si es necesario
+
+function AdminPanel() {
   return (
     <div>
-      <h2>Panel de Administrador</h2>
+      <Topbar />
+      {/* Aquí va el resto del contenido del panel de admin */}
+      <h1>Bienvenido Admin</h1>
+      {/* ... */}
     </div>
   );
 }
-//   <p>Esta será la vista para el panel de administrador.</p>
+
+export default AdminPanel;
