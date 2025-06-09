@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import Topbar from "../scenes/global/Topbar"; // ajusta la ruta si es necesario
+import Topbar from "../components/Topbar";
+import Sidebar from "../components/SidebarAdmin";
 
 function AdminPanel() {
   const navigate = useNavigate();
@@ -10,11 +11,16 @@ function AdminPanel() {
     navigate("/");
   };
 
+  // Usa un layout tipo flex para que el sidebar y el contenido estén alineados
   return (
-    <div>
-      <Topbar />
-      <div style={{ padding: 24 }}>
-        <h1>Bienvenido Admin</h1>
+    <div style={{ display: "flex", height: "100vh" }}>
+      <Sidebar />
+      <div style={{ flex: 1 }}>
+        <Topbar />
+        <div style={{ padding: 24 }}>
+          <h1>Bienvenido Admin</h1>
+          {/* Acá va el resto de tu contenido */}
+        </div>
       </div>
     </div>
   );

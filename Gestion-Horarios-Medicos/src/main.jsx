@@ -4,7 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 
 // 👇 IMPORTA EL CONTEXTO Y EL HOOK DEL THEME (desde scenes/theme.js)
-import { ColorModeContext, useMode } from "./scenes/theme";
+import { ColorModeContext, useMode } from "./theme";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 
 // 👇 Componente que provee el contexto y el ThemeProvider a toda tu app
