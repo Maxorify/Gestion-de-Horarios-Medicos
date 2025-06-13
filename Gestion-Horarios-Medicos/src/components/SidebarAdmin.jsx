@@ -1,5 +1,5 @@
-// Sidebar.jsx
-import { useState } from "react";
+// Sidebar.jsx - Versión actualizada con scrollbar personalizado
+import { useState, useEffect } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme } from "@mui/material";
 import { useNavigate } from "react-router-dom";
@@ -58,9 +58,26 @@ const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selected, setSelected] = useState("Dashboard");
 
-  // Color adaptativo para el botón, claro u oscuro
-  const buttonBg = theme.palette.mode === "dark" ? "#23272f" : "#22242B";
-  const buttonColor = theme.palette.mode === "dark" ? "#fff" : "#22242B";
+  // Efecto para actualizar las variables CSS del tema
+  useEffect(() => {
+    const root = document.documentElement;
+    
+    if (theme.palette.mode === "dark") {
+      root.setAttribute("data-theme", "dark");
+      // Variables para modo oscuro
+      root.style.setProperty("--scrollbar-track", colors.primary[400]);
+      root.style.setProperty("--scrollbar-thumb", colors.grey[600]);
+      root.style.setProperty("--scrollbar-thumb-hover", colors.grey[500]);
+      root.style.setProperty("--scrollbar-thumb-active", colors.greenAccent[600]);
+    } else {
+      root.setAttribute("data-theme", "light");
+      // Variables para modo claro
+      root.style.setProperty("--scrollbar-track", colors.primary[400]);
+      root.style.setProperty("--scrollbar-thumb", colors.grey[400]);
+      root.style.setProperty("--scrollbar-thumb-hover", colors.grey[600]);
+      root.style.setProperty("--scrollbar-thumb-active", colors.greenAccent[500]);
+    }
+  }, [theme.palette.mode, colors]);
 
   return (
     <Box
@@ -68,6 +85,27 @@ const Sidebar = () => {
         height: "100vh",
         "& .pro-sidebar-inner": {
           background: `${colors.primary[400]} !important`,
+          // Aplicar clase para scrollbar personalizado
+          "&.custom-scrollbar": {
+            scrollbarWidth: "thin",
+            scrollbarColor: `${colors.grey[600]} ${colors.primary[400]}`,
+          },
+          // Webkit scrollbar styles
+          "&::-webkit-scrollbar": {
+            width: "6px",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "transparent",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: colors.grey[600],
+            borderRadius: "3px",
+            transition: "all 0.3s ease",
+          },
+          "&::-webkit-scrollbar-thumb:hover": {
+            background: colors.grey[500],
+            width: "8px",
+          },
         },
         "& .pro-icon-wrapper": {
           backgroundColor: "transparent !important",
@@ -82,8 +120,12 @@ const Sidebar = () => {
           color: "#6870fa !important",
         },
       }}
+      className="custom-scrollbar"
     >
-      <ProSidebar collapsed={isCollapsed}>
+      <ProSidebar 
+        collapsed={isCollapsed}
+        className={isCollapsed ? "collapsed" : ""}
+      >
         <Menu iconShape="square">
           {/* --- Botón menú arriba --- */}
           <Box
@@ -107,7 +149,7 @@ const Sidebar = () => {
                 color:
                   theme.palette.mode === "dark"
                     ? colors.grey[100]
-                    : colors.grey[900], // Aquí el truco
+                    : colors.grey[900],
                 borderRadius: "50%",
                 width: "40px",
                 height: "40px",
@@ -128,7 +170,7 @@ const Sidebar = () => {
                   color:
                     theme.palette.mode === "dark"
                       ? colors.grey[100]
-                      : colors.grey[900], // ¡Asegúrate que el icono cambie!
+                      : colors.grey[900],
                 }}
               />
             </IconButton>
@@ -156,7 +198,7 @@ const Sidebar = () => {
                   borderRadius: "50%",
                   marginBottom: 8,
                   background:
-                    theme.palette.mode === "dark" ? "#7c3aed" : "#a5b4fc", // más clarito en modo claro
+                    theme.palette.mode === "dark" ? "#7c3aed" : "#a5b4fc",
                 }}
               />
 
@@ -186,7 +228,27 @@ const Sidebar = () => {
             gap={isCollapsed ? 2 : 0}
             paddingLeft={isCollapsed ? 2.5 : "10%"}
             alignItems={isCollapsed ? "center" : "stretch"}
-            sx={{ width: "100%" }}
+            sx={{ 
+              width: "100%",
+              maxHeight: "calc(100vh - 200px)",
+              overflowY: "auto",
+              // Aplicar scrollbar personalizado al contenedor de menú
+              "&::-webkit-scrollbar": {
+                width: "4px",
+              },
+              "&::-webkit-scrollbar-track": {
+                background: "transparent",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                background: colors.grey[600],
+                borderRadius: "2px",
+                transition: "background 0.3s ease",
+              },
+              "&::-webkit-scrollbar-thumb:hover": {
+                background: colors.grey[500],
+              },
+            }}
+            className="custom-scrollbar"
           >
             <Item
               title="Dashboard"
