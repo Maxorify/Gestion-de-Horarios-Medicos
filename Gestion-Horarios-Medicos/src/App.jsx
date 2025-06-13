@@ -3,6 +3,7 @@ import Login from "./pages/Login.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
 import DoctorPanel from "./pages/DoctorPanel.jsx";
 import SecretariaPanel from "./pages/SecretariaPanel.jsx";
+import AgendarConsulta from "./pages/AgendarConsulta";
 import Sidebar from "./components/SidebarAdmin.jsx";
 import "./styles.css";
 

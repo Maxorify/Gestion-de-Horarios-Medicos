@@ -21,46 +21,52 @@ function AdminPanel() {
   // Efecto para manejar las transiciones de tema
   useEffect(() => {
     const root = document.documentElement;
-    
+
     // Establecer el atributo data-theme para CSS
     root.setAttribute("data-theme", theme.palette.mode);
-    
+
     // Aplicar variables CSS dinámicamente
     if (theme.palette.mode === "dark") {
       root.style.setProperty("--scrollbar-track", colors.primary[400]);
       root.style.setProperty("--scrollbar-thumb", colors.grey[600]);
       root.style.setProperty("--scrollbar-thumb-hover", colors.grey[500]);
-      root.style.setProperty("--scrollbar-thumb-active", colors.greenAccent[600]);
+      root.style.setProperty(
+        "--scrollbar-thumb-active",
+        colors.greenAccent[600]
+      );
       root.style.setProperty("--bg-primary", colors.primary[500]);
       root.style.setProperty("--bg-secondary", colors.primary[400]);
       root.style.setProperty("--text-primary", colors.grey[100]);
       root.style.setProperty("--text-secondary", colors.grey[300]);
     } else {
-      root.style.setProperty("--scrollbar-track", colors.primary[400]);
+      root.style.setProperty("--scrollbar-track", "#f5f5f5");
       root.style.setProperty("--scrollbar-thumb", colors.grey[400]);
       root.style.setProperty("--scrollbar-thumb-hover", colors.grey[600]);
-      root.style.setProperty("--scrollbar-thumb-active", colors.greenAccent[500]);
-      root.style.setProperty("--bg-primary", "#fcfcfc");
-      root.style.setProperty("--bg-secondary", colors.primary[400]);
-      root.style.setProperty("--text-primary", colors.grey[100]);
-      root.style.setProperty("--text-secondary", colors.grey[300]);
+      root.style.setProperty(
+        "--scrollbar-thumb-active",
+        colors.greenAccent[500]
+      );
+      root.style.setProperty("--bg-primary", "#f8f9fa");
+      root.style.setProperty("--bg-secondary", "#ffffff");
+      root.style.setProperty("--text-primary", colors.grey[900]);
+      root.style.setProperty("--text-secondary", colors.grey[700]);
     }
   }, [theme.palette.mode, colors]);
 
   // Función mejorada para manejar el cambio de tema con transición
   const handleThemeToggle = () => {
     setIsThemeSwitching(true);
-    
+
     // Agregar clase de transición al documento
-    document.body.classList.add('theme-switching');
-    
+    document.body.classList.add("theme-switching");
+
     // Cambiar el tema
     colorMode.toggleColorMode();
-    
+
     // Remover la clase después de la transición
     setTimeout(() => {
       setIsThemeSwitching(false);
-      document.body.classList.remove('theme-switching');
+      document.body.classList.remove("theme-switching");
     }, 600); // Duración de la transición
   };
 
@@ -72,122 +78,246 @@ function AdminPanel() {
   // Estilos dinámicos que responden al tema
   const mainContentStyle = {
     flex: 1,
-    backgroundColor: theme.palette.mode === "dark" 
-      ? colors.primary[500] 
-      : "#fcfcfc",
-    color: theme.palette.mode === "dark" 
-      ? colors.grey[100] 
-      : colors.grey[900],
+    backgroundColor:
+      theme.palette.mode === "dark" ? colors.primary[500] : "#f8f9fa", // Fondo gris claro
+    color: theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[900],
     minHeight: "100vh",
     transition: "all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
   };
 
   const contentAreaStyle = {
-    padding: 24,
+    padding: "24px",
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    background: theme.palette.mode === "dark" 
-      ? `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[400]} 100%)`
-      : `linear-gradient(135deg, #fcfcfc 0%, ${colors.primary[400]} 100%)`,
     minHeight: "calc(100vh - 64px)", // Altura menos el topbar
-    borderRadius: "8px 0 0 0",
+  };
+
+  // Contenedor principal con fondo definido
+  const containerStyle = {
+    backgroundColor:
+      theme.palette.mode === "dark" ? colors.primary[400] : "#ffffff", // Fondo blanco sólido para modo claro
+    borderRadius: "16px",
+    padding: "32px",
+    boxShadow:
+      theme.palette.mode === "dark"
+        ? "0 8px 32px rgba(0, 0, 0, 0.4)"
+        : "0 4px 20px rgba(0, 0, 0, 0.08)", // Sombra sutil para modo claro
+    border:
+      theme.palette.mode === "dark"
+        ? `1px solid ${colors.grey[700]}`
+        : `1px solid ${colors.grey[200]}`, // Borde sutil para definir el contenedor
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    minHeight: "calc(100vh - 112px)", // Ajustar altura considerando padding
+    position: "relative",
+    overflow: "hidden",
   };
 
   const welcomeTextStyle = {
     fontSize: "2.5rem",
     fontWeight: "bold",
-    color: theme.palette.mode === "dark" 
-      ? colors.grey[100] 
-      : colors.grey[900],
+    color: theme.palette.mode === "dark" ? colors.grey[100] : "#1a1a1a",
     marginBottom: "1rem",
-    textShadow: theme.palette.mode === "dark" 
-      ? "0 2px 4px rgba(0,0,0,0.3)" 
-      : "0 2px 4px rgba(0,0,0,0.1)",
+    textShadow:
+      theme.palette.mode === "dark" ? "0 2px 4px rgba(0,0,0,0.3)" : "none", // Sin sombra para modo claro
     transition: "all 0.3s ease",
+    zIndex: 10,
+    position: "relative",
+  };
+
+  // Estilo para el indicador de tema
+  const themeIndicatorStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "12px 20px",
+    borderRadius: "24px",
+    backgroundColor:
+      theme.palette.mode === "dark" ? colors.primary[500] : colors.grey[100], // Fondo gris muy claro para modo claro
+    color: theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[800],
+    fontSize: "0.875rem",
+    fontWeight: "600",
+    marginBottom: "2rem",
+    transition: "all 0.3s ease",
+    border: `1px solid ${
+      theme.palette.mode === "dark" ? colors.grey[600] : colors.grey[300]
+    }`,
+    boxShadow:
+      theme.palette.mode === "dark"
+        ? "0 2px 8px rgba(0, 0, 0, 0.2)"
+        : "0 2px 8px rgba(0, 0, 0, 0.06)",
+  };
+
+  // Estilo para la card de información
+  const infoCardStyle = {
+    padding: "24px",
+    borderRadius: "16px",
+    backgroundColor:
+      theme.palette.mode === "dark" ? colors.primary[500] : colors.grey[50], // Fondo gris muy claro para modo claro
+    boxShadow:
+      theme.palette.mode === "dark"
+        ? "0 4px 16px rgba(0, 0, 0, 0.3)"
+        : "0 2px 12px rgba(0, 0, 0, 0.06)", // Sombra más sutil para modo claro
+    backdropFilter: "blur(10px)",
+    border: `1px solid ${
+      theme.palette.mode === "dark" ? colors.grey[600] : colors.grey[200]
+    }`,
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    position: "relative",
   };
 
   return (
-    <div 
-      style={{ 
-        display: "flex", 
+    <div
+      style={{
+        display: "flex",
         height: "100vh",
-        backgroundColor: theme.palette.mode === "dark" 
-          ? colors.primary[500] 
-          : "#fcfcfc",
-        transition: "background-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        backgroundColor:
+          theme.palette.mode === "dark" ? colors.primary[500] : "#f8f9fa", // Fondo gris claro
+        transition:
+          "background-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
       }}
-      className={`admin-panel-content custom-scrollbar ${isThemeSwitching ? 'theme-transition-highlight' : ''}`}
+      className={`admin-panel-content custom-scrollbar ${
+        isThemeSwitching ? "theme-transition-highlight" : ""
+      }`}
     >
       <Sidebar />
       <div style={mainContentStyle} className="main-content">
         <Topbar onThemeToggle={handleThemeToggle} />
         <div style={contentAreaStyle}>
-          <h1 style={welcomeTextStyle}>
-            Bienvenido Admin
-          </h1>
-          
-          {/* Indicador visual del tema actual */}
-          <div style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "8px 16px",
-            borderRadius: "20px",
-            backgroundColor: theme.palette.mode === "dark" 
-              ? colors.primary[400] 
-              : colors.grey[200],
-            color: theme.palette.mode === "dark" 
-              ? colors.grey[100] 
-              : colors.grey[800],
-            fontSize: "0.875rem",
-            fontWeight: "500",
-            marginBottom: "2rem",
-            transition: "all 0.3s ease",
-            border: `1px solid ${theme.palette.mode === "dark" 
-              ? colors.grey[700] 
-              : colors.grey[300]}`,
-          }}>
-            <span style={{
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              backgroundColor: theme.palette.mode === "dark" 
-                ? colors.blueAccent[400] 
-                : colors.blueAccent[600],
-              marginRight: "8px",
-              transition: "background-color 0.3s ease",
-            }}></span>
-            Modo {theme.palette.mode === "dark" ? "Oscuro" : "Claro"} Activo
-          </div>
+          {/* CONTENEDOR PRINCIPAL CON FONDO DEFINIDO */}
+          <div style={containerStyle}>
+            <h1 style={welcomeTextStyle}>Bienvenido Admin</h1>
 
-          {/* Contenido adicional con mejor estilo */}
-          <div style={{
-            padding: "24px",
-            borderRadius: "12px",
-            backgroundColor: theme.palette.mode === "dark" 
-              ? colors.primary[400] 
-              : "rgba(255, 255, 255, 0.8)",
-            boxShadow: theme.palette.mode === "dark"
-              ? "0 4px 12px rgba(0, 0, 0, 0.3)"
-              : "0 4px 12px rgba(0, 0, 0, 0.1)",
-            backdropFilter: "blur(10px)",
-            border: `1px solid ${theme.palette.mode === "dark" 
-              ? colors.grey[700] 
-              : colors.grey[200]}`,
-            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          }}>
-            <p style={{
-              color: theme.palette.mode === "dark" 
-                ? colors.grey[300] 
-                : colors.grey[700],
-              lineHeight: "1.6",
-              margin: 0,
-              transition: "color 0.3s ease",
-            }}>
-              Panel de administración con transiciones suaves y scrollbar personalizado. 
-              El tema se adapta automáticamente y todos los elementos tienen transiciones elegantes.
-            </p>
-          </div>
+            {/* Indicador visual del tema actual */}
+            <div style={themeIndicatorStyle}>
+              <span
+                style={{
+                  width: "10px",
+                  height: "10px",
+                  borderRadius: "50%",
+                  backgroundColor:
+                    theme.palette.mode === "dark"
+                      ? colors.blueAccent[400]
+                      : colors.blueAccent[600],
+                  marginRight: "12px",
+                  transition: "background-color 0.3s ease",
+                  boxShadow: `0 0 0 2px ${
+                    theme.palette.mode === "dark"
+                      ? colors.blueAccent[400]
+                      : colors.blueAccent[600]
+                  }30`,
+                }}
+              ></span>
+              Modo {theme.palette.mode === "dark" ? "Oscuro" : "Claro"} Activo
+            </div>
 
-          {/* Acá va el resto de tu contenido */}
+            {/* Contenido adicional con mejor estilo */}
+            <div style={infoCardStyle}>
+              <h3
+                style={{
+                  color:
+                    theme.palette.mode === "dark"
+                      ? colors.grey[100]
+                      : colors.grey[800],
+                  fontSize: "1.25rem",
+                  fontWeight: "600",
+                  marginBottom: "16px",
+                  transition: "color 0.3s ease",
+                }}
+              >
+                Panel de Administración
+              </h3>
+              <p
+                style={{
+                  color:
+                    theme.palette.mode === "dark"
+                      ? colors.grey[300]
+                      : colors.grey[600],
+                  lineHeight: "1.6",
+                  margin: 0,
+                  fontSize: "1rem",
+                  transition: "color 0.3s ease",
+                }}
+              >
+                Panel de administración con transiciones suaves y scrollbar
+                personalizado. El tema se adapta automáticamente y todos los
+                elementos tienen transiciones elegantes. Ahora con contenedores
+                bien definidos para mejor legibilidad en ambos modos.
+              </p>
+            </div>
+
+            {/* Área para dashboard widgets o contenido adicional */}
+            <div
+              style={{
+                marginTop: "2rem",
+                display: "grid",
+                gap: "20px",
+                gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+              }}
+            >
+              {/* Widget de ejemplo 1 */}
+              <div style={infoCardStyle}>
+                <h4
+                  style={{
+                    color:
+                      theme.palette.mode === "dark"
+                        ? colors.grey[100]
+                        : colors.grey[800],
+                    fontSize: "1.1rem",
+                    fontWeight: "600",
+                    marginBottom: "12px",
+                    transition: "color 0.3s ease",
+                  }}
+                >
+                  Estadísticas Rápidas
+                </h4>
+                <p
+                  style={{
+                    color:
+                      theme.palette.mode === "dark"
+                        ? colors.grey[300]
+                        : colors.grey[600],
+                    margin: 0,
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  Usuarios activos: 1,234
+                  <br />
+                  Sesiones hoy: 567
+                  <br />
+                  Rendimiento: 98.5%
+                </p>
+              </div>
+
+              {/* Widget de ejemplo 2 */}
+              <div style={infoCardStyle}>
+                <h4
+                  style={{
+                    color:
+                      theme.palette.mode === "dark"
+                        ? colors.grey[100]
+                        : colors.grey[800],
+                    fontSize: "1.1rem",
+                    fontWeight: "600",
+                    marginBottom: "12px",
+                    transition: "color 0.3s ease",
+                  }}
+                >
+                  Acciones Rápidas
+                </h4>
+                <p
+                  style={{
+                    color:
+                      theme.palette.mode === "dark"
+                        ? colors.grey[300]
+                        : colors.grey[600],
+                    margin: 0,
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  Configura fácilmente tu panel desde aquí. Todos los elementos
+                  están optimizados para una excelente experiencia visual.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
