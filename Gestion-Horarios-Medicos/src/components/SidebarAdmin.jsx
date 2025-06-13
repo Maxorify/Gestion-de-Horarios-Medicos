@@ -1,7 +1,7 @@
-// Sidebar.jsx - Versión actualizada con scrollbar personalizado y diálogos mejorados
+// SidebarAdmin.jsx
 import { useState, useEffect } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
-import { Box, Typography, useTheme } from "@mui/material";
+import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
 import { tokens } from "../theme";
@@ -15,9 +15,9 @@ import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
-import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
+import PushPinIcon from "@mui/icons-material/PushPin";
+import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import RegistroPacienteDialog from "../components/RegistroPacienteDialog";
-import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -32,27 +32,43 @@ const Item = ({
   selected,
   setSelected,
   isCollapsed,
-  setIsCollapsed,
+  colors,
 }) => {
   const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
   const navigate = useNavigate();
 
   const handleClick = () => {
-    if (isCollapsed) {
-      setIsCollapsed(false);
-    } else {
-      setSelected(title);
-      navigate(to);
-    }
+    setSelected(title);
+    navigate(to);
   };
+
+  // Colores dinámicos
+  const isLight = theme.palette.mode === "light";
+  const itemColor = isLight ? "#111" : colors.grey[100];
+  const activeColor = isLight ? "#4377fe" : colors.blueAccent[400];
 
   return (
     <MenuItem
       active={selected === title}
-      style={{ color: colors.grey[100] }}
+      style={{
+        color: selected === title ? activeColor : itemColor,
+        transition: "color 0.3s ease",
+        fontWeight: selected === title ? "bold" : "normal",
+        borderRadius: "18px",
+        margin: isCollapsed ? "8px 0" : "3px 0",
+        padding: isCollapsed ? "2px 0" : "0",
+      }}
       onClick={handleClick}
       icon={icon}
+      sx={{
+        "&:hover": {
+          backgroundColor: isLight
+            ? "rgba(100,100,100,0.06)"
+            : "rgba(255,255,255,0.06)",
+          color: isLight ? "#111" : colors.blueAccent[300],
+          borderRadius: "18px",
+        },
+      }}
     >
       {!isCollapsed && <Typography>{title}</Typography>}
     </MenuItem>
@@ -62,8 +78,9 @@ const Item = ({
 const Sidebar = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [selected, setSelected] = useState("Dashboard");
+  const [isPinned, setIsPinned] = useState(false);
 
   const [openConfirm, setOpenConfirm] = useState(false);
   const [openPacienteCheck, setOpenPacienteCheck] = useState(false);
@@ -71,231 +88,134 @@ const Sidebar = () => {
 
   const navigate = useNavigate();
 
-  const handleAgendarClick = () => {
-    setOpenConfirm(true);
-  };
-
+  // --- Diálogos ---
+  const handleAgendarClick = () => setOpenConfirm(true);
   const handleConfirmYes = () => {
     setOpenConfirm(false);
     setOpenPacienteCheck(true);
   };
-
-  const handleConfirmNo = () => {
-    setOpenConfirm(false);
-  };
-
+  const handleConfirmNo = () => setOpenConfirm(false);
   const handlePacienteCheckYes = () => {
     setOpenPacienteCheck(false);
-    navigate("/admin/agendar"); // Puedes cambiar esto si quieres otra ruta
+    navigate("/admin/agendar");
   };
-
   const handlePacienteCheckNo = () => {
     setOpenPacienteCheck(false);
     setShowFormularioPaciente(true);
   };
 
-  // Efecto para actualizar las variables CSS del tema
+  // Hover reveal y pin
+  const handleMouseEnter = () => {
+    if (!isPinned) setIsCollapsed(false);
+  };
+  const handleMouseLeave = () => {
+    if (!isPinned) setIsCollapsed(true);
+  };
+  const togglePin = () => {
+    setIsPinned((p) => !p);
+    setIsCollapsed((prev) => (isPinned ? true : false));
+  };
+
+  // Colores adaptativos
+  const isLight = theme.palette.mode === "light";
+  const sidebarBg = isLight ? "#fafafa" : colors.primary[400];
+  const textPrimary = isLight ? "#111" : colors.grey[100];
+  const textSecondary = isLight ? "#222" : colors.grey[300];
+  const borderColor = isLight ? "#ddd" : colors.grey[700];
+
   useEffect(() => {
     const root = document.documentElement;
-
-    if (theme.palette.mode === "dark") {
-      root.setAttribute("data-theme", "dark");
-      // Variables para modo oscuro
-      root.style.setProperty("--scrollbar-track", colors.primary[400]);
-      root.style.setProperty("--scrollbar-thumb", colors.grey[600]);
-      root.style.setProperty("--scrollbar-thumb-hover", colors.grey[500]);
-      root.style.setProperty(
-        "--scrollbar-thumb-active",
-        colors.greenAccent[600]
-      );
-    } else {
-      root.setAttribute("data-theme", "light");
-      // Variables para modo claro
-      root.style.setProperty("--scrollbar-track", colors.primary[400]);
-      root.style.setProperty("--scrollbar-thumb", colors.grey[400]);
-      root.style.setProperty("--scrollbar-thumb-hover", colors.grey[600]);
-      root.style.setProperty(
-        "--scrollbar-thumb-active",
-        colors.greenAccent[500]
-      );
-    }
-  }, [theme.palette.mode, colors]);
+    root.style.setProperty(
+      "--scrollbar-thumb",
+      isLight ? "#ccc" : colors.grey[600]
+    );
+  }, [theme.palette.mode, colors, isLight]);
 
   return (
     <Box
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       sx={{
         height: "100vh",
         "& .pro-sidebar-inner": {
-          background: `${colors.primary[400]} !important`,
-          // Aplicar clase para scrollbar personalizado
-          "&.custom-scrollbar": {
-            scrollbarWidth: "thin",
-            scrollbarColor: `${colors.grey[600]} ${colors.primary[400]}`,
-          },
-          // Webkit scrollbar styles
-          "&::-webkit-scrollbar": {
-            width: "6px",
-          },
-          "&::-webkit-scrollbar-track": {
-            background: "transparent",
-          },
+          background: `${sidebarBg} !important`,
+          scrollbarWidth: "thin",
+          scrollbarColor: `#ccc ${sidebarBg}`,
+          "&::-webkit-scrollbar": { width: "6px" },
           "&::-webkit-scrollbar-thumb": {
-            background: colors.grey[600],
+            background: "var(--scrollbar-thumb)",
             borderRadius: "3px",
-            transition: "all 0.3s ease",
           },
-          "&::-webkit-scrollbar-thumb:hover": {
-            background: colors.grey[500],
-            width: "8px",
-          },
+          boxShadow: isLight
+            ? "2px 0 8px rgba(0,0,0,0.07)"
+            : "2px 0 10px rgba(0,0,0,0.25)",
+          transition: "all 0.3s ease",
         },
         "& .pro-icon-wrapper": {
           backgroundColor: "transparent !important",
+          color: textPrimary,
         },
         "& .pro-inner-item": {
           padding: "5px 35px 5px 20px !important",
+          color: textPrimary,
+          transition: "all 0.3s ease !important",
         },
         "& .pro-inner-item:hover": {
-          color: "#868dfb !important",
+          backgroundColor: isLight
+            ? "rgba(100,100,100,0.06) !important"
+            : "rgba(255,255,255,0.06) !important",
+          color: isLight
+            ? "#111 !important"
+            : colors.blueAccent[300] + " !important",
+          borderRadius: "18px",
         },
         "& .pro-menu-item.active": {
-          color: "#6870fa !important",
+          color: "#4377fe !important",
+          backgroundColor: isLight
+            ? "rgba(50,50,50,0.09) !important"
+            : colors.blueAccent[900] + "40 !important",
+          borderRadius: "18px",
+        },
+        "& .pro-menu-item.active .pro-icon-wrapper": {
+          color: "#4377fe !important",
         },
       }}
       className="custom-scrollbar"
     >
-      <Dialog
-        open={openConfirm}
-        onClose={handleConfirmNo}
-        PaperProps={{
-          sx: {
-            backgroundColor: colors.primary[400],
-            color: colors.grey[100],
-          },
-        }}
-      >
-        <DialogTitle sx={{ color: colors.grey[100] }}>
-          Confirmar inicio
-        </DialogTitle>
+      {/* Diálogos */}
+      <Dialog open={openConfirm} onClose={handleConfirmNo}>
+        <DialogTitle>Confirmar inicio</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ color: colors.grey[200] }}>
+          <DialogContentText>
             ¿Desea iniciar el proceso de agendamiento de una consulta?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleConfirmNo} sx={{ color: colors.grey[300] }}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleConfirmYes}
-            autoFocus
-            sx={{
-              color: colors.greenAccent[400],
-              "&:hover": {
-                backgroundColor: colors.greenAccent[700],
-              },
-            }}
-          >
+          <Button onClick={handleConfirmNo}>Cancelar</Button>
+          <Button onClick={handleConfirmYes} autoFocus>
             Continuar
           </Button>
         </DialogActions>
       </Dialog>
-
-      <Dialog
-        open={openPacienteCheck}
-        onClose={handlePacienteCheckNo}
-        PaperProps={{
-          sx: {
-            backgroundColor: colors.primary[400],
-            color: colors.grey[100],
-          },
-        }}
-      >
-        <DialogTitle sx={{ color: colors.grey[100] }}>
-          Verificación de paciente
-        </DialogTitle>
+      <Dialog open={openPacienteCheck} onClose={handlePacienteCheckNo}>
+        <DialogTitle>Verificación de paciente</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ color: colors.grey[200] }}>
+          <DialogContentText>
             ¿El paciente ya se encuentra registrado en la base de datos?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={handlePacienteCheckNo}
-            sx={{ color: colors.grey[300] }}
-          >
-            No
-          </Button>
-          <Button
-            onClick={handlePacienteCheckYes}
-            autoFocus
-            sx={{
-              color: colors.greenAccent[400],
-              "&:hover": {
-                backgroundColor: colors.greenAccent[700],
-              },
-            }}
-          >
+          <Button onClick={handlePacienteCheckNo}>No</Button>
+          <Button onClick={handlePacienteCheckYes} autoFocus>
             Sí
           </Button>
         </DialogActions>
       </Dialog>
 
-      <ProSidebar
-        collapsed={isCollapsed}
-        className={isCollapsed ? "collapsed" : ""}
-      >
+      {/* Sidebar principal */}
+      <ProSidebar collapsed={isCollapsed}>
         <Menu iconShape="square">
-          {/* --- Botón menú arriba --- */}
-          <Box
-            display="flex"
-            justifyContent={isCollapsed ? "center" : "flex-end"}
-            alignItems="center"
-            sx={{
-              height: 64,
-              mb: isCollapsed ? 0 : 1,
-              mt: isCollapsed ? 1.5 : 0,
-              pr: isCollapsed ? 0 : 1.5,
-            }}
-          >
-            <IconButton
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              sx={{
-                background:
-                  theme.palette.mode === "dark"
-                    ? colors.primary[500]
-                    : colors.grey[300],
-                color:
-                  theme.palette.mode === "dark"
-                    ? colors.grey[100]
-                    : colors.grey[900],
-                borderRadius: "50%",
-                width: "40px",
-                height: "40px",
-                transition: "background 0.3s",
-                boxShadow: "0 1px 5px #0002",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                "&:hover": {
-                  background: colors.greenAccent[600],
-                },
-                cursor: "pointer",
-              }}
-            >
-              <MenuOutlinedIcon
-                fontSize="medium"
-                sx={{
-                  color:
-                    theme.palette.mode === "dark"
-                      ? colors.grey[100]
-                      : colors.grey[900],
-                }}
-              />
-            </IconButton>
-          </Box>
-
-          {/* --- Perfil (solo abierto) --- */}
+          {/* Perfil y pin */}
           {!isCollapsed && (
             <Box
               display="flex"
@@ -303,11 +223,45 @@ const Sidebar = () => {
               alignItems="center"
               justifyContent="center"
               sx={{
-                borderBottom: "1px solid #d1d5db",
+                borderBottom: `1px solid ${borderColor}`,
                 pb: 2,
                 mb: 2,
+                position: "relative",
               }}
             >
+              {/* Pin */}
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                }}
+              >
+                <Tooltip
+                  title={isPinned ? "Desfijar sidebar" : "Fijar sidebar"}
+                >
+                  <IconButton
+                    onClick={togglePin}
+                    size="small"
+                    sx={{
+                      color: isPinned ? "#4377fe" : textSecondary,
+                      "&:hover": {
+                        color: "#4377fe",
+                        backgroundColor: isLight
+                          ? "rgba(0,0,0,0.04)"
+                          : "rgba(255,255,255,0.10)",
+                      },
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    {isPinned ? (
+                      <PushPinIcon fontSize="small" />
+                    ) : (
+                      <PushPinOutlinedIcon fontSize="small" />
+                    )}
+                  </IconButton>
+                </Tooltip>
+              </Box>
               <img
                 src="https://api.dicebear.com/7.x/notionists/svg?seed=admin"
                 alt="avatar"
@@ -316,22 +270,21 @@ const Sidebar = () => {
                   height: 60,
                   borderRadius: "50%",
                   marginBottom: 8,
-                  background:
-                    theme.palette.mode === "dark" ? "#7c3aed" : "#a5b4fc",
+                  background: isLight ? "#c7d8ff" : colors.blueAccent[600],
+                  border: `2px solid ${borderColor}`,
                 }}
               />
-
               <Typography
                 variant="subtitle1"
                 fontWeight="bold"
-                color={colors.grey[100]}
+                color={textPrimary}
                 align="center"
               >
                 Admin
               </Typography>
               <Typography
                 variant="caption"
-                color={colors.grey[300]}
+                color={textSecondary}
                 align="center"
                 sx={{ fontSize: 12 }}
               >
@@ -340,32 +293,18 @@ const Sidebar = () => {
             </Box>
           )}
 
-          {/* --- Menú Items --- */}
+          {/* Menú Items */}
           <Box
             display="flex"
             flexDirection="column"
             gap={isCollapsed ? 2 : 0}
-            paddingLeft={isCollapsed ? 2.5 : "10%"}
+            paddingLeft={isCollapsed ? 0 : "10%"}
             alignItems={isCollapsed ? "center" : "stretch"}
             sx={{
-              width: "100%",
+              width: isCollapsed ? "102px" : "100%",
               maxHeight: "calc(100vh - 200px)",
               overflowY: "auto",
-              // Aplicar scrollbar personalizado al contenedor de menú
-              "&::-webkit-scrollbar": {
-                width: "4px",
-              },
-              "&::-webkit-scrollbar-track": {
-                background: "transparent",
-              },
-              "&::-webkit-scrollbar-thumb": {
-                background: colors.grey[600],
-                borderRadius: "2px",
-                transition: "background 0.3s ease",
-              },
-              "&::-webkit-scrollbar-thumb:hover": {
-                background: colors.grey[500],
-              },
+              overflowX: "hidden",
             }}
             className="custom-scrollbar"
           >
@@ -376,14 +315,17 @@ const Sidebar = () => {
               selected={selected}
               setSelected={setSelected}
               isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
+              colors={colors}
             />
-            {/* Gestión Médica */}
             {!isCollapsed && (
               <Typography
                 variant="h6"
-                color={colors.grey[300]}
-                sx={{ m: "15px 0 5px 20px" }}
+                color={isLight ? "#111" : colors.grey[100]}
+                sx={{
+                  m: "15px 0 5px 20px",
+                  fontSize: "1rem",
+                  fontWeight: "bold",
+                }}
               >
                 Gestión Médica
               </Typography>
@@ -395,7 +337,7 @@ const Sidebar = () => {
               selected={selected}
               setSelected={setSelected}
               isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
+              colors={colors}
             />
             <Item
               title="Asignar Horarios"
@@ -404,7 +346,7 @@ const Sidebar = () => {
               selected={selected}
               setSelected={setSelected}
               isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
+              colors={colors}
             />
             <Item
               title="Registro de Asistencia"
@@ -413,16 +355,20 @@ const Sidebar = () => {
               selected={selected}
               setSelected={setSelected}
               isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
+              colors={colors}
             />
-            {/* Pacientes y Citas */}
+
             {!isCollapsed && (
               <Typography
                 variant="h6"
-                color={colors.grey[300]}
-                sx={{ m: "15px 0 5px 20px" }}
+                color={isLight ? "#111" : colors.grey[100]}
+                sx={{
+                  m: "15px 0 5px 20px",
+                  fontSize: "1rem",
+                  fontWeight: "bold",
+                }}
               >
-                Pacientes y Citas
+                Pacientes y citas
               </Typography>
             )}
             <Item
@@ -432,24 +378,39 @@ const Sidebar = () => {
               selected={selected}
               setSelected={setSelected}
               isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
+              colors={colors}
             />
             <MenuItem
               active={selected === "Agendar Consulta"}
               icon={<CalendarMonthOutlinedIcon />}
-              style={{ color: colors.grey[100] }}
-              onClick={() => handleAgendarClick()}
+              style={{
+                color: selected === "Agendar Consulta" ? "#4377fe" : "#111",
+                fontWeight: selected === "Agendar Consulta" ? "bold" : "normal",
+                borderRadius: "18px",
+              }}
+              onClick={handleAgendarClick}
+              sx={{
+                "&:hover": {
+                  backgroundColor: "rgba(100,100,100,0.06)",
+                  color: "#111",
+                  borderRadius: "18px",
+                },
+              }}
             >
               {!isCollapsed && <Typography>Agendar Consulta</Typography>}
             </MenuItem>
-            {/* Reportes y Estadísticas */}
+
             {!isCollapsed && (
               <Typography
                 variant="h6"
-                color={colors.grey[300]}
-                sx={{ m: "15px 0 5px 20px" }}
+                color={isLight ? "#111" : colors.grey[100]}
+                sx={{
+                  m: "15px 0 5px 20px",
+                  fontSize: "1rem",
+                  fontWeight: "bold",
+                }}
               >
-                Reportes y Estadísticas
+                Reportes y estadísticas
               </Typography>
             )}
             <Item
@@ -459,14 +420,18 @@ const Sidebar = () => {
               selected={selected}
               setSelected={setSelected}
               isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
+              colors={colors}
             />
-            {/* Configuración */}
+
             {!isCollapsed && (
               <Typography
                 variant="h6"
-                color={colors.grey[300]}
-                sx={{ m: "15px 0 5px 20px" }}
+                color={isLight ? "#111" : colors.grey[100]}
+                sx={{
+                  m: "15px 0 5px 20px",
+                  fontSize: "1rem",
+                  fontWeight: "bold",
+                }}
               >
                 Configuración
               </Typography>
@@ -478,7 +443,7 @@ const Sidebar = () => {
               selected={selected}
               setSelected={setSelected}
               isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
+              colors={colors}
             />
             <Item
               title="Soporte y Ayuda"
@@ -487,7 +452,7 @@ const Sidebar = () => {
               selected={selected}
               setSelected={setSelected}
               isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
+              colors={colors}
             />
             <Item
               title="Cerrar sesión"
@@ -496,11 +461,12 @@ const Sidebar = () => {
               selected={selected}
               setSelected={setSelected}
               isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
+              colors={colors}
             />
           </Box>
         </Menu>
       </ProSidebar>
+
       <RegistroPacienteDialog
         open={showFormularioPaciente}
         onClose={() => setShowFormularioPaciente(false)}
