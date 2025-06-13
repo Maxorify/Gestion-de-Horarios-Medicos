@@ -1,4 +1,4 @@
-// Sidebar.jsx
+// Sidebar.jsx - Versión actualizada con scrollbar personalizado
 import { useState, useEffect } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme } from "@mui/material";
@@ -18,7 +18,6 @@ import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import IconButton from "@mui/material/IconButton";
 
-// ----- Item component -----
 const Item = ({
   title,
   to,
@@ -59,48 +58,60 @@ const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selected, setSelected] = useState("Dashboard");
 
-  // Scrollbar CSS sólo una vez (global)
+  // Efecto para actualizar las variables CSS del tema
   useEffect(() => {
-    const css = `
-      .sidebar-menu-scroll {
-        max-height: calc(100vh - 210px);
-        overflow-y: auto;
-        overflow-x: hidden; /* ESTA ES LA LÍNEA CLAVE */
-        scrollbar-width: thin;
-        scrollbar-color: ${colors.grey[600]} ${colors.primary[400]};
-      }
-      .sidebar-menu-scroll::-webkit-scrollbar {
-        width: 6px;
-      }
-      .sidebar-menu-scroll::-webkit-scrollbar-thumb {
-        background: ${colors.grey[600]};
-        border-radius: 4px;
-      }
-      .sidebar-menu-scroll::-webkit-scrollbar-thumb:hover {
-        background: ${colors.greenAccent[600]};
-      }
-      /* Estilos adicionales para prevenir el scroll horizontal */
-      .pro-sidebar {
-        overflow-x: hidden !important;
-      }
-      .pro-sidebar-inner {
-        overflow-x: hidden !important;
-      }
-    `;
-    const style = document.createElement("style");
-    style.innerHTML = css;
-    document.head.appendChild(style);
-    return () => document.head.removeChild(style);
-  }, [colors]);
+    const root = document.documentElement;
+
+    if (theme.palette.mode === "dark") {
+      root.setAttribute("data-theme", "dark");
+      // Variables para modo oscuro
+      root.style.setProperty("--scrollbar-track", colors.primary[400]);
+      root.style.setProperty("--scrollbar-thumb", colors.grey[600]);
+      root.style.setProperty("--scrollbar-thumb-hover", colors.grey[500]);
+      root.style.setProperty(
+        "--scrollbar-thumb-active",
+        colors.greenAccent[600]
+      );
+    } else {
+      root.setAttribute("data-theme", "light");
+      // Variables para modo claro
+      root.style.setProperty("--scrollbar-track", colors.primary[400]);
+      root.style.setProperty("--scrollbar-thumb", colors.grey[400]);
+      root.style.setProperty("--scrollbar-thumb-hover", colors.grey[600]);
+      root.style.setProperty(
+        "--scrollbar-thumb-active",
+        colors.greenAccent[500]
+      );
+    }
+  }, [theme.palette.mode, colors]);
 
   return (
     <Box
       sx={{
         height: "100vh",
-        overflow: "hidden", // Previene cualquier scroll en el contenedor principal
         "& .pro-sidebar-inner": {
           background: `${colors.primary[400]} !important`,
-          overflowX: "hidden !important", // Específicamente oculta scroll horizontal
+          // Aplicar clase para scrollbar personalizado
+          "&.custom-scrollbar": {
+            scrollbarWidth: "thin",
+            scrollbarColor: `${colors.grey[600]} ${colors.primary[400]}`,
+          },
+          // Webkit scrollbar styles
+          "&::-webkit-scrollbar": {
+            width: "6px",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "transparent",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: colors.grey[600],
+            borderRadius: "3px",
+            transition: "all 0.3s ease",
+          },
+          "&::-webkit-scrollbar-thumb:hover": {
+            background: colors.grey[500],
+            width: "8px",
+          },
         },
         "& .pro-icon-wrapper": {
           backgroundColor: "transparent !important",
@@ -115,10 +126,14 @@ const Sidebar = () => {
           color: "#6870fa !important",
         },
       }}
+      className="custom-scrollbar"
     >
-      <ProSidebar collapsed={isCollapsed}>
+      <ProSidebar
+        collapsed={isCollapsed}
+        className={isCollapsed ? "collapsed" : ""}
+      >
         <Menu iconShape="square">
-          {/* Botón Menú arriba */}
+          {/* --- Botón menú arriba --- */}
           <Box
             display="flex"
             justifyContent={isCollapsed ? "center" : "flex-end"}
@@ -167,7 +182,7 @@ const Sidebar = () => {
             </IconButton>
           </Box>
 
-          {/* Perfil (solo abierto) */}
+          {/* --- Perfil (solo abierto) --- */}
           {!isCollapsed && (
             <Box
               display="flex"
@@ -212,18 +227,34 @@ const Sidebar = () => {
             </Box>
           )}
 
-          {/* Menú Items (con scroll solo cuando lo necesite) */}
+          {/* --- Menú Items --- */}
           <Box
-            className="sidebar-menu-scroll"
             display="flex"
             flexDirection="column"
             gap={isCollapsed ? 2 : 0}
             paddingLeft={isCollapsed ? 2.5 : "10%"}
             alignItems={isCollapsed ? "center" : "stretch"}
             sx={{
-              width: "100%", // Asegura que no exceda el ancho del contenedor
-              boxSizing: "border-box", // Incluye padding en el cálculo del ancho
+              width: "100%",
+              maxHeight: "calc(100vh - 200px)",
+              overflowY: "auto",
+              // Aplicar scrollbar personalizado al contenedor de menú
+              "&::-webkit-scrollbar": {
+                width: "4px",
+              },
+              "&::-webkit-scrollbar-track": {
+                background: "transparent",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                background: colors.grey[600],
+                borderRadius: "2px",
+                transition: "background 0.3s ease",
+              },
+              "&::-webkit-scrollbar-thumb:hover": {
+                background: colors.grey[500],
+              },
             }}
+            className="custom-scrollbar"
           >
             <Item
               title="Dashboard"
@@ -234,6 +265,7 @@ const Sidebar = () => {
               isCollapsed={isCollapsed}
               setIsCollapsed={setIsCollapsed}
             />
+            {/* Gestión Médica */}
             {!isCollapsed && (
               <Typography
                 variant="h6"
@@ -270,6 +302,7 @@ const Sidebar = () => {
               isCollapsed={isCollapsed}
               setIsCollapsed={setIsCollapsed}
             />
+            {/* Pacientes y Citas */}
             {!isCollapsed && (
               <Typography
                 variant="h6"
@@ -297,6 +330,7 @@ const Sidebar = () => {
               isCollapsed={isCollapsed}
               setIsCollapsed={setIsCollapsed}
             />
+            {/* Reportes y Estadísticas */}
             {!isCollapsed && (
               <Typography
                 variant="h6"
@@ -315,6 +349,7 @@ const Sidebar = () => {
               isCollapsed={isCollapsed}
               setIsCollapsed={setIsCollapsed}
             />
+            {/* Configuración */}
             {!isCollapsed && (
               <Typography
                 variant="h6"
