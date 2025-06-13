@@ -1,13 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
 import App from "./App";
-
-// 👇 IMPORTA EL CONTEXTO Y EL HOOK DEL THEME (desde scenes/theme.js)
+import { BrowserRouter } from "react-router-dom";
 import { ColorModeContext, useMode } from "./theme";
 import { ThemeProvider, CssBaseline } from "@mui/material";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
-// 👇 Componente que provee el contexto y el ThemeProvider a toda tu app
+// Componente raíz con providers globales
 const Main = () => {
   const [theme, colorMode] = useMode();
 
@@ -15,17 +15,14 @@ const Main = () => {
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </LocalizationProvider>
       </ThemeProvider>
     </ColorModeContext.Provider>
   );
 };
 
-// 👇 Usa Main como raíz
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <Main />
-  </React.StrictMode>
-);
+ReactDOM.createRoot(document.getElementById("root")).render(<Main />);

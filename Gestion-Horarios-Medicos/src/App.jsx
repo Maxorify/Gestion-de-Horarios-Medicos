@@ -4,19 +4,12 @@ import AdminPanel from "./pages/AdminPanel.jsx";
 import DoctorPanel from "./pages/DoctorPanel.jsx";
 import SecretariaPanel from "./pages/SecretariaPanel.jsx";
 import AgendarConsulta from "./pages/AgendarConsulta";
-import Sidebar from "./components/SidebarAdmin.jsx";
 import "./styles.css";
 
-// 1. Aquí defines tu PrivateRoute:
+// Rutas protegidas por rol
 function PrivateRoute({ children, role }) {
   const isLoggedIn = localStorage.getItem("isLoggedIn");
-  // Si está logeado y su rol coincide, deja pasar:
-  if (isLoggedIn === role) {
-    return children;
-  } else {
-    // Si no, lo manda al login
-    return <Navigate to="/" />;
-  }
+  return isLoggedIn === role ? children : <Navigate to="/" />;
 }
 
 export default function App() {
@@ -47,6 +40,8 @@ export default function App() {
           </PrivateRoute>
         }
       />
+      {/* IMPORTANTE: agrega tu ruta extra aquí */}
+      <Route path="/admin/agendar" element={<AgendarConsulta />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );

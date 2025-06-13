@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@date-io/dayjs": "^3.2.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@fullcalendar/core": "^6.1.17",
@@ -19,12 +20,14 @@
     "@mui/icons-material": "^7.1.1",
     "@mui/material": "^7.1.1",
     "@mui/x-data-grid": "^8.5.1",
+    "@mui/x-date-pickers": "^8.5.2",
     "@nivo/bar": "^0.99.0",
     "@nivo/geo": "^0.99.0",
     "@nivo/line": "^0.99.0",
     "@nivo/pie": "^0.99.0",
     "@supabase/supabase-js": "^2.49.10",
     "@tailwindcss/vite": "^4.1.8",
+    "dayjs": "^1.11.13",
     "formik": "^2.4.6",
     "framer-motion": "^12.16.0",
     "react": "^19.1.0",

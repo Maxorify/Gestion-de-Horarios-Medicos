@@ -1,4 +1,4 @@
-// Sidebar.jsx - Versión actualizada con scrollbar personalizado
+// Sidebar.jsx - Versión actualizada con scrollbar personalizado y diálogos mejorados
 import { useState, useEffect } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme } from "@mui/material";
@@ -16,7 +16,14 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
+import RegistroPacienteDialog from "../components/RegistroPacienteDialog";
 import IconButton from "@mui/material/IconButton";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import Button from "@mui/material/Button";
 
 const Item = ({
   title,
@@ -57,6 +64,35 @@ const Sidebar = () => {
   const colors = tokens(theme.palette.mode);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selected, setSelected] = useState("Dashboard");
+
+  const [openConfirm, setOpenConfirm] = useState(false);
+  const [openPacienteCheck, setOpenPacienteCheck] = useState(false);
+  const [showFormularioPaciente, setShowFormularioPaciente] = useState(false);
+
+  const navigate = useNavigate();
+
+  const handleAgendarClick = () => {
+    setOpenConfirm(true);
+  };
+
+  const handleConfirmYes = () => {
+    setOpenConfirm(false);
+    setOpenPacienteCheck(true);
+  };
+
+  const handleConfirmNo = () => {
+    setOpenConfirm(false);
+  };
+
+  const handlePacienteCheckYes = () => {
+    setOpenPacienteCheck(false);
+    navigate("/admin/agendar"); // Puedes cambiar esto si quieres otra ruta
+  };
+
+  const handlePacienteCheckNo = () => {
+    setOpenPacienteCheck(false);
+    setShowFormularioPaciente(true);
+  };
 
   // Efecto para actualizar las variables CSS del tema
   useEffect(() => {
@@ -128,6 +164,83 @@ const Sidebar = () => {
       }}
       className="custom-scrollbar"
     >
+      <Dialog
+        open={openConfirm}
+        onClose={handleConfirmNo}
+        PaperProps={{
+          sx: {
+            backgroundColor: colors.primary[400],
+            color: colors.grey[100],
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: colors.grey[100] }}>
+          Confirmar inicio
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: colors.grey[200] }}>
+            ¿Desea iniciar el proceso de agendamiento de una consulta?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleConfirmNo} sx={{ color: colors.grey[300] }}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmYes}
+            autoFocus
+            sx={{
+              color: colors.greenAccent[400],
+              "&:hover": {
+                backgroundColor: colors.greenAccent[700],
+              },
+            }}
+          >
+            Continuar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={openPacienteCheck}
+        onClose={handlePacienteCheckNo}
+        PaperProps={{
+          sx: {
+            backgroundColor: colors.primary[400],
+            color: colors.grey[100],
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: colors.grey[100] }}>
+          Verificación de paciente
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: colors.grey[200] }}>
+            ¿El paciente ya se encuentra registrado en la base de datos?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handlePacienteCheckNo}
+            sx={{ color: colors.grey[300] }}
+          >
+            No
+          </Button>
+          <Button
+            onClick={handlePacienteCheckYes}
+            autoFocus
+            sx={{
+              color: colors.greenAccent[400],
+              "&:hover": {
+                backgroundColor: colors.greenAccent[700],
+              },
+            }}
+          >
+            Sí
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <ProSidebar
         collapsed={isCollapsed}
         className={isCollapsed ? "collapsed" : ""}
@@ -321,15 +434,14 @@ const Sidebar = () => {
               isCollapsed={isCollapsed}
               setIsCollapsed={setIsCollapsed}
             />
-            <Item
-              title="Agendar Consulta"
-              to="/admin/agendar"
+            <MenuItem
+              active={selected === "Agendar Consulta"}
               icon={<CalendarMonthOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
-              isCollapsed={isCollapsed}
-              setIsCollapsed={setIsCollapsed}
-            />
+              style={{ color: colors.grey[100] }}
+              onClick={() => handleAgendarClick()}
+            >
+              {!isCollapsed && <Typography>Agendar Consulta</Typography>}
+            </MenuItem>
             {/* Reportes y Estadísticas */}
             {!isCollapsed && (
               <Typography
@@ -389,6 +501,10 @@ const Sidebar = () => {
           </Box>
         </Menu>
       </ProSidebar>
+      <RegistroPacienteDialog
+        open={showFormularioPaciente}
+        onClose={() => setShowFormularioPaciente(false)}
+      />
     </Box>
   );
 };

@@ -1,0 +1,87 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.asistencias (
+  id integer NOT NULL DEFAULT nextval('asistencias_id_seq'::regclass),
+  cita_id integer,
+  llegada_paciente boolean,
+  aprobada_secretaria boolean,
+  fecha_registro timestamp without time zone DEFAULT now(),
+  motivo_ausencia text,
+  CONSTRAINT asistencias_pkey PRIMARY KEY (id),
+  CONSTRAINT asistencias_cita_id_fkey FOREIGN KEY (cita_id) REFERENCES public.citas(id)
+);
+CREATE TABLE public.citas (
+  id integer NOT NULL DEFAULT nextval('citas_id_seq'::regclass),
+  paciente_id integer,
+  doctor_id integer,
+  especialidad_id integer,
+  horario_id integer,
+  estado character varying NOT NULL DEFAULT 'pendiente'::character varying,
+  fecha_creacion timestamp without time zone DEFAULT now(),
+  fecha_cita date NOT NULL,
+  hora_inicio time without time zone NOT NULL,
+  hora_fin time without time zone NOT NULL,
+  observaciones text,
+  CONSTRAINT citas_pkey PRIMARY KEY (id),
+  CONSTRAINT citas_paciente_id_fkey FOREIGN KEY (paciente_id) REFERENCES public.pacientes(id),
+  CONSTRAINT citas_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.usuarios(id),
+  CONSTRAINT citas_especialidad_id_fkey FOREIGN KEY (especialidad_id) REFERENCES public.especialidades(id),
+  CONSTRAINT citas_horario_id_fkey FOREIGN KEY (horario_id) REFERENCES public.horarios_disponibles(id)
+);
+CREATE TABLE public.doctores_especialidades (
+  id integer NOT NULL DEFAULT nextval('doctores_especialidades_id_seq'::regclass),
+  doctor_id integer,
+  especialidad_id integer,
+  CONSTRAINT doctores_especialidades_pkey PRIMARY KEY (id),
+  CONSTRAINT doctores_especialidades_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.usuarios(id),
+  CONSTRAINT doctores_especialidades_especialidad_id_fkey FOREIGN KEY (especialidad_id) REFERENCES public.especialidades(id)
+);
+CREATE TABLE public.especialidades (
+  id integer NOT NULL DEFAULT nextval('especialidades_id_seq'::regclass),
+  nombre character varying NOT NULL,
+  CONSTRAINT especialidades_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.horarios_disponibles (
+  id integer NOT NULL DEFAULT nextval('horarios_disponibles_id_seq'::regclass),
+  doctor_id integer,
+  fecha date NOT NULL,
+  hora_inicio time without time zone NOT NULL,
+  hora_fin time without time zone NOT NULL,
+  CONSTRAINT horarios_disponibles_pkey PRIMARY KEY (id),
+  CONSTRAINT horarios_disponibles_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.usuarios(id)
+);
+CREATE TABLE public.pacientes (
+  id integer NOT NULL DEFAULT nextval('pacientes_id_seq'::regclass),
+  nombre character varying NOT NULL,
+  rut character varying,
+  email character varying,
+  telefono character varying,
+  fecha_nacimiento date,
+  creado_en timestamp without time zone DEFAULT now(),
+  CONSTRAINT pacientes_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.roles (
+  id integer NOT NULL DEFAULT nextval('roles_id_seq'::regclass),
+  nombre character varying NOT NULL,
+  CONSTRAINT roles_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tarifas (
+  id integer NOT NULL DEFAULT nextval('tarifas_id_seq'::regclass),
+  especialidad_id integer,
+  monto numeric NOT NULL,
+  vigente boolean DEFAULT true,
+  CONSTRAINT tarifas_pkey PRIMARY KEY (id),
+  CONSTRAINT tarifas_especialidad_id_fkey FOREIGN KEY (especialidad_id) REFERENCES public.especialidades(id)
+);
+CREATE TABLE public.usuarios (
+  id integer NOT NULL DEFAULT nextval('usuarios_id_seq'::regclass),
+  nombre character varying NOT NULL,
+  email character varying NOT NULL UNIQUE,
+  password character varying NOT NULL,
+  rol_id integer,
+  activo boolean DEFAULT true,
+  creado_en timestamp without time zone DEFAULT now(),
+  CONSTRAINT usuarios_pkey PRIMARY KEY (id),
+  CONSTRAINT usuarios_rol_id_fkey FOREIGN KEY (rol_id) REFERENCES public.roles(id)
+);
