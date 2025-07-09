@@ -4,12 +4,7 @@ import { useTheme } from "@mui/material";
 import { ColorModeContext, tokens } from "../theme";
 import Topbar from "../components/Topbar";
 import Sidebar from "../components/SidebarAdmin";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
+import ChatbotPopup from "../components/ChatbotPopup"; // ← chatbot importado
 
 function AdminPanel() {
   const navigate = useNavigate();
@@ -18,14 +13,11 @@ function AdminPanel() {
   const colorMode = useContext(ColorModeContext);
   const [isThemeSwitching, setIsThemeSwitching] = useState(false);
 
-  // Efecto para manejar las transiciones de tema
   useEffect(() => {
     const root = document.documentElement;
 
-    // Establecer el atributo data-theme para CSS
     root.setAttribute("data-theme", theme.palette.mode);
 
-    // Aplicar variables CSS dinámicamente
     if (theme.palette.mode === "dark") {
       root.style.setProperty("--scrollbar-track", colors.primary[400]);
       root.style.setProperty("--scrollbar-thumb", colors.grey[600]);
@@ -53,21 +45,14 @@ function AdminPanel() {
     }
   }, [theme.palette.mode, colors]);
 
-  // Función mejorada para manejar el cambio de tema con transición
   const handleThemeToggle = () => {
     setIsThemeSwitching(true);
-
-    // Agregar clase de transición al documento
     document.body.classList.add("theme-switching");
-
-    // Cambiar el tema
     colorMode.toggleColorMode();
-
-    // Remover la clase después de la transición
     setTimeout(() => {
       setIsThemeSwitching(false);
       document.body.classList.remove("theme-switching");
-    }, 600); // Duración de la transición
+    }, 600);
   };
 
   const handleLogout = () => {
@@ -75,40 +60,39 @@ function AdminPanel() {
     navigate("/");
   };
 
-  // Estilos dinámicos que responden al tema
   const mainContentStyle = {
     flex: 1,
     backgroundColor:
-      theme.palette.mode === "dark" ? colors.primary[500] : "#f8f9fa", // Fondo gris claro
+      theme.palette.mode === "dark" ? colors.primary[500] : "#f8f9fa",
     color: theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[900],
     minHeight: "100vh",
-    transition: "all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+    transition: "all 0.4s ease",
   };
 
   const contentAreaStyle = {
     padding: "24px",
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    minHeight: "calc(100vh - 64px)", // Altura menos el topbar
+    transition: "all 0.3s ease",
+    minHeight: "calc(100vh - 64px)",
+    position: "relative",
   };
 
-  // Contenedor principal con fondo definido
   const containerStyle = {
     backgroundColor:
-      theme.palette.mode === "dark" ? colors.primary[400] : "#ffffff", // Fondo blanco sólido para modo claro
+      theme.palette.mode === "dark" ? colors.primary[400] : "#ffffff",
     borderRadius: "16px",
     padding: "32px",
     boxShadow:
       theme.palette.mode === "dark"
         ? "0 8px 32px rgba(0, 0, 0, 0.4)"
-        : "0 4px 20px rgba(0, 0, 0, 0.08)", // Sombra sutil para modo claro
+        : "0 4px 20px rgba(0, 0, 0, 0.08)",
     border:
       theme.palette.mode === "dark"
         ? `1px solid ${colors.grey[700]}`
-        : `1px solid ${colors.grey[200]}`, // Borde sutil para definir el contenedor
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    minHeight: "calc(100vh - 112px)", // Ajustar altura considerando padding
+        : `1px solid ${colors.grey[200]}`,
+    transition: "all 0.3s ease",
+    minHeight: "calc(100vh - 112px)",
     position: "relative",
-    overflow: "hidden",
+    // OJO: no pongas overflow: hidden aquí
   };
 
   const welcomeTextStyle = {
@@ -117,20 +101,19 @@ function AdminPanel() {
     color: theme.palette.mode === "dark" ? colors.grey[100] : "#1a1a1a",
     marginBottom: "1rem",
     textShadow:
-      theme.palette.mode === "dark" ? "0 2px 4px rgba(0,0,0,0.3)" : "none", // Sin sombra para modo claro
+      theme.palette.mode === "dark" ? "0 2px 4px rgba(0,0,0,0.3)" : "none",
     transition: "all 0.3s ease",
     zIndex: 10,
     position: "relative",
   };
 
-  // Estilo para el indicador de tema
   const themeIndicatorStyle = {
     display: "inline-flex",
     alignItems: "center",
     padding: "12px 20px",
     borderRadius: "24px",
     backgroundColor:
-      theme.palette.mode === "dark" ? colors.primary[500] : colors.grey[100], // Fondo gris muy claro para modo claro
+      theme.palette.mode === "dark" ? colors.primary[500] : colors.grey[100],
     color: theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[800],
     fontSize: "0.875rem",
     fontWeight: "600",
@@ -145,21 +128,20 @@ function AdminPanel() {
         : "0 2px 8px rgba(0, 0, 0, 0.06)",
   };
 
-  // Estilo para la card de información
   const infoCardStyle = {
     padding: "24px",
     borderRadius: "16px",
     backgroundColor:
-      theme.palette.mode === "dark" ? colors.primary[500] : colors.grey[50], // Fondo gris muy claro para modo claro
+      theme.palette.mode === "dark" ? colors.primary[500] : colors.grey[50],
     boxShadow:
       theme.palette.mode === "dark"
         ? "0 4px 16px rgba(0, 0, 0, 0.3)"
-        : "0 2px 12px rgba(0, 0, 0, 0.06)", // Sombra más sutil para modo claro
+        : "0 2px 12px rgba(0, 0, 0, 0.06)",
     backdropFilter: "blur(10px)",
     border: `1px solid ${
       theme.palette.mode === "dark" ? colors.grey[600] : colors.grey[200]
     }`,
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    transition: "all 0.3s ease",
     position: "relative",
   };
 
@@ -169,9 +151,8 @@ function AdminPanel() {
         display: "flex",
         height: "100vh",
         backgroundColor:
-          theme.palette.mode === "dark" ? colors.primary[500] : "#f8f9fa", // Fondo gris claro
-        transition:
-          "background-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+          theme.palette.mode === "dark" ? colors.primary[500] : "#f8f9fa",
+        transition: "background-color 0.4s ease",
       }}
       className={`admin-panel-content custom-scrollbar ${
         isThemeSwitching ? "theme-transition-highlight" : ""
@@ -181,11 +162,9 @@ function AdminPanel() {
       <div style={mainContentStyle} className="main-content">
         <Topbar onThemeToggle={handleThemeToggle} />
         <div style={contentAreaStyle}>
-          {/* CONTENEDOR PRINCIPAL CON FONDO DEFINIDO */}
           <div style={containerStyle}>
             <h1 style={welcomeTextStyle}>Bienvenido Admin</h1>
 
-            {/* Indicador visual del tema actual */}
             <div style={themeIndicatorStyle}>
               <span
                 style={{
@@ -208,7 +187,6 @@ function AdminPanel() {
               Modo {theme.palette.mode === "dark" ? "Oscuro" : "Claro"} Activo
             </div>
 
-            {/* Contenido adicional con mejor estilo */}
             <div style={infoCardStyle}>
               <h3
                 style={{
@@ -243,7 +221,6 @@ function AdminPanel() {
               </p>
             </div>
 
-            {/* Área para dashboard widgets o contenido adicional */}
             <div
               style={{
                 marginTop: "2rem",
@@ -252,7 +229,6 @@ function AdminPanel() {
                 gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
               }}
             >
-              {/* Widget de ejemplo 1 */}
               <div style={infoCardStyle}>
                 <h4
                   style={{
@@ -286,7 +262,6 @@ function AdminPanel() {
                 </p>
               </div>
 
-              {/* Widget de ejemplo 2 */}
               <div style={infoCardStyle}>
                 <h4
                   style={{
@@ -318,6 +293,9 @@ function AdminPanel() {
               </div>
             </div>
           </div>
+
+          {/* ← Chatbot flotante, visible en todo el panel */}
+          <ChatbotPopup />
         </div>
       </div>
     </div>

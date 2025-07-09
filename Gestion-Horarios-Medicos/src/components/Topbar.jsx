@@ -229,7 +229,7 @@ const Topbar = ({ onThemeToggle }) => {
           placeholder="Buscar pacientes, doctores, citas..."
         />
       </Box>
-
+      // Línea dentro de tu componente Topbar.jsx ...
       {/* ICONOS Y PERFIL */}
       <Box display="flex" alignItems="center">
         {/* Botón de tema */}
@@ -240,9 +240,9 @@ const Topbar = ({ onThemeToggle }) => {
         >
           <IconButton onClick={handleThemeToggle} sx={iconButtonStyle}>
             {theme.palette.mode === "dark" ? (
-              <LightModeOutlinedIcon />
+              <LightModeOutlinedIcon sx={{ color: "#000" }} />
             ) : (
-              <DarkModeOutlinedIcon />
+              <DarkModeOutlinedIcon sx={{ color: "#000" }} />
             )}
           </IconButton>
         </Tooltip>
@@ -262,7 +262,7 @@ const Topbar = ({ onThemeToggle }) => {
                 },
               }}
             >
-              <NotificationsOutlinedIcon />
+              <NotificationsOutlinedIcon sx={{ color: "#000" }} />
             </Badge>
           </IconButton>
         </Tooltip>
@@ -270,11 +270,11 @@ const Topbar = ({ onThemeToggle }) => {
         {/* Configuración */}
         <Tooltip title="Configuración">
           <IconButton sx={iconButtonStyle}>
-            <SettingsOutlinedIcon />
+            <SettingsOutlinedIcon sx={{ color: "#000" }} />
           </IconButton>
         </Tooltip>
 
-        {/* Separador visual mejorado */}
+        {/* Separador visual */}
         <Divider
           orientation="vertical"
           flexItem
@@ -344,7 +344,7 @@ const Topbar = ({ onThemeToggle }) => {
                 sx={avatarStyle}
                 src="https://api.dicebear.com/7.x/notionists/svg?seed=admin"
               >
-                <PersonOutlinedIcon />
+                <PersonOutlinedIcon sx={{ color: "#000" }} />
               </Avatar>
             </IconButton>
           </Tooltip>
@@ -376,15 +376,15 @@ const Topbar = ({ onThemeToggle }) => {
               boxShadow:
                 theme.palette.mode === "dark"
                   ? `
-                  0 20px 40px rgba(0, 0, 0, 0.5),
-                  0 10px 20px rgba(0, 0, 0, 0.3),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.1)
-                `
+              0 20px 40px rgba(0, 0, 0, 0.5),
+              0 10px 20px rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1)
+            `
                   : `
-                  0 20px 40px rgba(0, 0, 0, 0.15),
-                  0 10px 20px rgba(0, 0, 0, 0.08),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.8)
-                `,
+              0 20px 40px rgba(0, 0, 0, 0.15),
+              0 10px 20px rgba(0, 0, 0, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8)
+            `,
               minWidth: "200px",
               backdropFilter: "blur(20px)",
               "& .MuiMenuItem-root": {
@@ -405,7 +405,7 @@ const Topbar = ({ onThemeToggle }) => {
           }}
         >
           <MenuItem onClick={handleProfile}>
-            <AccountCircleOutlinedIcon sx={{ mr: 2 }} />
+            <AccountCircleOutlinedIcon sx={{ color: "#000", mr: 2 }} />
             Mi Perfil
           </MenuItem>
           <Divider
@@ -418,7 +418,7 @@ const Topbar = ({ onThemeToggle }) => {
             }}
           />
           <MenuItem onClick={handleLogout}>
-            <LogoutOutlinedIcon sx={{ mr: 2 }} />
+            <LogoutOutlinedIcon sx={{ color: "#000", mr: 2 }} />
             Cerrar Sesión
           </MenuItem>
         </Menu>
