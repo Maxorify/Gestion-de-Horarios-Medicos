@@ -1,5 +1,6 @@
 import fondo from "../assets/fondo.jpg";
 import "../styles.css";
+import { supabase } from "../services/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useState, useEffect } from "react";
@@ -44,22 +45,51 @@ function Login() {
   ];
 
   // Handler para login
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const user = mockUsers.find(
-      (u) => u.email === email && u.password === password
-    );
-    if (user) {
-      setLoginError("");
-      setEmail("");
-      setPassword("");
-      localStorage.setItem("isLoggedIn", user.type); // <<--- AQUÍ
-      if (user.type === "admin") navigate("/admin");
-      else if (user.type === "doctor") navigate("/doctor");
-      else if (user.type === "secretaria") navigate("/secretaria");
-    } else {
-      setLoginError("Credenciales inválidas");
+    setLoginError("");
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setLoginError(error.message || "Error al iniciar sesión");
+      return;
     }
+
+    // data.user.id = uuid del usuario en auth.users
+    const user = data.user;
+
+    // 1) Lee el rol desde app_users (si no quieres roles, puedes saltarte esto)
+    let role = null;
+    let doctorId = null;
+
+    const { data: profile, error: profileErr } = await supabase
+      .from("app_users")
+      .select("role, doctor_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!profileErr && profile) {
+      role = profile.role;
+      doctorId = profile.doctor_id ?? null;
+    }
+
+    // 2) Guarda lo mínimo que ya usabas
+    localStorage.setItem("isLoggedIn", role || "admin"); // fallback para que funcione mientras poblas roles
+    if (doctorId) localStorage.setItem("doctorId", String(doctorId));
+    localStorage.setItem("userEmail", email);
+
+    // 3) Navega según el rol (los mismos paths que ya usabas)
+    if (role === "admin") navigate("/admin");
+    else if (role === "doctor") navigate("/doctor");
+    else if (role === "secretaria") navigate("/secretaria");
+    else navigate("/admin"); // fallback mientras llenas app_users
+
+    setEmail("");
+    setPassword("");
   };
 
   // Handler para reset de password

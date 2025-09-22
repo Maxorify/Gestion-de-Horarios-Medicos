@@ -1,9 +1,14 @@
+// vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite' // Import Tailwind CSS plugin
+import tailwindcss from '@tailwindcss/vite'
+import path from 'path'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()], // Add Tailwind CSS plugin to the Vite configuration
-  
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'), // esto habilita usar "@/..." en imports
+    },
+  },
 })

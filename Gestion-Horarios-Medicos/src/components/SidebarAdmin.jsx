@@ -454,15 +454,6 @@ const Sidebar = () => {
               isCollapsed={isCollapsed}
               colors={colors}
             />
-            <Item
-              title="Cerrar sesión"
-              to="/"
-              icon={<LogoutOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
-              isCollapsed={isCollapsed}
-              colors={colors}
-            />
           </Box>
         </Menu>
       </ProSidebar>

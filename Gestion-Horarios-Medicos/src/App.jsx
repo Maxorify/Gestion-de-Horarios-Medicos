@@ -8,6 +8,8 @@ import DoctorPanel from "./pages/DoctorPanel.jsx";
 import SecretariaPanel from "./pages/SecretariaPanel.jsx";
 import AgendarConsulta from "./pages/AgendarConsulta";
 import "./styles.css";
+import Reservar from "./pages/Reservar.jsx";
+import MisCitas from "./pages/MisCitas.jsx";
 
 // Rutas protegidas por rol
 function PrivateRoute({ children, role }) {
@@ -41,6 +43,24 @@ export default function App() {
               </PrivateRoute>
             }
           />
+          <Route
+            path="/reservar"
+            element={
+              <PrivateRoute role="admin">
+                <Reservar />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/mis-citas"
+            element={
+              <PrivateRoute role="admin">
+                <MisCitas />
+              </PrivateRoute>
+            }
+          />
+
           <Route
             path="/secretaria"
             element={

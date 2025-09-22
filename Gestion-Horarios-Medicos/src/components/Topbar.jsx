@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import { useContext, useState } from "react";
 import { ColorModeContext, tokens } from "../theme";
+import { supabase } from "@/services/supabaseClient";
 import InputBase from "@mui/material/InputBase";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
@@ -22,6 +23,8 @@ import SearchIcon from "@mui/icons-material/Search";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+
 
 const Topbar = ({ onThemeToggle }) => {
   const theme = useTheme();
@@ -41,11 +44,19 @@ const Topbar = ({ onThemeToggle }) => {
     setAnchorEl(null);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("isLoggedIn");
-    setAnchorEl(null);
-    navigate("/");
-  };
+  const handleLogout = async () => {
+    try {
+      setAnchorEl(null);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      localStorage.removeItem("isLoggedIn");
+      localStorage.removeItem("doctorId");
+      localStorage.removeItem("userEmail");
+      navigate("/");
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error.message);
+      alert("No se pudo cerrar sesión. Intenta de nuevo.");
+    } 
 
   const handleProfile = () => {
     setAnchorEl(null);
