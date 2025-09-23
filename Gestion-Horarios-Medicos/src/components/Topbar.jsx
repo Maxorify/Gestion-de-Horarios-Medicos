@@ -46,18 +46,13 @@ const Topbar = ({ onThemeToggle }) => {
 
   const handleLogout = async () => {
     try {
-      setAnchorEl(null);
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await supabase.auth.signOut();
       localStorage.removeItem("isLoggedIn");
-      localStorage.removeItem("doctorId");
-      localStorage.removeItem("userEmail");
-      navigate("/");
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error.message);
-      alert("No se pudo cerrar sesión. Intenta de nuevo.");
-    } 
-
+      window.location.href = "/"; // o usa navigate("/")
+    } catch (e) {
+      console.error("Error al cerrar sesión:", e);
+    }
+  };
   const handleProfile = () => {
     setAnchorEl(null);
     // Aquí puedes agregar navegación al perfil
@@ -240,7 +235,7 @@ const Topbar = ({ onThemeToggle }) => {
           placeholder="Buscar pacientes, doctores, citas..."
         />
       </Box>
-      // Línea dentro de tu componente Topbar.jsx ...
+    
       {/* ICONOS Y PERFIL */}
       <Box display="flex" alignItems="center">
         {/* Botón de tema */}
