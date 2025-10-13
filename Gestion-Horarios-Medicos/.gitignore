@@ -1,4 +1,4 @@
-# Logs
+# --- Logs ---
 logs
 *.log
 npm-debug.log*
@@ -7,12 +7,20 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# --- Build outputs ---
 node_modules
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# --- Env files (MUY IMPORTANTE) ---
+.env
+.env.local
+.env.*.local
+supabase/.env
+supabase/functions/.env
+
+# --- IDE & Editor basura ---
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,3 +30,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+Thumbs.db
+
+# --- OS cache & backups ---
+*.bak
+*.tmp
