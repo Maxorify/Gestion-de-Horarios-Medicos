@@ -11,18 +11,18 @@
   },
   "dependencies": {
     "@date-io/dayjs": "^3.2.0",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
     "@fullcalendar/core": "^6.1.17",
     "@fullcalendar/daygrid": "^6.1.17",
     "@fullcalendar/list": "^6.1.17",
     "@fullcalendar/timegrid": "^6.1.17",
     "@hookform/resolvers": "^5.2.2",
-    "@mui/icons-material": "^6.0.0",
-    "@mui/lab": "^6.0.1-beta.36",
-    "@mui/material": "^6.0.0",
-    "@mui/x-data-grid": "^7.0.0",
-    "@mui/x-date-pickers": "^8.5.2",
+    "@mui/icons-material": "5.15.20",
+    "@mui/material": "5.15.20",
+    "@mui/system": "5.15.20",
+    "@mui/x-data-grid": "6.20.4",
+    "@mui/x-date-pickers": "6.20.2",
     "@nivo/bar": "^0.99.0",
     "@nivo/geo": "^0.99.0",
     "@nivo/line": "^0.99.0",
@@ -61,5 +61,9 @@
     "source-map-js": "^1.2.1",
     "tailwindcss": "^4.1.14",
     "vite": "^6.3.5"
-  }
+  },
+  "overrides": {
+  "react": "^19.2.0",
+  "react-dom": "^19.2.0"
+}
 }
