@@ -1,22 +1,53 @@
-import React, { useMemo, useRef, useState } from "react";
+// src/features/pacientes/pages/AgendarConsulta.jsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { DataGrid, esES as dataGridEsES } from "@mui/x-data-grid";
+
 import {
-  Box, Typography, Button, Paper, useTheme, Fade,
-  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
-  InputAdornment, TextField
+  Box,
+  Typography,
+  Button,
+  Paper,
+  useTheme,
+  Fade,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  InputAdornment,
+  TextField,
 } from "@mui/material";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import { DataGrid } from "@mui/x-data-grid";
 import RegistroPacienteDialog from "@/features/pacientes/components/RegistroPacienteDialog.jsx";
 import { tokenize, matchAllTokens, highlightRenderer } from "@/utils/search";
+import { listarPacientes } from "@/services/pacientes";
 
-const pacientesEjemplo = [
-  { id: 1, rut: "12.345.678-9", nombre: "Juan",  apellido: "Pérez", correo: "juan@correo.com",  numero: "+56912345678" },
-  { id: 2, rut: "20.987.654-3", nombre: "María", apellido: "López", correo: "maria@correo.com", numero: "+56987654321" },
-];
+const pacientesEjemplo = []; // fallback vacío; cargamos desde Supabase
 
 export default function AgendarConsulta() {
   const theme = useTheme();
   const [pacientes, setPacientes] = useState(pacientesEjemplo);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+
+  // cargar desde Supabase
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        setCargando(true);
+        const rows = await listarPacientes();
+        if (!cancel) setPacientes(rows);
+      } catch (e) {
+        if (!cancel) setError(e.message || "Error al cargar pacientes");
+      } finally {
+        if (!cancel) setCargando(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, []);
 
   // búsqueda con debounce
   const [query, setQuery] = useState("");
@@ -33,17 +64,25 @@ export default function AgendarConsulta() {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [openPacienteCheck, setOpenPacienteCheck] = useState(false);
   const [openRegistroPaciente, setOpenRegistroPaciente] = useState(false);
-  const idCounter = useRef(pacientesEjemplo.length + 1);
 
   // handlers únicos
   const handleNuevoClick = () => setOpenConfirm(true);
   const handleConfirmCancel = () => setOpenConfirm(false);
-  const handleConfirmContinue = () => { setOpenConfirm(false); setOpenPacienteCheck(true); };
+  const handleConfirmContinue = () => {
+    setOpenConfirm(false);
+    setOpenPacienteCheck(true);
+  };
   const handlePacienteRegistrado = () => setOpenPacienteCheck(false);
-  const handlePacienteNoRegistrado = () => { setOpenPacienteCheck(false); setOpenRegistroPaciente(true); };
+  const handlePacienteNoRegistrado = () => {
+    setOpenPacienteCheck(false);
+    setOpenRegistroPaciente(true);
+  };
   const handleCloseRegistroPaciente = () => setOpenRegistroPaciente(false);
   const handleRegistroSuccess = (nuevoPaciente) => {
-    setPacientes((prev) => [{ id: idCounter.current++, ...nuevoPaciente }, ...prev]);
+    setPacientes((prev) => [
+      { id: `tmp-${Date.now()}`, ...nuevoPaciente },
+      ...prev,
+    ]);
     setOpenRegistroPaciente(false);
     setOpenPacienteCheck(false);
   };
@@ -52,20 +91,56 @@ export default function AgendarConsulta() {
   const tokens = useMemo(() => tokenize(query), [query]);
   const filtered = useMemo(() => {
     if (tokens.length === 0) return pacientes;
-    return pacientes.filter(p =>
-      matchAllTokens(`${p.rut} ${p.nombre} ${p.apellido} ${p.correo} ${p.numero}`, tokens)
+    return pacientes.filter((p) =>
+      matchAllTokens(
+        `${p.rut} ${p.nombre} ${p.apellido} ${p.correo} ${p.numero}`,
+        tokens
+      )
     );
   }, [pacientes, tokens]);
 
   // highlight renderers
   const h = highlightRenderer(query);
-  const columns = useMemo(() => ([
-    { field: "rut", headerName: "RUT", flex: 0.8, minWidth: 160, renderCell: ({ value }) => h(value) },
-    { field: "nombre", headerName: "Nombre", flex: 1, minWidth: 140, renderCell: ({ value }) => h(value) },
-    { field: "apellido", headerName: "Apellido", flex: 1, minWidth: 150, renderCell: ({ value }) => h(value) },
-    { field: "correo", headerName: "Correo", flex: 1.3, minWidth: 220, renderCell: ({ value }) => h(value) },
-    { field: "numero", headerName: "Teléfono", flex: 1, minWidth: 170, renderCell: ({ value }) => h(value) },
-  ]), [query]);
+  const columns = useMemo(
+    () => [
+      {
+        field: "rut",
+        headerName: "RUT",
+        flex: 0.8,
+        minWidth: 160,
+        renderCell: ({ value }) => h(value),
+      },
+      {
+        field: "nombre",
+        headerName: "Nombre",
+        flex: 1,
+        minWidth: 140,
+        renderCell: ({ value }) => h(value),
+      },
+      {
+        field: "apellido",
+        headerName: "Apellido",
+        flex: 1,
+        minWidth: 150,
+        renderCell: ({ value }) => h(value),
+      },
+      {
+        field: "correo",
+        headerName: "Correo",
+        flex: 1.3,
+        minWidth: 220,
+        renderCell: ({ value }) => h(value),
+      },
+      {
+        field: "numero",
+        headerName: "Teléfono",
+        flex: 1,
+        minWidth: 170,
+        renderCell: ({ value }) => h(value),
+      },
+    ],
+    [query]
+  );
 
   return (
     <Box
@@ -84,7 +159,8 @@ export default function AgendarConsulta() {
         <Paper
           elevation={4}
           sx={{
-            p: { xs: 2.5, md: 3 }, borderRadius: 4,
+            p: { xs: 2.5, md: 3 },
+            borderRadius: 4,
             width: "100%",
             maxWidth: { xs: "100%", lg: 1100 },
             backgroundImage:
@@ -112,7 +188,8 @@ export default function AgendarConsulta() {
                 Gestión de agenda clínica
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Localice pacientes registrados o incorpore nuevos en segundos para continuar con el proceso de agendamiento.
+                Localice pacientes registrados o incorpore nuevos en segundos
+                para continuar con el proceso de agendamiento.
               </Typography>
             </Box>
 
@@ -138,8 +215,12 @@ export default function AgendarConsulta() {
                   transition: "box-shadow 0.25s ease",
                 },
                 "& .MuiOutlinedInput-notchedOutline": { borderWidth: 0 },
-                "& .MuiInputBase-root:hover": { boxShadow: "0 0 0 3px rgba(67,119,254,0.12)" },
-                "& .Mui-focused": { boxShadow: "0 0 0 4px rgba(67,119,254,0.18)" },
+                "& .MuiInputBase-root:hover": {
+                  boxShadow: "0 0 0 3px rgba(67,119,254,0.12)",
+                },
+                "& .Mui-focused": {
+                  boxShadow: "0 0 0 4px rgba(67,119,254,0.18)",
+                },
               }}
             />
           </Box>
@@ -155,9 +236,29 @@ export default function AgendarConsulta() {
                 disableRowSelectionOnClick
                 autoHeight
                 pageSizeOptions={[5, 10, 25]}
-                initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
+                initialState={{
+                  pagination: { paginationModel: { pageSize: 5 } },
+                }}
+                loading={cargando}
+                localeText={{
+                  ...(dataGridEsES.components?.MuiDataGrid?.defaultProps
+                    ?.localeText || {}),
+                  noRowsLabel: "Sin pacientes",
+                  noResultsOverlayLabel: "No se encontraron coincidencias",
+                  footerRowSelected: (count) =>
+                    count === 1
+                      ? "1 fila seleccionada"
+                      : `${count.toLocaleString()} filas seleccionadas`,
+                  footerTotalVisibleRows: (visibleCount, totalCount) =>
+                    `${visibleCount.toLocaleString()} de ${totalCount.toLocaleString()}`,
+                  toolbarFiltersTooltipActive: (count) =>
+                    count !== 1
+                      ? `${count} filtros activos`
+                      : `${count} filtro activo`,
+                }}
                 sx={{
-                  mt: 1, borderRadius: 3,
+                  mt: 1,
+                  borderRadius: 3,
                   width: "100%",
                   minWidth: { xs: "100%", md: 560 },
                   border: `1px solid ${theme.palette.divider}`,
@@ -165,7 +266,9 @@ export default function AgendarConsulta() {
                   "& .MuiDataGrid-columnHeaders": {
                     borderBottom: `1px solid ${theme.palette.divider}`,
                     backgroundColor:
-                      theme.palette.mode === "light" ? "rgba(255,255,255,0.9)" : "rgba(30,30,30,0.9)",
+                      theme.palette.mode === "light"
+                        ? "rgba(255,255,255,0.9)"
+                        : "rgba(30,30,30,0.9)",
                     backdropFilter: "blur(6px)",
                   },
                   "& .MuiDataGrid-cell": {
@@ -192,6 +295,11 @@ export default function AgendarConsulta() {
                   },
                 }}
               />
+              {!!error && (
+                <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+                  {error}
+                </Typography>
+              )}
             </Box>
           </Fade>
 
@@ -201,7 +309,12 @@ export default function AgendarConsulta() {
               variant="contained"
               size="large"
               onClick={handleNuevoClick}
-              sx={{ borderRadius: "14px", px: 3.5, py: 1, boxShadow: "0 12px 24px -12px rgba(67,119,254,0.45)" }}
+              sx={{
+                borderRadius: "14px",
+                px: 3.5,
+                py: 1,
+                boxShadow: "0 12px 24px -12px rgba(67,119,254,0.45)",
+              }}
             >
               Nuevo
             </Button>
@@ -213,23 +326,35 @@ export default function AgendarConsulta() {
       <Dialog open={openConfirm} onClose={handleConfirmCancel}>
         <DialogTitle>Confirmar inicio</DialogTitle>
         <DialogContent>
-          <DialogContentText>¿Desea iniciar el proceso de agendamiento de una consulta?</DialogContentText>
+          <DialogContentText>
+            ¿Desea iniciar el proceso de agendamiento de una consulta?
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleConfirmCancel}>Cancelar</Button>
-          <Button onClick={handleConfirmContinue} autoFocus>Continuar</Button>
+          <Button onClick={handleConfirmContinue} autoFocus>
+            Continuar
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* ¿Paciente registrado? */}
-      <Dialog open={openPacienteCheck} onClose={() => setOpenPacienteCheck(false)}>
+      <Dialog
+        open={openPacienteCheck}
+        onClose={() => setOpenPacienteCheck(false)}
+      >
         <DialogTitle>¿El paciente está registrado?</DialogTitle>
         <DialogContent>
-          <DialogContentText>Antes de agendar, confirma si el paciente ya está inscrito en la base de datos.</DialogContentText>
+          <DialogContentText>
+            Antes de agendar, confirma si el paciente ya está inscrito en la
+            base de datos.
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handlePacienteNoRegistrado}>No</Button>
-          <Button onClick={handlePacienteRegistrado} autoFocus>Sí</Button>
+          <Button onClick={handlePacienteRegistrado} autoFocus>
+            Sí
+          </Button>
         </DialogActions>
       </Dialog>
 
