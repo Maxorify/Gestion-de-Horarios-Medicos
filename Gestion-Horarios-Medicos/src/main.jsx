@@ -1,13 +1,16 @@
+// src/main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
+
+// 👇 Aquí se importa el index.css (NO el styles.css)
+import "./index.css";
+
 import App from "./App";
-import { BrowserRouter } from "react-router-dom";
 import { ColorModeContext, useMode } from "./theme";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
-// Componente raíz con providers globales
 const Main = () => {
   const [theme, colorMode] = useMode();
 
@@ -16,9 +19,7 @@ const Main = () => {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
+          <App />
         </LocalizationProvider>
       </ThemeProvider>
     </ColorModeContext.Provider>

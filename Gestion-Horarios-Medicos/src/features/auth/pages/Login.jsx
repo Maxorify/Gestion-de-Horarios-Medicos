@@ -1,6 +1,8 @@
-import fondo from "../assets/fondo.jpg";
-import "../styles.css";
-import { supabase } from "../services/supabaseClient";
+// src/features/auth/pages/Login.jsx
+import fondo from "@/assets/fondo.jpg";
+import "@/styles.css";
+
+import { supabase } from "@/services/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useState, useEffect } from "react";
@@ -10,15 +12,20 @@ import CssBaseline from "@mui/material/CssBaseline";
 const loginTheme = createTheme({
   palette: {
     mode: "light",
-    background: {
-      paper: "#fff",
-      default: "transparent",
-    },
-    text: {
-      primary: "#222",
-    },
+    background: { paper: "#fff", default: "transparent" },
+    text: { primary: "#222" },
   },
 });
+
+// Mapa de home por rol
+const HOME_BY_ROLE = {
+  admin: "/admin",
+  secretaria: "/sec",
+  doctor: "/doctor",
+};
+
+// Fallback por si el usuario aún no tiene fila en app_users
+const DEFAULT_ROLE = "secretaria";
 
 function Login() {
   // Estados para login y reset
@@ -31,18 +38,32 @@ function Login() {
   const [loginError, setLoginError] = useState("");
   const navigate = useNavigate();
 
+  // Si ya hay sesión, redirige según rol
   useEffect(() => {
-    const tipoUsuario = localStorage.getItem("isLoggedIn");
-    if (tipoUsuario === "admin") navigate("/admin");
-    else if (tipoUsuario === "doctor") navigate("/doctor");
-    else if (tipoUsuario === "secretaria") navigate("/secretaria");
-  }, [navigate]);
+    let mounted = true;
 
-  const mockUsers = [
-    { email: "admin@admin.com", password: "1234", type: "admin" },
-    { email: "doctor@admin.com", password: "doctor123", type: "doctor" },
-    { email: "secretaria@admin.com", password: "sec123", type: "secretaria" },
-  ];
+    async function boot() {
+      const { data: sessData } = await supabase.auth.getSession();
+      const session = sessData?.session ?? null;
+      if (!session || !mounted) return;
+
+      const authUser = session.user;
+      const { data: profile } = await supabase
+        .from("app_users")
+        .select("role")
+        .eq("user_id", authUser.id)
+        .single();
+
+      const role = profile?.role ?? DEFAULT_ROLE;
+      const to = HOME_BY_ROLE[role] ?? HOME_BY_ROLE[DEFAULT_ROLE];
+      navigate(to, { replace: true });
+    }
+
+    boot();
+    return () => {
+      mounted = false;
+    };
+  }, [navigate]);
 
   // Handler para login
   const handleLogin = async (e) => {
@@ -59,40 +80,40 @@ function Login() {
       return;
     }
 
-    // data.user.id = uuid del usuario en auth.users
-    const user = data.user;
+    const authUser = data?.user;
+    if (!authUser) {
+      setLoginError("No se recibió usuario autenticado.");
+      return;
+    }
 
-    // 1) Lee el rol desde app_users (si no quieres roles, puedes saltarte esto)
-    let role = null;
-    let doctorId = null;
-
+    // Lee el rol desde app_users
     const { data: profile, error: profileErr } = await supabase
       .from("app_users")
       .select("role, doctor_id")
-      .eq("user_id", user.id)
+      .eq("user_id", authUser.id)
       .single();
 
-    if (!profileErr && profile) {
-      role = profile.role;
-      doctorId = profile.doctor_id ?? null;
-    }
+    const role = profile?.role ?? DEFAULT_ROLE;
 
-    // 2) Guarda lo mínimo que ya usabas
-    localStorage.setItem("isLoggedIn", role || "admin"); // fallback para que funcione mientras poblas roles
-    if (doctorId) localStorage.setItem("doctorId", String(doctorId));
-    localStorage.setItem("userEmail", email);
+    // Si alguien por ahí aún depende de estos, los dejamos sin molestar:
+    try {
+      localStorage.setItem("userEmail", email);
+      if (profile?.doctor_id) {
+        localStorage.setItem("doctorId", String(profile.doctor_id));
+      }
+      // Nota: ya NO usamos isLoggedIn para decidir la ruta, pero no estorba si existe.
+      localStorage.setItem("isLoggedIn", role);
+    } catch {}
 
-    // 3) Navega según el rol (los mismos paths que ya usabas)
-    if (role === "admin") navigate("/admin");
-    else if (role === "doctor") navigate("/doctor");
-    else if (role === "secretaria") navigate("/secretaria");
-    else navigate("/admin"); // fallback mientras llenas app_users
+    // Redirige por rol
+    const to = HOME_BY_ROLE[role] ?? HOME_BY_ROLE[DEFAULT_ROLE];
+    navigate(to, { replace: true });
 
     setEmail("");
     setPassword("");
   };
 
-  // Handler para reset de password
+  // Handler para reset de password (mock visual)
   const handleReset = (e) => {
     e.preventDefault();
     if (password !== confirmPassword) {
@@ -109,7 +130,7 @@ function Login() {
     }, 2000);
   };
 
-  // Al cambiar de vista, limpia errores/campos
+  // Navegación entre vistas
   const goToReset = () => {
     setShowReset(true);
     setLoginError("");
@@ -141,7 +162,7 @@ function Login() {
       />
 
       <div className="absolute right-0 top-0 w-2/3 h-full opacity-30">
-        <div className="w-full h-full bg-gradient-to-l from-blue-300 to-transparent"></div>
+        <div className="w-full h-full bg-gradient-to-l from-blue-300 to-transparent" />
       </div>
 
       <ThemeProvider theme={loginTheme}>
