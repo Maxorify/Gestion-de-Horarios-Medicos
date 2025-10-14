@@ -15,6 +15,7 @@ import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { useState } from "react";
 import { guardarPaciente } from "@/services/pacientes";
+import { cleanRutValue, formatRut, isValidRut } from "@/utils/rut";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -23,7 +24,7 @@ import "dayjs/locale/es";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-export default function RegistroPacienteDialog({ open, onClose }) {
+export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
   const theme = useTheme();
 
   const [formData, setFormData] = useState({
@@ -42,33 +43,6 @@ export default function RegistroPacienteDialog({ open, onClose }) {
     telefonoNumero: "",
   });
 
-  function formateaRut(rut) {
-    rut = rut.replace(/[^0-9kK]/g, "");
-    if (rut.length === 0) return "";
-    let cuerpo = rut.slice(0, -1);
-    let dv = rut.slice(-1).toUpperCase();
-    cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    return cuerpo + (cuerpo ? "-" : "") + dv;
-  }
-  function rutLimpio(rut) {
-    return rut.replace(/\./g, "").replace(/-/g, "");
-  }
-  function validaRut(rut) {
-    rut = rut.replace(/\./g, "").replace(/-/g, "");
-    if (!/^\d{7,8}[0-9kK]{1}$/.test(rut)) return false;
-    let cuerpo = rut.slice(0, -1);
-    let dv = rut.slice(-1).toUpperCase();
-    let suma = 0,
-      multiplo = 2;
-    for (let i = cuerpo.length - 1; i >= 0; i--) {
-      suma += parseInt(cuerpo[i]) * multiplo;
-      multiplo = multiplo < 7 ? multiplo + 1 : 2;
-    }
-    let dvEsperado = 11 - (suma % 11);
-    dvEsperado =
-      dvEsperado === 11 ? "0" : dvEsperado === 10 ? "K" : dvEsperado.toString();
-    return dv === dvEsperado;
-  }
   function validaCorreo(correo) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
   }
@@ -85,11 +59,11 @@ export default function RegistroPacienteDialog({ open, onClose }) {
         value.length < 8 || value.length > 9 ? "Debe tener 8 o 9 dígitos" : "";
     }
     if (field === "rut") {
-      value = formateaRut(value);
+      value = formatRut(value);
       newErrors.rut =
         value.replace(/\./g, "").replace(/-/g, "").length < 8
           ? "RUT muy corto"
-          : !validaRut(value)
+          : value && !isValidRut(value)
           ? "RUT inválido"
           : "";
     }
@@ -111,7 +85,7 @@ export default function RegistroPacienteDialog({ open, onClose }) {
     formData.nombres.trim() &&
     formData.apellidos.trim() &&
     formData.rut.trim() &&
-    validaRut(formData.rut) &&
+    isValidRut(formData.rut) &&
     formData.correo.trim() &&
     validaCorreo(formData.correo) &&
     validaTelefono(formData.telefonoNumero) &&
@@ -168,7 +142,7 @@ export default function RegistroPacienteDialog({ open, onClose }) {
   const handleSubmit = async () => {
     const pacienteBD = {
       nombres_apellidos: `${formData.nombres} ${formData.apellidos}`.trim(),
-      rut: rutLimpio(formData.rut),
+      rut: cleanRutValue(formData.rut),
       email: formData.correo,
       telefono: `${formData.telefonoCodigo}${formData.telefonoNumero}`,
       fecha_nacimiento: dayjs(formData.fechaNacimiento).format("YYYY-MM-DD"),
@@ -176,6 +150,14 @@ export default function RegistroPacienteDialog({ open, onClose }) {
     };
     try {
       await guardarPaciente(pacienteBD);
+      const nuevoPaciente = {
+        rut: formatRut(formData.rut),
+        nombre: formData.nombres.trim(),
+        apellido: formData.apellidos.trim(),
+        correo: formData.correo.trim(),
+        numero: `${formData.telefonoCodigo}${formData.telefonoNumero}`,
+      };
+      onSuccess?.(nuevoPaciente);
       alert("¡Paciente registrado exitosamente!");
       onClose();
       resetForm();
