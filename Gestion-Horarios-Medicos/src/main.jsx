@@ -2,8 +2,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 
-// 👇 Aquí se importa el index.css (NO el styles.css)
+// 👇 Importa los estilos base de Tailwind y los estilos personalizados
 import "./index.css";
+import "./styles.css";
 
 import App from "./App";
 import { ColorModeContext, useMode } from "./theme";

@@ -7,8 +7,14 @@ import {
   Paper,
   useTheme,
   Fade,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import RegistroPacienteDialog from "@/features/pacientes/components/RegistroPacienteDialog.jsx";
 
 const pacientesEjemplo = [
   {
@@ -39,7 +45,28 @@ const columns = [
 
 const AgendarConsulta = () => {
   const [showTabla, setShowTabla] = useState(true);
+  const [openConfirm, setOpenConfirm] = useState(false);
+  const [openPacienteCheck, setOpenPacienteCheck] = useState(false);
+  const [openRegistroPaciente, setOpenRegistroPaciente] = useState(false);
   const theme = useTheme();
+
+  const handleNuevoClick = () => setOpenConfirm(true);
+  const handleConfirmCancel = () => setOpenConfirm(false);
+  const handleConfirmContinue = () => {
+    setOpenConfirm(false);
+    setOpenPacienteCheck(true);
+  };
+  const handlePacienteCheckClose = () => setOpenPacienteCheck(false);
+  const handlePacienteRegistrado = () => {
+    setOpenPacienteCheck(false);
+    setShowTabla(true);
+  };
+  const handlePacienteNoRegistrado = () => {
+    setOpenPacienteCheck(false);
+    setShowTabla(false);
+    setOpenRegistroPaciente(true);
+  };
+  const handleCloseRegistroPaciente = () => setOpenRegistroPaciente(false);
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
@@ -57,6 +84,9 @@ const AgendarConsulta = () => {
             Buscar paciente
           </Typography>
           <Box display="flex" alignItems="center" gap={2}>
+            <Button variant="contained" onClick={handleNuevoClick}>
+              Nuevo
+            </Button>
             <Typography variant="body2" sx={{ mr: 1 }}>
               Nuevo Paciente
             </Typography>
@@ -108,6 +138,41 @@ const AgendarConsulta = () => {
           </Box>
         </Fade>
       </Paper>
+
+      <Dialog open={openConfirm} onClose={handleConfirmCancel}>
+        <DialogTitle>Confirmar inicio</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Desea iniciar el proceso de agendamiento de una consulta?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleConfirmCancel}>Cancelar</Button>
+          <Button onClick={handleConfirmContinue} autoFocus>
+            Continuar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openPacienteCheck} onClose={handlePacienteCheckClose}>
+        <DialogTitle>Verificación de paciente</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿El paciente ya se encuentra registrado en la base de datos?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handlePacienteNoRegistrado}>No</Button>
+          <Button onClick={handlePacienteRegistrado} autoFocus>
+            Sí
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <RegistroPacienteDialog
+        open={openRegistroPaciente}
+        onClose={handleCloseRegistroPaciente}
+      />
     </Box>
   );
 };

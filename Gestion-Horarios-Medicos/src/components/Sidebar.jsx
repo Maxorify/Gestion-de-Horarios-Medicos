@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
 import { tokens } from "../theme";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
@@ -14,23 +14,14 @@ import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined
 import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
-import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
-import RegistroPacienteDialog from "@/features/pacientes/components/RegistroPacienteDialog.jsx";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
 
 const Item = ({
   title,
   to,
   icon,
-  selected,
-  setSelected,
+  isActive,
   isCollapsed,
   colors,
 }) => {
@@ -38,7 +29,6 @@ const Item = ({
   const navigate = useNavigate();
 
   const handleClick = () => {
-    setSelected(title);
     navigate(to);
   };
 
@@ -46,14 +36,15 @@ const Item = ({
   const isLight = theme.palette.mode === "light";
   const itemColor = isLight ? "#111" : colors.grey[100];
   const activeColor = isLight ? "#4377fe" : colors.blueAccent[400];
+  const currentColor = isActive ? activeColor : itemColor;
 
   return (
     <MenuItem
-      active={selected === title}
+      active={isActive}
       style={{
-        color: selected === title ? activeColor : itemColor,
+        color: currentColor,
         transition: "color 0.3s ease",
-        fontWeight: selected === title ? "bold" : "normal",
+        fontWeight: isActive ? "bold" : "normal",
         borderRadius: "18px",
         margin: isCollapsed ? "8px 0" : "3px 0",
         padding: isCollapsed ? "2px 0" : "0",
@@ -79,30 +70,12 @@ const Sidebar = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [isCollapsed, setIsCollapsed] = useState(true);
-  const [selected, setSelected] = useState("Dashboard");
   const [isPinned, setIsPinned] = useState(false);
-
-  const [openConfirm, setOpenConfirm] = useState(false);
-  const [openPacienteCheck, setOpenPacienteCheck] = useState(false);
-  const [showFormularioPaciente, setShowFormularioPaciente] = useState(false);
-
-  const navigate = useNavigate();
-
-  // --- Diálogos ---
-  const handleAgendarClick = () => setOpenConfirm(true);
-  const handleConfirmYes = () => {
-    setOpenConfirm(false);
-    setOpenPacienteCheck(true);
-  };
-  const handleConfirmNo = () => setOpenConfirm(false);
-  const handlePacienteCheckYes = () => {
-    setOpenPacienteCheck(false);
-    navigate("/admin/agendar");
-  };
-  const handlePacienteCheckNo = () => {
-    setOpenPacienteCheck(false);
-    setShowFormularioPaciente(true);
-  };
+  const { pathname } = useLocation();
+  const resolveIsActive = (to, { matchChildren = true } = {}) =>
+    matchChildren
+      ? pathname === to || pathname.startsWith(`${to}/`)
+      : pathname === to;
 
   // Hover reveal y pin
   const handleMouseEnter = () => {
@@ -182,36 +155,6 @@ const Sidebar = () => {
       }}
       className="custom-scrollbar"
     >
-      {/* Diálogos */}
-      <Dialog open={openConfirm} onClose={handleConfirmNo}>
-        <DialogTitle>Confirmar inicio</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            ¿Desea iniciar el proceso de agendamiento de una consulta?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleConfirmNo}>Cancelar</Button>
-          <Button onClick={handleConfirmYes} autoFocus>
-            Continuar
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Dialog open={openPacienteCheck} onClose={handlePacienteCheckNo}>
-        <DialogTitle>Verificación de paciente</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            ¿El paciente ya se encuentra registrado en la base de datos?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handlePacienteCheckNo}>No</Button>
-          <Button onClick={handlePacienteCheckYes} autoFocus>
-            Sí
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Sidebar principal */}
       <ProSidebar collapsed={isCollapsed}>
         <Menu iconShape="square">
@@ -312,8 +255,7 @@ const Sidebar = () => {
               title="Dashboard"
               to="/admin"
               icon={<HomeOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
+              isActive={resolveIsActive("/admin", { matchChildren: false })}
               isCollapsed={isCollapsed}
               colors={colors}
             />
@@ -334,8 +276,7 @@ const Sidebar = () => {
               title="Doctores"
               to="/admin/doctores"
               icon={<GroupOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
+              isActive={resolveIsActive("/admin/doctores")}
               isCollapsed={isCollapsed}
               colors={colors}
             />
@@ -343,8 +284,7 @@ const Sidebar = () => {
               title="Asignar Horarios"
               to="/admin/asignar-horarios"
               icon={<ScheduleOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
+              isActive={resolveIsActive("/admin/asignar-horarios")}
               isCollapsed={isCollapsed}
               colors={colors}
             />
@@ -352,8 +292,7 @@ const Sidebar = () => {
               title="Registro de Asistencia"
               to="/admin/asistencias"
               icon={<FactCheckOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
+              isActive={resolveIsActive("/admin/asistencias")}
               isCollapsed={isCollapsed}
               colors={colors}
             />
@@ -375,30 +314,18 @@ const Sidebar = () => {
               title="Pacientes"
               to="/admin/pacientes"
               icon={<AssignmentIndOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
+              isActive={resolveIsActive("/admin/pacientes")}
               isCollapsed={isCollapsed}
               colors={colors}
             />
-            <MenuItem
-              active={selected === "Agendar Consulta"}
+            <Item
+              title="Agendar Consulta"
+              to="/admin/agendar"
               icon={<CalendarMonthOutlinedIcon />}
-              style={{
-                color: selected === "Agendar Consulta" ? "#4377fe" : "#111",
-                fontWeight: selected === "Agendar Consulta" ? "bold" : "normal",
-                borderRadius: "18px",
-              }}
-              onClick={handleAgendarClick}
-              sx={{
-                "&:hover": {
-                  backgroundColor: "rgba(100,100,100,0.06)",
-                  color: "#111",
-                  borderRadius: "18px",
-                },
-              }}
-            >
-              {!isCollapsed && <Typography>Agendar Consulta</Typography>}
-            </MenuItem>
+              isActive={resolveIsActive("/admin/agendar")}
+              isCollapsed={isCollapsed}
+              colors={colors}
+            />
 
             {!isCollapsed && (
               <Typography
@@ -417,8 +344,7 @@ const Sidebar = () => {
               title="Reportes de Asistencia"
               to="/admin/reportes-asistencia"
               icon={<AssessmentOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
+              isActive={resolveIsActive("/admin/reportes-asistencia")}
               isCollapsed={isCollapsed}
               colors={colors}
             />
@@ -440,8 +366,7 @@ const Sidebar = () => {
               title="Ajustes del sistema"
               to="/admin/configuracion"
               icon={<SettingsOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
+              isActive={resolveIsActive("/admin/configuracion")}
               isCollapsed={isCollapsed}
               colors={colors}
             />
@@ -449,19 +374,13 @@ const Sidebar = () => {
               title="Soporte y Ayuda"
               to="/admin/soporte"
               icon={<HelpOutlineOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
+              isActive={resolveIsActive("/admin/soporte")}
               isCollapsed={isCollapsed}
               colors={colors}
             />
           </Box>
         </Menu>
       </ProSidebar>
-
-      <RegistroPacienteDialog
-        open={showFormularioPaciente}
-        onClose={() => setShowFormularioPaciente(false)}
-      />
     </Box>
   );
 };
