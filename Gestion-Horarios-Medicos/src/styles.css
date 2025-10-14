@@ -1,3 +1,5 @@
+@reference "./index.css";
+
 /* ========================================
    RESET Y CONFIGURACIÓN BASE
    ======================================== */
@@ -145,3 +147,43 @@ html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.4
   pointer-events:none; z-index:1000;
 }
 @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+
+
+/* Login layout */
+.login-page {
+  @apply min-h-screen flex items-center justify-start pl-16 relative overflow-hidden;
+  background-size: cover;
+  background-position: center;
+}
+
+.login-container {
+  @apply relative z-10 bg-white rounded-2xl shadow-2xl p-12 w-[500px] max-w-xl ml-32;
+}
+
+.login-form {
+  @apply space-y-10 w-full;
+}
+
+.login-label {
+  @apply block text-sm font-medium text-gray-700 mb-2;
+}
+
+.login-input {
+  @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none;
+}
+
+.login-input-password {
+  @apply pr-12;
+}
+
+.login-button {
+  @apply w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+}
+
+.login-button:hover {
+  transform: translateY(-1px);
+}
+
+.login-button:active {
+  transform: translateY(0);
+}
