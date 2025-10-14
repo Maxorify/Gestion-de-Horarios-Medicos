@@ -286,10 +286,11 @@ export default function AgendarConsulta() {
                 pageSizeOptions={[5, 10, 25]}
                 initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
                 loading={cargando}
-                checkboxSelection={false}
+                checkboxSelection
                 rowSelectionModel={[]}
                 hideFooterSelectedRowCount
                 disableRowSelectionOnClick
+                onRowSelectionModelChange={() => {}}
                 onRowClick={(params) => {
                   setSelectedPacienteId(params.id);
                 }}
@@ -301,6 +302,9 @@ export default function AgendarConsulta() {
                   minWidth: { xs: "100%", md: 560 },
                   border: `1px solid ${theme.palette.divider}`,
                   backgroundColor: theme.palette.background.paper,
+                  "& .MuiDataGrid-cellCheckbox, & .MuiDataGrid-columnHeaderCheckbox": {
+                    display: "none",
+                  },
                   "& .MuiDataGrid-columnHeaders": {
                     borderBottom: `1px solid ${theme.palette.divider}`,
                     backgroundColor:
