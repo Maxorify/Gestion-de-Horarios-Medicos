@@ -134,6 +134,24 @@ const AgendarConsulta = () => {
 
   const rows = useMemo(() => pacientes, [pacientes]);
 
+  const handleNuevoClick = () => setOpenConfirm(true);
+  const handleConfirmCancel = () => setOpenConfirm(false);
+  const handleConfirmContinue = () => {
+    setOpenConfirm(false);
+    setOpenPacienteCheck(true);
+  };
+  const handlePacienteCheckClose = () => setOpenPacienteCheck(false);
+  const handlePacienteRegistrado = () => {
+    setOpenPacienteCheck(false);
+    setShowTabla(true);
+  };
+  const handlePacienteNoRegistrado = () => {
+    setOpenPacienteCheck(false);
+    setShowTabla(false);
+    setOpenRegistroPaciente(true);
+  };
+  const handleCloseRegistroPaciente = () => setOpenRegistroPaciente(false);
+
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, display: "grid", gap: 3 }}>
       <Fade in timeout={400}>
