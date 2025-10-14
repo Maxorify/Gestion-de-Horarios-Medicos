@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box, Typography, Button, Paper, useTheme, Fade,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
@@ -6,17 +6,16 @@ import {
 } from "@mui/material";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { DataGrid } from "@mui/x-data-grid";
+import { esES as dataGridEsES } from "@mui/x-data-grid/locales";
 import RegistroPacienteDialog from "@/features/pacientes/components/RegistroPacienteDialog.jsx";
 import { tokenize, matchAllTokens, highlightRenderer } from "@/utils/search";
-
-const pacientesEjemplo = [
-  { id: 1, rut: "12.345.678-9", nombre: "Juan",  apellido: "Pérez", correo: "juan@correo.com",  numero: "+56912345678" },
-  { id: 2, rut: "20.987.654-3", nombre: "María", apellido: "López", correo: "maria@correo.com", numero: "+56987654321" },
-];
+import { listarPacientes } from "@/services/pacientes";
 
 export default function AgendarConsulta() {
   const theme = useTheme();
-  const [pacientes, setPacientes] = useState(pacientesEjemplo);
+  const [pacientes, setPacientes] = useState([]);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
 
   // búsqueda con debounce
   const [query, setQuery] = useState("");
@@ -33,7 +32,7 @@ export default function AgendarConsulta() {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [openPacienteCheck, setOpenPacienteCheck] = useState(false);
   const [openRegistroPaciente, setOpenRegistroPaciente] = useState(false);
-  const idCounter = useRef(pacientesEjemplo.length + 1);
+  const idCounter = useRef(1);
 
   // handlers únicos
   const handleNuevoClick = () => setOpenConfirm(true);
@@ -43,10 +42,37 @@ export default function AgendarConsulta() {
   const handlePacienteNoRegistrado = () => { setOpenPacienteCheck(false); setOpenRegistroPaciente(true); };
   const handleCloseRegistroPaciente = () => setOpenRegistroPaciente(false);
   const handleRegistroSuccess = (nuevoPaciente) => {
-    setPacientes((prev) => [{ id: idCounter.current++, ...nuevoPaciente }, ...prev]);
+    setPacientes((prev) => {
+      const assignedId = nuevoPaciente?.id ?? idCounter.current++;
+      return [{ id: assignedId, ...nuevoPaciente }, ...prev];
+    });
     setOpenRegistroPaciente(false);
     setOpenPacienteCheck(false);
   };
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        setCargando(true);
+        const rows = await listarPacientes();
+        if (!cancel) setPacientes(rows);
+      } catch (e) {
+        if (!cancel) setError(e.message || "Error al cargar pacientes");
+      } finally {
+        if (!cancel) setCargando(false);
+      }
+    })();
+    return () => { cancel = true; };
+  }, []);
+
+  useEffect(() => {
+    const maxId = pacientes.reduce((max, paciente) => {
+      const numeric = typeof paciente.id === "number" ? paciente.id : Number.parseInt(paciente.id, 10);
+      return Number.isFinite(numeric) ? Math.max(max, numeric) : max;
+    }, 0);
+    idCounter.current = maxId + 1;
+  }, [pacientes]);
 
   // filtrado client-side
   const tokens = useMemo(() => tokenize(query), [query]);
@@ -156,6 +182,8 @@ export default function AgendarConsulta() {
                 autoHeight
                 pageSizeOptions={[5, 10, 25]}
                 initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
+                loading={cargando}
+                slotProps={{ pagination: { labelRowsPerPage: "Filas por página" } }}
                 sx={{
                   mt: 1, borderRadius: 3,
                   width: "100%",
@@ -191,9 +219,26 @@ export default function AgendarConsulta() {
                     borderRadius: "4px",
                   },
                 }}
+                localeText={{
+                  ...(dataGridEsES.components?.MuiDataGrid?.defaultProps?.localeText || {}),
+                  noRowsLabel: "Sin pacientes",
+                  noResultsOverlayLabel: "No se encontraron coincidencias",
+                  footerRowSelected: (count) =>
+                    count === 1 ? "1 fila seleccionada" : `${count.toLocaleString()} filas seleccionadas`,
+                  footerTotalVisibleRows: (visibleCount, totalCount) =>
+                    `${visibleCount.toLocaleString()} de ${totalCount.toLocaleString()}`,
+                  toolbarFiltersTooltipActive: (count) =>
+                    count !== 1 ? `${count} filtros activos` : `${count} filtro activo`,
+                }}
               />
             </Box>
           </Fade>
+
+          {!!error && (
+            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+              {error}
+            </Typography>
+          )}
 
           {/* CTA: nuevo */}
           <Box display="flex" justifyContent="flex-end" mt={2}>
