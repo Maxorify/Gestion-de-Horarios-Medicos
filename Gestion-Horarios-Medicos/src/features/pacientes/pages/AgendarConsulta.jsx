@@ -20,9 +20,12 @@ import { esES as dataGridEsES } from "@mui/x-data-grid/locales";
 import RegistroPacienteDialog from "@/features/pacientes/components/RegistroPacienteDialog.jsx";
 import { tokenize, matchAllTokens, highlightRenderer } from "@/utils/search";
 import { listarPacientes } from "@/services/pacientes";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 export default function AgendarConsulta() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [pacientes, setPacientes] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
@@ -43,6 +46,7 @@ export default function AgendarConsulta() {
   const [openPacienteCheck, setOpenPacienteCheck] = useState(false);
   const [openRegistroPaciente, setOpenRegistroPaciente] = useState(false);
   const idCounter = useRef(1);
+  const [selectedPacienteId, setSelectedPacienteId] = useState(null);
 
   // handlers únicos
   const handleNuevoClick = () => setOpenConfirm(true);
@@ -101,6 +105,11 @@ export default function AgendarConsulta() {
       )
     );
   }, [pacientes, tokens]);
+
+  const selectedPaciente = useMemo(
+    () => pacientes.find((p) => p.id === selectedPacienteId) || null,
+    [pacientes, selectedPacienteId]
+  );
 
   // highlight renderers
   const h = highlightRenderer(query);
@@ -196,36 +205,73 @@ export default function AgendarConsulta() {
               </Typography>
             </Box>
 
-            <TextField
-              value={qInternal}
-              onChange={onChangeQuery}
-              placeholder="Buscar por RUT, nombre, apellido, correo o teléfono"
-              size="medium"
-              fullWidth
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchRoundedIcon color="action" />
-                  </InputAdornment>
-                ),
-              }}
+            <Box
               sx={{
-                minWidth: { xs: "100%", md: 420 },
-                maxWidth: { xs: "100%", md: 420 },
-                "& .MuiInputBase-root": {
-                  borderRadius: 999,
-                  backgroundColor: theme.palette.background.paper,
-                  transition: "box-shadow 0.25s ease",
-                },
-                "& .MuiOutlinedInput-notchedOutline": { borderWidth: 0 },
-                "& .MuiInputBase-root:hover": {
-                  boxShadow: "0 0 0 3px rgba(67,119,254,0.12)",
-                },
-                "& .Mui-focused": {
-                  boxShadow: "0 0 0 4px rgba(67,119,254,0.18)",
-                },
+                width: "100%",
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: { xs: "stretch", sm: "center" },
+                gap: 1.5,
               }}
-            />
+            >
+              <TextField
+                value={qInternal}
+                onChange={onChangeQuery}
+                placeholder="Buscar por RUT, nombre, apellido, correo o teléfono"
+                size="medium"
+                fullWidth
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchRoundedIcon color="action" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  minWidth: { xs: "100%", md: 320 },
+                  "& .MuiInputBase-root": {
+                    borderRadius: 999,
+                    backgroundColor: theme.palette.background.paper,
+                    transition: "box-shadow 0.25s ease",
+                  },
+                  "& .MuiOutlinedInput-notchedOutline": { borderWidth: 0 },
+                  "& .MuiInputBase-root:hover": {
+                    boxShadow: "0 0 0 3px rgba(67,119,254,0.12)",
+                  },
+                  "& .Mui-focused": {
+                    boxShadow: "0 0 0 4px rgba(67,119,254,0.18)",
+                  },
+                }}
+              />
+
+              {selectedPaciente && (
+                <Button
+                  component={motion.button}
+                  whileHover={{ scale: 1.02, boxShadow: "0 12px 24px -12px rgba(67,119,254,0.55)" }}
+                  whileTap={{ scale: 0.98 }}
+                  variant="contained"
+                  color="primary"
+                  onClick={() =>
+                    navigate("/admin/agendar/seleccionar-horario", {
+                      state: {
+                        pacienteId: selectedPaciente.id,
+                        pacienteEmail: selectedPaciente.correo || "",
+                      },
+                    })
+                  }
+                  sx={{
+                    borderRadius: "14px",
+                    px: 3,
+                    py: 1,
+                    alignSelf: { xs: "stretch", sm: "auto" },
+                    boxShadow: "0 10px 22px -14px rgba(67,119,254,0.5)",
+                    transition: "box-shadow 0.25s ease",
+                  }}
+                >
+                  Siguiente: seleccionar horario
+                </Button>
+              )}
+            </Box>
           </Box>
 
           {/* Tabla */}
@@ -236,11 +282,17 @@ export default function AgendarConsulta() {
                 columns={columns}
                 getRowId={(r) => r.id}
                 disableColumnMenu
-                disableRowSelectionOnClick
                 autoHeight
                 pageSizeOptions={[5, 10, 25]}
                 initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
                 loading={cargando}
+                checkboxSelection={false}
+                rowSelectionModel={[]}
+                hideFooterSelectedRowCount
+                disableRowSelectionOnClick
+                onRowClick={(params) => {
+                  setSelectedPacienteId(params.id);
+                }}
                 slotProps={{ pagination: { labelRowsPerPage: "Filas por página" } }}
                 sx={{
                   mt: 1,
@@ -267,6 +319,16 @@ export default function AgendarConsulta() {
                         ? "rgba(67,119,254,0.06)"
                         : "rgba(67,119,254,0.18)",
                   },
+                  ...(selectedPacienteId
+                    ? {
+                        [`& .MuiDataGrid-row[data-id="${selectedPacienteId}"]`]: {
+                          backgroundColor:
+                            theme.palette.mode === "light"
+                              ? "rgba(67,119,254,0.12)"
+                              : "rgba(67,119,254,0.28)",
+                        },
+                      }
+                    : {}),
                   "& .MuiDataGrid-footerContainer": {
                     borderTop: `1px solid ${theme.palette.divider}`,
                   },
@@ -280,17 +342,11 @@ export default function AgendarConsulta() {
                     borderRadius: "4px",
                   },
                 }}
-                localeText={{
-                  ...(dataGridEsES.components?.MuiDataGrid?.defaultProps?.localeText || {}),
-                  noRowsLabel: "Sin pacientes",
-                  noResultsOverlayLabel: "No se encontraron coincidencias",
-                  footerRowSelected: (count) =>
-                    count === 1 ? "1 fila seleccionada" : `${count.toLocaleString()} filas seleccionadas`,
-                  footerTotalVisibleRows: (visibleCount, totalCount) =>
-                    `${visibleCount.toLocaleString()} de ${totalCount.toLocaleString()}`,
-                  toolbarFiltersTooltipActive: (count) =>
-                    count !== 1 ? `${count} filtros activos` : `${count} filtro activo`,
-                }}
+                localeText={
+                  dataGridEsES?.localeText ??
+                  dataGridEsES?.components?.MuiDataGrid?.defaultProps?.localeText ??
+                  {}
+                }
               />
               {!!error && (
                 <Typography color="error" variant="body2" sx={{ mt: 1 }}>

@@ -1,5 +1,5 @@
 // src/app/routes.jsx
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 
 // Guards & Layouts
 import AuthGuard from "./guards/AuthGuard.jsx";
@@ -14,6 +14,7 @@ import DoctorPanel from "@/features/auth/pages/DoctorPanel.jsx";
 import SecretariaPanel from "@/features/auth/pages/SecretariaPanel.jsx";
 import AgendarConsulta from "@/features/pacientes/pages/AgendarConsulta.jsx";
 import MisCitas from "@/features/pacientes/pages/MisCitas.jsx";
+import SeleccionarHorarioDoctor from "@/features/agenda/pages/SeleccionarHorarioDoctor.jsx";
 
 export const router = createBrowserRouter(
   [
@@ -42,7 +43,14 @@ export const router = createBrowserRouter(
                   path: "asistencias",
                   element: <div>Registro de Asistencia (placeholder)</div>,
                 },
-                { path: "agendar", element: <AgendarConsulta /> },
+                {
+                  path: "agendar",
+                  element: <Outlet />,
+                  children: [
+                    { index: true, element: <AgendarConsulta /> },
+                    { path: "seleccionar-horario", element: <SeleccionarHorarioDoctor /> },
+                  ],
+                },
                 { path: "mis-citas", element: <MisCitas /> },
                 {
                   path: "reportes-asistencia",
