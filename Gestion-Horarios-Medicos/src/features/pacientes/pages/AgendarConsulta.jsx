@@ -286,11 +286,10 @@ export default function AgendarConsulta() {
                 pageSizeOptions={[5, 10, 25]}
                 initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
                 loading={cargando}
-                rowSelectionModel={selectedPacienteId ? [selectedPacienteId] : []}
-                onRowSelectionModelChange={(selection) => {
-                  const value = Array.isArray(selection) && selection.length > 0 ? selection[0] : null;
-                  setSelectedPacienteId(value);
-                }}
+                checkboxSelection={false}
+                rowSelectionModel={[]}
+                hideFooterSelectedRowCount
+                disableRowSelectionOnClick
                 onRowClick={(params) => {
                   setSelectedPacienteId(params.id);
                 }}
@@ -320,6 +319,16 @@ export default function AgendarConsulta() {
                         ? "rgba(67,119,254,0.06)"
                         : "rgba(67,119,254,0.18)",
                   },
+                  ...(selectedPacienteId
+                    ? {
+                        [`& .MuiDataGrid-row[data-id="${selectedPacienteId}"]`]: {
+                          backgroundColor:
+                            theme.palette.mode === "light"
+                              ? "rgba(67,119,254,0.12)"
+                              : "rgba(67,119,254,0.28)",
+                        },
+                      }
+                    : {}),
                   "& .MuiDataGrid-footerContainer": {
                     borderTop: `1px solid ${theme.palette.divider}`,
                   },
@@ -333,17 +342,11 @@ export default function AgendarConsulta() {
                     borderRadius: "4px",
                   },
                 }}
-                localeText={{
-                  ...(dataGridEsES.components?.MuiDataGrid?.defaultProps?.localeText || {}),
-                  noRowsLabel: "Sin pacientes",
-                  noResultsOverlayLabel: "No se encontraron coincidencias",
-                  footerRowSelected: (count) =>
-                    count === 1 ? "1 fila seleccionada" : `${count.toLocaleString()} filas seleccionadas`,
-                  footerTotalVisibleRows: (visibleCount, totalCount) =>
-                    `${visibleCount.toLocaleString()} de ${totalCount.toLocaleString()}`,
-                  toolbarFiltersTooltipActive: (count) =>
-                    count !== 1 ? `${count} filtros activos` : `${count} filtro activo`,
-                }}
+                localeText={
+                  dataGridEsES?.localeText ??
+                  dataGridEsES?.components?.MuiDataGrid?.defaultProps?.localeText ??
+                  {}
+                }
               />
               {!!error && (
                 <Typography color="error" variant="body2" sx={{ mt: 1 }}>

@@ -275,18 +275,17 @@ export default function SeleccionarHorarioDoctor() {
                   loading={cargandoDoctores}
                   pageSizeOptions={[5, 10, 25]}
                   initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
-                  rowSelectionModel={selectedDoctorId ? [selectedDoctorId] : []}
-                  onRowSelectionModelChange={(selection) => {
-                    const value = Array.isArray(selection) && selection.length > 0 ? selection[0] : null;
-                    setSelectedDoctorId(value);
-                  }}
+                  checkboxSelection={false}
+                  rowSelectionModel={[]}
+                  hideFooterSelectedRowCount
+                  disableRowSelectionOnClick
                   onRowClick={(params) => setSelectedDoctorId(params.id)}
                   slotProps={{ pagination: { labelRowsPerPage: "Filas por página" } }}
-                  localeText={{
-                    ...(dataGridEsES.components?.MuiDataGrid?.defaultProps?.localeText || {}),
-                    noRowsLabel: cargandoDoctores ? "Cargando doctores..." : "Sin doctores",
-                    noResultsOverlayLabel: "Sin resultados",
-                  }}
+                  localeText={
+                    dataGridEsES?.localeText ??
+                    dataGridEsES?.components?.MuiDataGrid?.defaultProps?.localeText ??
+                    {}
+                  }
                   sx={{
                     borderRadius: 3,
                     border: `1px solid ${theme.palette.divider}`,
@@ -301,6 +300,16 @@ export default function SeleccionarHorarioDoctor() {
                     "& .MuiDataGrid-cell": {
                       borderBottom: `1px solid ${theme.palette.divider}`,
                     },
+                    ...(selectedDoctorId
+                      ? {
+                          [`& .MuiDataGrid-row[data-id="${selectedDoctorId}"]`]: {
+                            backgroundColor:
+                              theme.palette.mode === "light"
+                                ? "rgba(67,119,254,0.12)"
+                                : "rgba(67,119,254,0.28)",
+                          },
+                        }
+                      : {}),
                   }}
                 />
               </Box>
