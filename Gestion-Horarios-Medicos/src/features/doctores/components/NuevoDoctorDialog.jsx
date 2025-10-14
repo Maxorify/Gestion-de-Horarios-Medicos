@@ -25,7 +25,7 @@ import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
-import { crearDoctor, listarEspecialidades } from "@/services/doctores.js";
+import { crearDoctor, listarEspecialidadesPrincipales } from "@/services/doctores.js";
 
 const schema = yup.object({
   nombre: yup.string().required("Nombre obligatorio").min(2, "Mínimo 2 caracteres").max(100, "Máximo 100 caracteres"),
@@ -106,7 +106,7 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
       setLoadingEspecialidades(true);
       setSubmitError("");
       try {
-        const data = await listarEspecialidades();
+        const data = await listarEspecialidadesPrincipales();
         if (active) {
           setEspecialidades(data);
         }
