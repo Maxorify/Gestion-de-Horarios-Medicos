@@ -68,12 +68,25 @@ export default function AgendarConsulta() {
   ]), [query]);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, display: "grid", gap: 3 }}>
+    <Box
+      sx={{
+        p: { xs: 2, md: 4 },
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        width: "100%",
+        minHeight: "calc(100vh - 100px)",
+        gap: 3,
+        pb: 4,
+      }}
+    >
       <Fade in timeout={400}>
         <Paper
           elevation={4}
           sx={{
             p: { xs: 2.5, md: 3 }, borderRadius: 4,
+            width: "100%",
+            maxWidth: { xs: "100%", lg: 1100 },
             backgroundImage:
               theme.palette.mode === "light"
                 ? "linear-gradient(135deg, rgba(67,119,254,0.08), rgba(255,255,255,0.9))"
@@ -108,6 +121,7 @@ export default function AgendarConsulta() {
               onChange={onChangeQuery}
               placeholder="Buscar por RUT, nombre, apellido, correo o teléfono"
               size="medium"
+              fullWidth
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -117,6 +131,7 @@ export default function AgendarConsulta() {
               }}
               sx={{
                 minWidth: { xs: "100%", md: 420 },
+                maxWidth: { xs: "100%", md: 420 },
                 "& .MuiInputBase-root": {
                   borderRadius: 999,
                   backgroundColor: theme.palette.background.paper,
@@ -131,7 +146,7 @@ export default function AgendarConsulta() {
 
           {/* Tabla */}
           <Fade in timeout={500}>
-            <Box sx={{ mt: 2 }}>
+            <Box sx={{ mt: 2, width: "100%", overflowX: "auto" }}>
               <DataGrid
                 rows={filtered}
                 columns={columns}
@@ -143,6 +158,8 @@ export default function AgendarConsulta() {
                 initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
                 sx={{
                   mt: 1, borderRadius: 3,
+                  width: "100%",
+                  minWidth: { xs: "100%", md: 560 },
                   border: `1px solid ${theme.palette.divider}`,
                   backgroundColor: theme.palette.background.paper,
                   "& .MuiDataGrid-columnHeaders": {
