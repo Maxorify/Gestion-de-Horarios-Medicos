@@ -1,446 +1,147 @@
 /* ========================================
-   IMPORTS Y FUENTES
+   RESET Y CONFIGURACIÓN BASE
    ======================================== */
-   @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
-  
+html, body, #root, .app, .content { height: 100%; width: 100%; }
+.app { display: flex; position: relative; }
 
-   
-   /* ========================================
-      RESET Y CONFIGURACIÓN BASE
-      ======================================== */
-   html,
-   body,
-   #root,
-   .app,
-   .content {
-     height: 100%;
-     width: 100%;
-   }
-   
-   .app {
-     display: flex;
-     position: relative;
-   }
-   
-   /* ========================================
-      TRANSICIONES GLOBALES PARA CAMBIO DE TEMA
-      ======================================== */
-   * {
-     transition: 
-       background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       scrollbar-color 0.3s ease,
-       opacity 0.3s ease;
-   }
-   
-   /* Transición específica para elementos que cambian de tema */
-   html,
-   body,
-   #root {
-     transition: background-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-   }
-   
-   /* ========================================
-      VARIABLES CSS PARA TEMAS
-      ======================================== */
-   /* Variables para modo oscuro */
-   [data-theme="dark"] {
-     --scrollbar-track: #1F2A40;
-     --scrollbar-thumb: #525252;
-     --scrollbar-thumb-hover: #666666;
-     --scrollbar-thumb-active: #3da58a;
-     --scrollbar-bg: #141b2d;
-     --bg-primary: #141b2d;
-     --bg-secondary: #1F2A40;
-     --text-primary: #e0e0e0;
-     --text-secondary: #a3a3a3;
-     --border-color: #3d3d3d;
-     --shadow-color: rgba(0, 0, 0, 0.3);
-   }
-   
-   /* Variables para modo claro */
-   [data-theme="light"] {
-     --scrollbar-track: #f2f0f0;
-     --scrollbar-thumb: #a3a3a3;
-     --scrollbar-thumb-hover: #858585;
-     --scrollbar-thumb-active: #4cceac;
-     --scrollbar-bg: #fcfcfc;
-     --bg-primary: #fcfcfc;
-     --bg-secondary: #f2f0f0;
-     --text-primary: #141414;
-     --text-secondary: #525252;
-     --border-color: #e0e0e0;
-     --shadow-color: rgba(0, 0, 0, 0.1);
-   }
-   
-   /* ========================================
-      TRANSICIONES PARA COMPONENTES ESPECÍFICOS
-      ======================================== */
-   /* Transición suave para el sidebar */
-   .pro-sidebar,
-   .pro-sidebar-inner,
-   .pro-menu-item {
-     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-   }
-   
-   /* Transición para iconos y botones */
-   .MuiIconButton-root,
-   .MuiButton-root,
-   .pro-item-content {
-     transition: 
-       background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       transform 0.2s ease;
-   }
-   
-   /* Transición para Material-UI components */
-   .MuiPaper-root,
-   .MuiCard-root,
-   .MuiAppBar-root {
-     transition: 
-       background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-   }
-   
-   /* ========================================
-      SCROLLBAR PERSONALIZADO
-      ======================================== */
-   /* Clase base para scrollbar personalizado */
-   .custom-scrollbar {
-     /* Para Firefox */
-     scrollbar-width: thin;
-     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-     transition: scrollbar-color 0.4s ease;
-   }
-   
-   /* Scrollbar para Webkit (Chrome, Safari, Edge) */
-   .custom-scrollbar::-webkit-scrollbar {
-     width: 8px;
-     height: 8px;
-   }
-   
-   .custom-scrollbar::-webkit-scrollbar-track {
-     background: var(--scrollbar-track);
-     border-radius: 4px;
-     transition: background 0.4s ease;
-   }
-   
-   .custom-scrollbar::-webkit-scrollbar-thumb {
-     background: var(--scrollbar-thumb);
-     border-radius: 4px;
-     transition: background 0.4s ease, width 0.2s ease;
-   }
-   
-   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-     background: var(--scrollbar-thumb-hover);
-   }
-   
-   .custom-scrollbar::-webkit-scrollbar-thumb:active {
-     background: var(--scrollbar-thumb-active);
-   }
-   
-   /* Scrollbar por defecto (fallback para compatibilidad) */
-   ::-webkit-scrollbar {
-     width: 10px;
-   }
-   
-   ::-webkit-scrollbar-track {
-     background: #e0e0e0;
-     border-radius: 10px;
-     transition: background 0.3s ease;
-   }
-   
-   ::-webkit-scrollbar-thumb {
-     background: #888;
-     border-radius: 10px;
-     transition: background 0.3s ease;
-   }   
-   
-   ::-webkit-scrollbar-thumb:hover {
-     background: #555;
-   }
-   
-   /* ========================================
-      SCROLLBAR ESPECÍFICO PARA SIDEBAR
-      ======================================== */
-   /* Estilos para el sidebar principal */
-   .pro-sidebar .pro-sidebar-inner {
-     overflow-y: auto !important;
-     transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-   }
-   
-   .pro-sidebar .pro-sidebar-inner::-webkit-scrollbar {
-     width: 6px;
-   }
-   
-   .pro-sidebar .pro-sidebar-inner::-webkit-scrollbar-track {
-     background: transparent;
-   }
-   
-   .pro-sidebar .pro-sidebar-inner::-webkit-scrollbar-thumb {
-     background: var(--scrollbar-thumb);
-     border-radius: 3px;
-     transition: all 0.4s ease;
-   }
-   
-   .pro-sidebar .pro-sidebar-inner::-webkit-scrollbar-thumb:hover {
-     background: var(--scrollbar-thumb-hover);
-     width: 8px;
-   }
-   
-   /* Scrollbar cuando el sidebar está colapsado */
-   .pro-sidebar.collapsed .pro-sidebar-inner::-webkit-scrollbar {
-     width: 4px;
-   }
-   
-   .pro-sidebar.collapsed .pro-sidebar-inner::-webkit-scrollbar-thumb {
-     background: var(--scrollbar-thumb);
-     border-radius: 2px;
-     transition: all 0.4s ease;
-   }
-   
-   /* ========================================
-      SCROLLBAR PARA CONTENIDO PRINCIPAL
-      ======================================== */
-   .main-content {
-     overflow-y: auto;
-     height: 100vh;
-     transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-   }
-   
-   .main-content::-webkit-scrollbar {
-     width: 10px;
-   }
-   
-   .main-content::-webkit-scrollbar-track {
-     background: var(--scrollbar-track);
-     border-radius: 5px;
-     transition: background 0.4s ease;
-   }
-   
-   .main-content::-webkit-scrollbar-thumb {
-     background: var(--scrollbar-thumb);
-     border-radius: 5px;
-     border: 2px solid var(--scrollbar-track);
-     transition: background 0.4s ease, border-color 0.4s ease;
-   }
-   
-   .main-content::-webkit-scrollbar-thumb:hover {
-     background: var(--scrollbar-thumb-hover);
-   }
-   
-   /* ========================================
-      EFECTOS DE TRANSICIÓN PERSONALIZADOS
-      ======================================== */
-   /* Efecto de "breathing" para elementos importantes durante transición */
-   .theme-transition-highlight {
-     animation: breathe 0.6s ease-in-out;
-   }
-   
-   @keyframes breathe {
-     0% { opacity: 1; }
-     50% { opacity: 0.8; }
-     100% { opacity: 1; }
-   }
-   
-   /* Transición suave para el contenido principal */
-   .admin-panel-content {
-     transition: 
-       background-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-       color 0.3s ease,
-       border-color 0.3s ease;
-   }
-   
-   /* Transición para elementos de navegación */
-   .nav-item {
-     transition: 
-       background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       transform 0.2s ease;
-   }
-   
-   .nav-item:hover {
-     transform: translateX(2px);
-   }
-   
-   /* ========================================
-      RESPONSIVE DESIGN PARA SCROLLBAR
-      ======================================== */
-   /* Dispositivos móviles */
-   @media (max-width: 768px) {
-     .custom-scrollbar::-webkit-scrollbar {
-       width: 6px;
-     }
-     
-     .pro-sidebar .pro-sidebar-inner::-webkit-scrollbar {
-       width: 4px;
-     }
-     
-     .main-content::-webkit-scrollbar {
-       width: 8px;
-     }
-     
-     /* Transiciones más rápidas en móviles para mejor rendimiento */
-     * {
-       transition-duration: 0.2s;
-     }
-   }
-   
-   /* Tablets */
-   @media (min-width: 769px) and (max-width: 1024px) {
-     .custom-scrollbar::-webkit-scrollbar {
-       width: 8px;
-     }
-     
-     .main-content::-webkit-scrollbar {
-       width: 9px;
-     }
-   }
-   
-   /* Pantallas grandes */
-   @media (min-width: 1025px) {
-     .custom-scrollbar::-webkit-scrollbar {
-       width: 10px;
-     }
-   }
-   
-   /* ========================================
-      ESTILOS PARA PÁGINA DE LOGIN
-      ======================================== */
-   .login-page {
-     @apply min-h-screen flex items-center justify-start pl-16 relative overflow-hidden;
-     background-size: cover;
-     background-position: center;
-     transition: background-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-   }
-   
-   .login-container {
-     @apply relative z-10 bg-white rounded-2xl shadow-2xl p-12 w-125 max-w-xl ml-32;
-     transition: 
-       background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-       transform 0.3s ease;
-   }
-   
-   .login-form {
-     @apply space-y-10 w-full;
-   }
-   
-   .login-label {
-     @apply block text-sm font-medium text-gray-700 mb-2;
-     transition: color 0.3s ease;
-   }
-   
-   .login-input {
-     @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none;
-     transition: 
-       border-color 0.3s ease,
-       background-color 0.3s ease,
-       box-shadow 0.3s ease;
-   }
-   
-   .login-input-password {
-     @apply pr-12;
-   }
-   
-   .login-button {
-     @apply w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
-     transition: 
-       background-color 0.3s ease,
-       transform 0.2s ease,
-       box-shadow 0.3s ease;
-   }
-   
-   .login-button:hover {
-     transform: translateY(-1px);
-   }
-   
-   .login-button:active {
-     transform: translateY(0);
-   }
-   
-   /* ========================================
-      UTILIDADES ADICIONALES
-      ======================================== */
-   /* Ocultar scrollbar pero mantener funcionalidad */
-   .hide-scrollbar {
-     -ms-overflow-style: none;  /* Internet Explorer 10+ */
-     scrollbar-width: none;  /* Firefox */
-   }
-   
-   .hide-scrollbar::-webkit-scrollbar {
-     display: none;  /* Safari y Chrome */
-   }
-   
-   /* Scrollbar siempre visible */
-   .always-show-scrollbar {
-     overflow-y: scroll;
-   }
-   
-   /* Clase para elementos que deben destacar durante cambio de tema */
-   .theme-aware {
-     transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-   }
-   
-   /* ========================================
-      MEJORAS DE ACCESIBILIDAD
-      ======================================== */
-   /* Aumentar contraste en modo de alto contraste */
-   @media (prefers-contrast: high) {
-     [data-theme="dark"] {
-       --scrollbar-thumb: #ffffff;
-       --scrollbar-thumb-hover: #cccccc;
-     }
-     
-     [data-theme="light"] {
-       --scrollbar-thumb: #000000;
-       --scrollbar-thumb-hover: #333333;
-     }
-   }
-   
-   /* Reducir movimiento si el usuario lo prefiere */
-   @media (prefers-reduced-motion: reduce) {
-     * {
-       transition: none !important;
-       animation: none !important;
-     }
-     
-     .custom-scrollbar,
-     .custom-scrollbar::-webkit-scrollbar-thumb {
-       transition: none !important;
-     }
-   }
-   
-   /* ========================================
-      ESTADOS DE CARGA Y TRANSICIÓN
-      ======================================== */
-   /* Indicador sutil durante cambio de tema */
-   .theme-switching {
-     position: relative;
-   }
-   
-   .theme-switching::before {
-     content: '';
-     position: absolute;
-     top: 0;
-     left: 0;
-     right: 0;
-     bottom: 0;
-     background: linear-gradient(
-       45deg,
-       transparent 30%,
-       rgba(255, 255, 255, 0.05) 50%,
-       transparent 70%
-     );
-     animation: shimmer 0.6s ease-out;
-     pointer-events: none;
-     z-index: 1000;
-   }
-   
-   @keyframes shimmer {
-     0% { transform: translateX(-100%); }
-     100% { transform: translateX(100%); }
-   }
+/* Transiciones globales */
+* {
+  transition:
+    background-color 0.3s cubic-bezier(0.4,0,0.2,1),
+    color 0.3s cubic-bezier(0.4,0,0.2,1),
+    border-color 0.3s cubic-bezier(0.4,0,0.2,1),
+    box-shadow 0.3s cubic-bezier(0.4,0,0.2,1),
+    scrollbar-color 0.3s ease,
+    opacity 0.3s ease;
+}
+html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.45,0.94); }
+
+/* Variables de tema */
+[data-theme="dark"] {
+  --scrollbar-track:#1F2A40;
+  --scrollbar-thumb:#525252;
+  --scrollbar-thumb-hover:#666666;
+  --scrollbar-thumb-active:#3da58a;
+  --scrollbar-bg:#141b2d;
+  --bg-primary:#141b2d;
+  --bg-secondary:#1F2A40;
+  --text-primary:#e0e0e0;
+  --text-secondary:#a3a3a3;
+  --border-color:#3d3d3d;
+  --shadow-color:rgba(0,0,0,0.3);
+}
+[data-theme="light"] {
+  --scrollbar-track:#f2f0f0;
+  --scrollbar-thumb:#a3a3a3;
+  --scrollbar-thumb-hover:#858585;
+  --scrollbar-thumb-active:#4cceac;
+  --scrollbar-bg:#fcfcfc;
+  --bg-primary:#fcfcfc;
+  --bg-secondary:#f2f0f0;
+  --text-primary:#141414;
+  --text-secondary:#525252;
+  --border-color:#e0e0e0;
+  --shadow-color:rgba(0,0,0,0.1);
+}
+
+/* Transiciones específicas */
+.pro-sidebar, .pro-sidebar-inner, .pro-menu-item { transition: all 0.3s cubic-bezier(0.4,0,0.2,1) !important; }
+.MuiIconButton-root, .MuiButton-root, .pro-item-content {
+  transition:
+    background-color 0.3s cubic-bezier(0.4,0,0.2,1),
+    color 0.3s cubic-bezier(0.4,0,0.2,1),
+    box-shadow 0.3s cubic-bezier(0.4,0,0.2,1),
+    transform 0.2s ease;
+}
+.MuiPaper-root, .MuiCard-root, .MuiAppBar-root {
+  transition:
+    background-color 0.3s cubic-bezier(0.4,0,0.2,1),
+    box-shadow 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* Scrollbar global */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  transition: scrollbar-color 0.4s ease;
+}
+.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 4px; transition: background 0.4s ease; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; transition: background 0.4s ease, width 0.2s ease; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+.custom-scrollbar::-webkit-scrollbar-thumb:active { background: var(--scrollbar-thumb-active); }
+
+/* Fallback scrollbar */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background:#e0e0e0; border-radius:10px; transition:background 0.3s ease; }
+::-webkit-scrollbar-thumb { background:#888; border-radius:10px; transition:background 0.3s ease; }
+::-webkit-scrollbar-thumb:hover { background:#555; }
+
+/* Sidebar */
+.pro-sidebar .pro-sidebar-inner { overflow-y:auto !important; transition: background-color 0.3s cubic-bezier(0.4,0,0.2,1); }
+.pro-sidebar .pro-sidebar-inner::-webkit-scrollbar { width:6px; }
+.pro-sidebar .pro-sidebar-inner::-webkit-scrollbar-track { background:transparent; }
+.pro-sidebar .pro-sidebar-inner::-webkit-scrollbar-thumb { background:var(--scrollbar-thumb); border-radius:3px; transition:all 0.4s ease; }
+.pro-sidebar .pro-sidebar-inner::-webkit-scrollbar-thumb:hover { background:var(--scrollbar-thumb-hover); width:8px; }
+.pro-sidebar.collapsed .pro-sidebar-inner::-webkit-scrollbar { width:4px; }
+.pro-sidebar.collapsed .pro-sidebar-inner::-webkit-scrollbar-thumb { background:var(--scrollbar-thumb); border-radius:2px; transition:all 0.4s ease; }
+
+/* Main content */
+.main-content { overflow-y:auto; height:100vh; transition: background-color 0.3s cubic-bezier(0.4,0,0.2,1); }
+.main-content::-webkit-scrollbar { width:10px; }
+.main-content::-webkit-scrollbar-track { background:var(--scrollbar-track); border-radius:5px; transition:background 0.4s ease; }
+.main-content::-webkit-scrollbar-thumb { background:var(--scrollbar-thumb); border-radius:5px; border:2px solid var(--scrollbar-track); transition:background 0.4s ease, border-color 0.4s ease; }
+.main-content::-webkit-scrollbar-thumb:hover { background:var(--scrollbar-thumb-hover); }
+
+/* Efectos */
+.theme-transition-highlight { animation: breathe 0.6s ease-in-out; }
+@keyframes breathe { 0%{opacity:1} 50%{opacity:0.8} 100%{opacity:1} }
+.admin-panel-content {
+  transition:
+    background-color 0.4s cubic-bezier(0.25,0.46,0.45,0.94),
+    color 0.3s ease,
+    border-color 0.3s ease;
+}
+.nav-item {
+  transition:
+    background-color 0.3s cubic-bezier(0.4,0,0.2,1),
+    color 0.3s cubic-bezier(0.4,0,0.2,1),
+    transform 0.2s ease;
+}
+.nav-item:hover { transform: translateX(2px); }
+
+/* Responsive scrollbar y performance */
+@media (max-width: 768px) {
+  .custom-scrollbar::-webkit-scrollbar { width:6px; }
+  .pro-sidebar .pro-sidebar-inner::-webkit-scrollbar { width:4px; }
+  .main-content::-webkit-scrollbar { width:8px; }
+  * { transition-duration: 0.2s; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  .custom-scrollbar::-webkit-scrollbar { width:8px; }
+  .main-content::-webkit-scrollbar { width:9px; }
+}
+@media (min-width: 1025px) {
+  .custom-scrollbar::-webkit-scrollbar { width:10px; }
+}
+
+/* Accesibilidad y reduced motion */
+@media (prefers-contrast: high) {
+  [data-theme="dark"] { --scrollbar-thumb:#fff; --scrollbar-thumb-hover:#ccc; }
+  [data-theme="light"] { --scrollbar-thumb:#000; --scrollbar-thumb-hover:#333; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition:none !important; animation:none !important; }
+  .custom-scrollbar, .custom-scrollbar::-webkit-scrollbar-thumb { transition:none !important; }
+}
+
+/* Indicador de cambio de tema */
+.theme-switching { position:relative; }
+.theme-switching::before {
+  content: '';
+  position:absolute; inset:0;
+  background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.05) 50%, transparent 70%);
+  animation: shimmer 0.6s ease-out;
+  pointer-events:none; z-index:1000;
+}
+@keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
