@@ -34,8 +34,32 @@ export const router = createBrowserRouter(
               children: [
                 { index: true, element: <AdminPanel /> },
                 { path: "doctores", element: <DoctorPanel /> },
+                {
+                  path: "asignar-horarios",
+                  element: <div>Asignar Horarios (placeholder)</div>,
+                },
+                {
+                  path: "asistencias",
+                  element: <div>Registro de Asistencia (placeholder)</div>,
+                },
                 { path: "agendar", element: <AgendarConsulta /> },
                 { path: "mis-citas", element: <MisCitas /> },
+                {
+                  path: "reportes-asistencia",
+                  element: <div>Reportes de Asistencia (placeholder)</div>,
+                },
+                {
+                  path: "configuracion",
+                  element: <div>Ajustes del sistema (placeholder)</div>,
+                },
+                {
+                  path: "soporte",
+                  element: <div>Soporte y Ayuda (placeholder)</div>,
+                },
+                {
+                  path: "pacientes",
+                  element: <div>Pacientes (placeholder)</div>,
+                },
                 { path: "*", element: <Navigate to="/admin" replace /> },
               ],
             },
@@ -51,8 +75,33 @@ export const router = createBrowserRouter(
               element: <SecretariaLayout />,
               children: [
                 { index: true, element: <SecretariaPanel /> },
+                { path: "doctores", element: <DoctorPanel /> },
+                {
+                  path: "asignar-horarios",
+                  element: <div>Asignar Horarios (placeholder)</div>,
+                },
+                {
+                  path: "asistencias",
+                  element: <div>Registro de Asistencia (placeholder)</div>,
+                },
                 { path: "agendar", element: <AgendarConsulta /> },
                 { path: "mis-citas", element: <MisCitas /> },
+                {
+                  path: "reportes-asistencia",
+                  element: <div>Reportes de Asistencia (placeholder)</div>,
+                },
+                {
+                  path: "configuracion",
+                  element: <div>Ajustes del sistema (placeholder)</div>,
+                },
+                {
+                  path: "soporte",
+                  element: <div>Soporte y Ayuda (placeholder)</div>,
+                },
+                {
+                  path: "pacientes",
+                  element: <div>Pacientes (placeholder)</div>,
+                },
                 { path: "*", element: <Navigate to="/sec" replace /> },
               ],
             },
