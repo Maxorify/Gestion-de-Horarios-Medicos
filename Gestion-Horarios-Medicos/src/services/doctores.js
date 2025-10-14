@@ -1,69 +1,71 @@
 // src/services/doctores.js
 import { supabase } from "@/services/supabaseClient";
 
-/** Util: obtiene el id del rol 'doctor' y lo cachea en memoria */
-let _ROL_DOCTOR_ID = null;
-async function getRolDoctorId() {
-  if (_ROL_DOCTOR_ID) return _ROL_DOCTOR_ID;
-  const { data, error } = await supabase
-    .from("roles")
-    .select("id")
-    .eq("nombre", "doctor")
-    .single();
-  if (error) throw error;
-  _ROL_DOCTOR_ID = data?.id;
-  return _ROL_DOCTOR_ID;
-}
-
-/** Especialidades para el select múltiple */
-export async function listarEspecialidades() {
+/** Especialidades principales (sin padre) para el modal de Nuevo Doctor */
+export async function listarEspecialidadesPrincipales() {
   const { data, error } = await supabase
     .from("especialidades")
-    .select("id, nombre")
-  .order("nombre", { ascending: true });
+    .select("id, nombre, precio_base")
+    .is("especialidad_padre_id", null)
+    .order("nombre", { ascending: true });
+
   if (error) throw error;
   return data || [];
 }
 
-/** Subida de avatar a bucket 'avatars' con ruta do/onctorId.jpg */
-export async function subirAvatarDoctor(doctorId, file) {
-  if (!file) return null;
-  const filePath = `doctores/${doctorId}.jpg`;
-  const { error: upErr } = await supabase.storage
-    .from("avatars")
-    .upload(filePath, file, { upsert: true, contentType: file.type || "image/jpeg" });
-  if (upErr) throw upErr;
+/** Subespecialidades por principal (para agendar) */
+export async function listarSubespecialidades(parentId) {
+  const { data, error } = await supabase
+    .from("especialidades")
+    .select("id, nombre, precio_base, especialidad_padre_id")
+    .eq("especialidad_padre_id", parentId)
+    .order("nombre", { ascending: true });
 
-  const { data: pub } = supabase.storage.from("avatars").getPublicUrl(filePath);
-  return pub?.publicUrl || null;
+  if (error) throw error;
+  return data || [];
 }
 
-/**
- * Lista doctores con filtro por nombre y paginación.
- * Importante: usamos range(offset, offset+limit-1). No mezclar con .limit().
- */
-export async function listarDoctores({ search = "", limit = 50, offset = 0 } = {}) {
-  const rolDoctorId = await getRolDoctorId();
+/** Árbol principal + subespecialidades (opcional, admin) */
+export async function listarEspecialidadesTree() {
+  const principales = await listarEspecialidadesPrincipales();
+  if (!principales.length) return [];
+  const ids = principales.map(p => p.id);
 
-  // Si tu FK está bien, este join funciona tal cual:
-  // usuarios.rol_id -> roles.id, y doctores_especialidades.doctor_id -> usuarios.id
-  const { data: rows, error } = await supabase
+  const { data: subs, error: e2 } = await supabase
+    .from("especialidades")
+    .select("id, nombre, precio_base, especialidad_padre_id")
+    .in("especialidad_padre_id", ids)
+    .order("nombre", { ascending: true });
+
+  if (e2) throw e2;
+
+  const byParent = (subs || []).reduce((acc, s) => {
+    (acc[s.especialidad_padre_id] ||= []).push(s);
+    return acc;
+  }, {});
+  return principales.map(p => ({ ...p, subespecialidades: byParent[p.id] || [] }));
+}
+
+/** Listado de doctores (para la tabla de admin) */
+export async function listarDoctores({ search = "", limit = 50, offset = 0 } = {}) {
+  const query = supabase
     .from("usuarios")
     .select(`
       id,
       nombre,
       email,
       avatar_url,
-      rol_id,
       doctores_especialidades (
         especialidades ( nombre )
       )
     `)
     .eq("activo", true)
-    .eq("rol_id", rolDoctorId)
-    .ilike("nombre", `%${search}%`)
-    .range(offset, Math.max(offset, 0) + Math.max(limit, 1) - 1);
+    .limit(limit)
+    .range(offset, offset + limit - 1);
 
+  if (search?.trim()) query.ilike("nombre", `%${search.trim()}%`);
+
+  const { data: rows, error } = await query;
   if (error) throw error;
 
   return (rows || []).map((d) => ({
@@ -72,93 +74,73 @@ export async function listarDoctores({ search = "", limit = 50, offset = 0 } = {
     email: d.email || "",
     avatar_url: d.avatar_url || null,
     especialidades: (d.doctores_especialidades || [])
-      .map((x) => x?.especialidades?.nombre)
+      .map((x) => x.especialidades?.nombre)
       .filter(Boolean)
       .join(", "),
   }));
 }
 
-/**
- * Crea doctor + perfil + especialidades + avatar.
- * Requiere:
- *  - usuarios.password NOT NULL (tu schema lo exige)
- *  - rol 'doctor' existente en tabla roles
- *  - bucket 'avatars' (público o con policy de lectura)
- */
-export async function crearDoctor({
-  nombre,
-  email,
-  password, // sí, tu tabla lo exige. En producción, hashea. Aquí no me vengas con plaintext eterno.
-  telefono,
-  direccion,
-  bio,
-  sueldo_base_mensual = 0,
-  pago_por_atencion = 0,
-  tope_variable_mensual = null,
-  especialidadesIds = [],
-  avatarFile, // File
-}) {
-  const rolDoctorId = await getRolDoctorId();
+/** Crea usuario doctor + vínculos de especialidad. Opcional: avatar (de momento ignorar storage). */
+export async function crearDoctor(input) {
+  const {
+    nombre, email, password,
+    telefono = null, direccion = null, bio = null,
+    especialidadesIds = [],
+    sueldo_base_mensual = 0,
+    pago_por_atencion = 0,
+    tope_variable_mensual = null,
+    avatarFile = null, // ignoramos subir por ahora
+  } = input;
 
-  // 1) usuario
-  const { data: usuario, error: uErr } = await supabase
+  if (!nombre || !email || !password) {
+    throw new Error("Faltan campos obligatorios: nombre, email, password");
+  }
+  if (!Array.isArray(especialidadesIds) || especialidadesIds.length === 0) {
+    throw new Error("Selecciona al menos una especialidad principal");
+  }
+
+  // 1) Crear usuario
+  const { data: user, error: e1 } = await supabase
     .from("usuarios")
     .insert({
       nombre,
       email,
-      password,         // si ya tienes flujo de hash, aplica antes de enviar
-      rol_id: rolDoctorId,
+      password,        // en tu BD ya es plain-text; si cifras después, cambia aquí
+      rol_id: 2,       // asumiendo 2 = doctor. Si tu tabla 'roles' difiere, ajusta este valor.
       activo: true,
+      avatar_url: null
     })
     .select("id")
     .single();
-  if (uErr) throw uErr;
 
-  const doctorId = usuario.id;
+  if (e1) throw e1;
 
-  // 2) avatar opcional
-  let avatarUrl = null;
-  if (avatarFile) {
-    avatarUrl = await subirAvatarDoctor(doctorId, avatarFile);
-    const { error: upUser } = await supabase
-      .from("usuarios")
-      .update({ avatar_url: avatarUrl })
-      .eq("id", doctorId);
-    if (upUser) throw upUser;
+  const doctorId = user.id;
+
+  // 2) Upsert en tabla de sueldos si la tienes (si no, sáltalo)
+  // Si no existe tabla aún, comenta este bloque.
+  if (typeof sueldo_base_mensual === "number" || typeof pago_por_atencion === "number" || tope_variable_mensual !== undefined) {
+    const { error: e2 } = await supabase
+      .from("tarifas")
+      .upsert({
+        doctor_id: doctorId,
+        sueldo_base_mensual: Number(sueldo_base_mensual) || 0,
+        pago_por_atencion: Number(pago_por_atencion) || 0,
+        tope_variable_mensual: tope_variable_mensual === null ? null : Number(tope_variable_mensual)
+      }, { onConflict: "doctor_id" });
+
+    if (e2 && e2.code !== "PGRST116") throw e2; // ignora si la tabla no existe
   }
 
-  // 3) perfil (tabla doctor_perfil)
-  const { error: pErr } = await supabase.from("doctor_perfil").upsert({
-    doctor_id: doctorId,
-    telefono: telefono || null,
-    direccion: direccion || null,
-    bio: bio || null,
-    sueldo_base_mensual: Number(sueldo_base_mensual) || 0,
-    pago_por_atencion: Number(pago_por_atencion) || 0,
-    tope_variable_mensual:
-      tope_variable_mensual != null ? Number(tope_variable_mensual) : null,
-    actualizado_en: new Date().toISOString(),
-  });
-  if (pErr) throw pErr;
-
-  // 4) especialidades
-  // limpiamos y reinsertamos para mantenerlo simple
-  const { error: delErr } = await supabase
-    .from("doctores_especialidades")
-    .delete()
-    .eq("doctor_id", doctorId);
-  if (delErr) throw delErr;
-
+  // 3) Vincular especialidades principales
   if (especialidadesIds.length) {
-    const rows = especialidadesIds.map((eid) => ({
-      doctor_id: doctorId,
-      especialidad_id: eid,
-    }));
-    const { error: insErr } = await supabase
-      .from("doctores_especialidades")
-      .insert(rows);
-    if (insErr) throw insErr;
+    const filas = especialidadesIds.map(eid => ({ doctor_id: doctorId, especialidad_id: eid }));
+    const { error: e3 } = await supabase.from("doctores_especialidades").insert(filas);
+    if (e3) throw e3;
   }
 
-  return { doctorId, avatarUrl };
+  // 4) (Opcional) subir avatar a storage y actualizar avatar_url
+  // De momento omitimos. Si luego definimos el bucket, lo implementamos.
+
+  return doctorId;
 }
