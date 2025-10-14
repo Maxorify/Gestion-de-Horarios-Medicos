@@ -15,6 +15,7 @@ import SecretariaPanel from "@/features/auth/pages/SecretariaPanel.jsx";
 import AgendarConsulta from "@/features/pacientes/pages/AgendarConsulta.jsx";
 import MisCitas from "@/features/pacientes/pages/MisCitas.jsx";
 import SeleccionarHorarioDoctor from "@/features/agenda/pages/SeleccionarHorarioDoctor.jsx";
+import DoctoresAdmin from "@/features/doctores/pages/DoctoresAdmin.jsx";
 
 export const router = createBrowserRouter(
   [
@@ -34,7 +35,7 @@ export const router = createBrowserRouter(
               element: <AdminLayout />,
               children: [
                 { index: true, element: <AdminPanel /> },
-                { path: "doctores", element: <DoctorPanel /> },
+                { path: "doctores", element: <DoctoresAdmin /> },
                 {
                   path: "asignar-horarios",
                   element: <div>Asignar Horarios (placeholder)</div>,
