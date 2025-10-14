@@ -1,7 +1,4 @@
-// src/features/pacientes/pages/AgendarConsulta.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { DataGrid, esES as dataGridEsES } from "@mui/x-data-grid";
-
 import {
   Box,
   Typography,
@@ -18,36 +15,17 @@ import {
   TextField,
 } from "@mui/material";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import { DataGrid } from "@mui/x-data-grid";
+import { esES as dataGridEsES } from "@mui/x-data-grid/locales";
 import RegistroPacienteDialog from "@/features/pacientes/components/RegistroPacienteDialog.jsx";
 import { tokenize, matchAllTokens, highlightRenderer } from "@/utils/search";
 import { listarPacientes } from "@/services/pacientes";
 
-const pacientesEjemplo = []; // fallback vacío; cargamos desde Supabase
-
 export default function AgendarConsulta() {
   const theme = useTheme();
-  const [pacientes, setPacientes] = useState(pacientesEjemplo);
-  const [cargando, setCargando] = useState(true);
+  const [pacientes, setPacientes] = useState([]);
+  const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
-
-  // cargar desde Supabase
-  useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        setCargando(true);
-        const rows = await listarPacientes();
-        if (!cancel) setPacientes(rows);
-      } catch (e) {
-        if (!cancel) setError(e.message || "Error al cargar pacientes");
-      } finally {
-        if (!cancel) setCargando(false);
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
 
   // búsqueda con debounce
   const [query, setQuery] = useState("");
@@ -64,6 +42,7 @@ export default function AgendarConsulta() {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [openPacienteCheck, setOpenPacienteCheck] = useState(false);
   const [openRegistroPaciente, setOpenRegistroPaciente] = useState(false);
+  const idCounter = useRef(1);
 
   // handlers únicos
   const handleNuevoClick = () => setOpenConfirm(true);
@@ -79,13 +58,37 @@ export default function AgendarConsulta() {
   };
   const handleCloseRegistroPaciente = () => setOpenRegistroPaciente(false);
   const handleRegistroSuccess = (nuevoPaciente) => {
-    setPacientes((prev) => [
-      { id: `tmp-${Date.now()}`, ...nuevoPaciente },
-      ...prev,
-    ]);
+    setPacientes((prev) => {
+      const assignedId = nuevoPaciente?.id ?? idCounter.current++;
+      return [{ id: assignedId, ...nuevoPaciente }, ...prev];
+    });
     setOpenRegistroPaciente(false);
     setOpenPacienteCheck(false);
   };
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        setCargando(true);
+        const rows = await listarPacientes();
+        if (!cancel) setPacientes(rows);
+      } catch (e) {
+        if (!cancel) setError(e.message || "Error al cargar pacientes");
+      } finally {
+        if (!cancel) setCargando(false);
+      }
+    })();
+    return () => { cancel = true; };
+  }, []);
+
+  useEffect(() => {
+    const maxId = pacientes.reduce((max, paciente) => {
+      const numeric = typeof paciente.id === "number" ? paciente.id : Number.parseInt(paciente.id, 10);
+      return Number.isFinite(numeric) ? Math.max(max, numeric) : max;
+    }, 0);
+    idCounter.current = maxId + 1;
+  }, [pacientes]);
 
   // filtrado client-side
   const tokens = useMemo(() => tokenize(query), [query]);
@@ -236,26 +239,9 @@ export default function AgendarConsulta() {
                 disableRowSelectionOnClick
                 autoHeight
                 pageSizeOptions={[5, 10, 25]}
-                initialState={{
-                  pagination: { paginationModel: { pageSize: 5 } },
-                }}
+                initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
                 loading={cargando}
-                localeText={{
-                  ...(dataGridEsES.components?.MuiDataGrid?.defaultProps
-                    ?.localeText || {}),
-                  noRowsLabel: "Sin pacientes",
-                  noResultsOverlayLabel: "No se encontraron coincidencias",
-                  footerRowSelected: (count) =>
-                    count === 1
-                      ? "1 fila seleccionada"
-                      : `${count.toLocaleString()} filas seleccionadas`,
-                  footerTotalVisibleRows: (visibleCount, totalCount) =>
-                    `${visibleCount.toLocaleString()} de ${totalCount.toLocaleString()}`,
-                  toolbarFiltersTooltipActive: (count) =>
-                    count !== 1
-                      ? `${count} filtros activos`
-                      : `${count} filtro activo`,
-                }}
+                slotProps={{ pagination: { labelRowsPerPage: "Filas por página" } }}
                 sx={{
                   mt: 1,
                   borderRadius: 3,
@@ -294,6 +280,17 @@ export default function AgendarConsulta() {
                     borderRadius: "4px",
                   },
                 }}
+                localeText={{
+                  ...(dataGridEsES.components?.MuiDataGrid?.defaultProps?.localeText || {}),
+                  noRowsLabel: "Sin pacientes",
+                  noResultsOverlayLabel: "No se encontraron coincidencias",
+                  footerRowSelected: (count) =>
+                    count === 1 ? "1 fila seleccionada" : `${count.toLocaleString()} filas seleccionadas`,
+                  footerTotalVisibleRows: (visibleCount, totalCount) =>
+                    `${visibleCount.toLocaleString()} de ${totalCount.toLocaleString()}`,
+                  toolbarFiltersTooltipActive: (count) =>
+                    count !== 1 ? `${count} filtros activos` : `${count} filtro activo`,
+                }}
               />
               {!!error && (
                 <Typography color="error" variant="body2" sx={{ mt: 1 }}>
@@ -302,6 +299,12 @@ export default function AgendarConsulta() {
               )}
             </Box>
           </Fade>
+
+          {!!error && (
+            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+              {error}
+            </Typography>
+          )}
 
           {/* CTA: nuevo */}
           <Box display="flex" justifyContent="flex-end" mt={2}>

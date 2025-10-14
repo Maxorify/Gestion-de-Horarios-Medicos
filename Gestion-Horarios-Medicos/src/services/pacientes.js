@@ -1,57 +1,36 @@
-// src/services/pacientes.js
-import { supabase } from '@/services/supabaseClient'
+import { supabase } from "@/services/supabaseClient";
 
-// split seguro: toma el último token como apellido “principal”
-function splitNombre(full) {
-  if (!full) return { nombre: '', apellido: '' }
-  const parts = full.trim().split(/\s+/)
-  if (parts.length === 1) return { nombre: parts[0], apellido: '' }
-  const apellido = parts.pop()
-  const nombre = parts.join(' ')
-  return { nombre, apellido }
+// Inserta y lanza error si falla
+export async function guardarPaciente(paciente) {
+  const { data, error } = await supabase
+    .from("pacientes")
+    .insert(paciente)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
+// Trae y mapea a la forma de la tabla UI
 export async function listarPacientes() {
   const { data, error } = await supabase
-    .from('pacientes')
-    .select('id, nombres_apellidos, rut, email, telefono')
-    .order('id', { ascending: false })
+    .from("pacientes")
+    .select("id, nombres_apellidos, rut, email, telefono, creado_en")
+    .order("creado_en", { ascending: false, nullsFirst: false });
 
-  if (error) throw error
+  if (error) throw error;
 
-  // adapta a las columnas actuales del DataGrid
-  const rows = (data || []).map(p => {
-    const { nombre, apellido } = splitNombre(p.nombres_apellidos)
+  return (data || []).map((p) => {
+    const full = (p.nombres_apellidos || "").trim();
+    const [first, ...rest] = full.split(/\s+/);
     return {
       id: p.id,
-      rut: p.rut || '',
-      nombre,
-      apellido,
-      correo: p.email || '',
-      numero: p.telefono || '',
-    }
-  })
-  return rows
-}
-
-export async function guardarPaciente(pacienteBD) {
-  // pacienteBD ya viene armado desde tu modal
-  const { data, error } = await supabase
-    .from('pacientes')
-    .insert([pacienteBD])
-    .select('id, nombres_apellidos, rut, email, telefono')
-    .single()
-
-  if (error) throw error
-
-  // retorno ya mapeado para el DataGrid
-  const { nombre, apellido } = splitNombre(data.nombres_apellidos)
-  return {
-    id: data.id,
-    rut: data.rut || '',
-    nombre,
-    apellido,
-    correo: data.email || '',
-    numero: data.telefono || '',
-  }
+      rut: p.rut || "",
+      nombre: first || "",
+      apellido: rest.join(" ") || "",
+      correo: p.email || "",
+      numero: p.telefono || "",
+    };
+  });
 }
