@@ -16,6 +16,7 @@ import AgendarConsulta from "@/features/pacientes/pages/AgendarConsulta.jsx";
 import MisCitas from "@/features/pacientes/pages/MisCitas.jsx";
 import SeleccionarHorarioDoctor from "@/features/agenda/pages/SeleccionarHorarioDoctor.jsx";
 import DoctoresAdmin from "@/features/doctores/pages/DoctoresAdmin.jsx";
+import AsignarHorarios from "@/features/horarios/pages/AsignarHorarios.jsx";
 
 export const router = createBrowserRouter(
   [
@@ -38,7 +39,7 @@ export const router = createBrowserRouter(
                 { path: "doctores", element: <DoctoresAdmin /> },
                 {
                   path: "asignar-horarios",
-                  element: <div>Asignar Horarios (placeholder)</div>,
+                  element: <AsignarHorarios />,
                 },
                 {
                   path: "asistencias",
