@@ -121,7 +121,7 @@ export async function crearDoctor(input) {
   // Si no existe tabla aún, comenta este bloque.
   if (typeof sueldo_base_mensual === "number" || typeof pago_por_atencion === "number" || tope_variable_mensual !== undefined) {
     const { error: e2 } = await supabase
-      .from("tarifas")
+      .from("doctor_compensaciones")
       .upsert({
         doctor_id: doctorId,
         sueldo_base_mensual: Number(sueldo_base_mensual) || 0,
