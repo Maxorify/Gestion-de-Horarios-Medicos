@@ -145,7 +145,7 @@ export default function SeleccionarHorarioDoctor() {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useUser();
+  const { perfil } = useUser();
   const { pacienteId } = location.state || {};
 
   useEffect(() => {
@@ -351,7 +351,7 @@ export default function SeleccionarHorarioDoctor() {
 
   const handleReservarSlot = async () => {
     if (!selectedSlot || !selectedDoctor || !pacienteId) return;
-    if (!user?.id) {
+    if (!perfil?.id) {
       setSnackbar({
         open: true,
         message: "No se pudo identificar al usuario autenticado.",
@@ -365,7 +365,7 @@ export default function SeleccionarHorarioDoctor() {
         paciente_id: pacienteId,
         doctor_id: selectedDoctor.id,
         disponibilidad_id: selectedSlot.disponibilidadId,
-        creada_por_usuario_id: user.id,
+        creada_por_usuario_id: perfil.id,
         fecha_hora_inicio_agendada: selectedSlot.fechaHoraInicio,
         fecha_hora_fin_agendada: selectedSlot.fechaHoraFin,
       });

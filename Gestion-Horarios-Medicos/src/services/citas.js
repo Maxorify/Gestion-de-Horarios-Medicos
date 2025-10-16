@@ -80,7 +80,7 @@ async function obtenerCitaPorId(citaId, client = supabase) {
 /**
  * Crea una nueva cita.
  *
- * @param {{ paciente_id: number|string, doctor_id: number|string, disponibilidad_id: number|string, creada_por_usuario_id: number|string, estado?: string }} input
+ * @param {{ paciente_id: number|string, doctor_id: number|string, disponibilidad_id: number|string, creada_por_usuario_id: string, estado?: string }} input
  * @returns {Promise<Record<string, any>>}
  */
 export async function crearCita(input) {
