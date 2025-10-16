@@ -3,7 +3,6 @@ import { supabase } from "@/services/supabaseClient";
 const PACIENTE_SELECT = `
   id,
   persona_id,
-  estado,
   alerta_medica_general,
   personas:persona_id (
     id,
@@ -15,6 +14,8 @@ const PACIENTE_SELECT = `
     telefono_secundario
   )
 `;
+
+const USUARIO_ESTADO_SELECT = "id, persona_id, estado";
 
 function handleSupabaseError(error, fallbackMessage) {
   if (!error) {
@@ -93,8 +94,8 @@ export async function crearPaciente(input) {
     const pacientePayload = {
       ...paciente,
       persona_id: personaId,
-      estado: paciente.estado ?? "activo",
     };
+    delete pacientePayload.estado;
 
     const { data: pacienteRow, error: pacienteError } = await tx
       .from("pacientes")
@@ -152,6 +153,7 @@ export async function actualizarPaciente(pacienteId, input = {}) {
       const updates = { ...input.paciente };
       delete updates.id;
       delete updates.persona_id;
+      delete updates.estado;
 
       const { error } = await tx.from("pacientes").update(updates).eq("id", pacienteId);
       handleSupabaseError(error, "No se pudo actualizar la información del paciente.");
@@ -167,10 +169,10 @@ export async function actualizarPaciente(pacienteId, input = {}) {
 }
 
 /**
- * Desactiva un paciente estableciendo su estado como inactivo.
+ * Desactiva un paciente cambiando el estado de su usuario asociado a inactivo.
  *
  * @param {number|string} pacienteId
- * @returns {Promise<void>}
+ * @returns {Promise<Array<Record<string, any>>>}
  */
 export async function desactivarPaciente(pacienteId) {
   if (!pacienteId) {
@@ -182,12 +184,18 @@ export async function desactivarPaciente(pacienteId) {
     throw new Error("El paciente especificado no existe.");
   }
 
-  await supabase.transaction(async (tx) => {
-    const { error } = await tx
-      .from("pacientes")
-      .update({ estado: "inactivo" })
-      .eq("id", pacienteId);
+  const personaId = pacienteActual.persona_id;
 
-    handleSupabaseError(error, "No se pudo desactivar el paciente.");
-  });
+  if (!personaId) {
+    throw new Error("El paciente no tiene una persona asociada válida para desactivar.");
+  }
+
+  const { data, error } = await supabase
+    .from("usuarios")
+    .update({ estado: "inactivo" })
+    .eq("persona_id", personaId)
+    .select(USUARIO_ESTADO_SELECT);
+
+  handleSupabaseError(error, "No se pudo desactivar el paciente.");
+  return data ?? [];
 }

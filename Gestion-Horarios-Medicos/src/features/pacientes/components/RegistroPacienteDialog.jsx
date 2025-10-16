@@ -166,7 +166,6 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
     }
 
     const pacientePayload = {
-      estado: "activo",
       alerta_medica_general: null,
     };
 
