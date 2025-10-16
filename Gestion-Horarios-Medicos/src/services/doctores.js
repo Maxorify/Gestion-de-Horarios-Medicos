@@ -1,18 +1,8 @@
 import { supabase } from "@/services/supabaseClient";
 
 const DOCTOR_SELECT = `
-  id,
-  persona_id,
-  especialidad_principal,
-  estado,
-  personas:persona_id (
-    id,
-    nombre,
-    apellido_paterno,
-    rut,
-    email,
-    telefono
-  )
+  id, persona_id, especialidad_principal, estado,
+  personas:persona_id (id, nombre, apellido_paterno, rut, email, telefono_principal, telefono_secundario)
 `;
 
 function handleSupabaseError(error, fallbackMessage) {
@@ -110,11 +100,19 @@ export async function crearDoctor(input) {
       throw new Error("La creación de la persona no devolvió un identificador válido.");
     }
 
+    // Nueva inserción usando UUID (usuarios.id) provisto por Supabase Auth
+    const { id: userId, rol, estado } = usuario;
     const { data: usuarioRow, error: usuarioError } = await tx
       .from("usuarios")
-      .insert({ ...usuario, persona_id: personaId })
+      .insert({
+        id: userId, // UUID de auth.users.id
+        persona_id: personaId,
+        rol: rol ?? "doctor",
+        estado: estado ?? "activo",
+      })
       .select("id")
       .single();
+    if (usuarioError) throw usuarioError;
 
     handleSupabaseError(usuarioError, "No se pudo crear el usuario del doctor.");
 

@@ -26,13 +26,16 @@ import { motion } from "framer-motion";
 
 function buildPacienteSearchString(paciente) {
   const persona = paciente?.persona ?? {};
+  const tel = (persona?.telefono_principal || "").toLowerCase();
+  const tel2 = (persona?.telefono_secundario || "").toLowerCase();
+  const telMatch = `${tel} ${tel2}`.trim();
   return [
     persona.rut,
     persona.nombre,
     persona.apellido_paterno,
     persona.apellido_materno,
     persona.email,
-    persona.telefono,
+    telMatch,
   ]
     .filter(Boolean)
     .join(" ");
@@ -162,7 +165,7 @@ export default function AgendarConsulta() {
         headerName: "Teléfono",
         flex: 1,
         minWidth: 170,
-        valueGetter: ({ row }) => row?.persona?.telefono ?? "",
+        valueGetter: ({ row }) => row?.persona?.telefono_principal ?? "",
         renderCell: ({ value }) => highlight(value ?? ""),
       },
     ],

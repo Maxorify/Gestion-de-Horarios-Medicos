@@ -43,7 +43,7 @@ export async function obtenerPerfilUsuarioPorEmail(email) {
   } = await supabase
     .from("usuarios")
     .select(
-      "id, persona_id, rol, estado, personas:persona_id (id, nombre, apellido_paterno, apellido_materno, rut, email, telefono)"
+      "id, persona_id, rol, estado, personas:persona_id (id, nombre, apellido_paterno, apellido_materno, rut, email, telefono_principal, telefono_secundario)"
     )
     .eq("personas.email", email)
     .maybeSingle();

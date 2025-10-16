@@ -17,7 +17,8 @@ const CITA_SELECT = `
       apellido_paterno,
       rut,
       email,
-      telefono
+      telefono_principal,
+      telefono_secundario
     )
   ),
   doctores:doctor_id (
@@ -29,7 +30,8 @@ const CITA_SELECT = `
       apellido_paterno,
       rut,
       email,
-      telefono
+      telefono_principal,
+      telefono_secundario
     )
   ),
   disponibilidad:disponibilidad_id (
