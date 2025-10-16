@@ -1,5 +1,81 @@
 import { supabase } from "./supabaseClient";
 
+async function obtenerDoctorPorPersonaId(personaId) {
+  if (!personaId) return null;
+
+  const { data, error } = await supabase
+    .from("doctores")
+    .select("id, persona_id, especialidad_principal, estado")
+    .eq("persona_id", personaId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+async function obtenerPacientePorPersonaId(personaId) {
+  if (!personaId) return null;
+
+  const { data, error } = await supabase
+    .from("pacientes")
+    .select("id, persona_id, estado")
+    .eq("persona_id", personaId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function obtenerPerfilUsuarioPorEmail(email) {
+  if (!email) {
+    throw new Error("El correo electrónico es obligatorio para recuperar el perfil");
+  }
+
+  const {
+    data: usuario,
+    error: usuarioError,
+  } = await supabase
+    .from("usuarios")
+    .select(
+      "id, persona_id, rol, estado, personas:persona_id (id, nombre, apellido_paterno, apellido_materno, rut, email, telefono)"
+    )
+    .eq("personas.email", email)
+    .maybeSingle();
+
+  if (usuarioError) {
+    console.error("// CODEx: Error consultando usuarios/personas por email", usuarioError);
+    throw new Error("No se pudo recuperar la información del usuario");
+  }
+
+  if (!usuario) {
+    throw new Error("No existe un usuario asociado al correo indicado");
+  }
+
+  if (usuario.estado && usuario.estado !== "activo") {
+    throw new Error("Usuario inactivo o suspendido");
+  }
+
+  const personaId = usuario.persona_id ?? usuario.personas?.id ?? null;
+
+  try {
+    const [doctor, paciente] = await Promise.all([
+      obtenerDoctorPorPersonaId(personaId),
+      obtenerPacientePorPersonaId(personaId),
+    ]);
+
+    return { ...usuario, doctor, paciente };
+  } catch (error) {
+    console.error("// CODEx: Error obteniendo doctor/paciente asociados", error);
+    throw new Error("No se pudo recuperar los perfiles asociados al usuario");
+  }
+}
+
 /**
  * Inicia sesión en Supabase y retorna el perfil completo del usuario.
  *
@@ -14,29 +90,18 @@ export async function loginConEmailYPassword(email, password) {
     password,
   });
 
-  if (error || !data?.user?.id) {
+  if (error || !data?.user) {
     throw new Error("Credenciales inválidas");
   }
 
-  const userId = data.user.id;
+  const authEmail = data.user.email ?? email;
 
-  const {
-    data: usuario,
-    error: usuarioError,
-  } = await supabase
-    .from("usuarios")
-    .select("*, personas(*)")
-    .eq("id", userId)
-    .single();
-
-  if (usuarioError || !usuario) {
-    throw new Error("No se pudo obtener el perfil de usuario");
-  }
-
-  if (usuario.estado !== "activo") {
+  try {
+    return await obtenerPerfilUsuarioPorEmail(authEmail);
+  } catch (profileError) {
     await supabase.auth.signOut();
-    throw new Error("Usuario inactivo o suspendido");
+    throw profileError instanceof Error
+      ? profileError
+      : new Error("No se pudo obtener el perfil de usuario");
   }
-
-  return usuario;
 }
