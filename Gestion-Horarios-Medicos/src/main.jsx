@@ -11,19 +11,23 @@ import { ColorModeContext, useMode } from "./theme";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { UserProvider } from "@/hooks/useUser";
 
 const Main = () => {
   const [theme, colorMode] = useMode();
 
   return (
-    <ColorModeContext.Provider value={colorMode}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <App />
-        </LocalizationProvider>
-      </ThemeProvider>
-    </ColorModeContext.Provider>
+    <UserProvider>
+      {/* // CODEx: El contexto de usuario debe envolver toda la app para exponer sesión y rol. */}
+      <ColorModeContext.Provider value={colorMode}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <App />
+          </LocalizationProvider>
+        </ThemeProvider>
+      </ColorModeContext.Provider>
+    </UserProvider>
   );
 };
 

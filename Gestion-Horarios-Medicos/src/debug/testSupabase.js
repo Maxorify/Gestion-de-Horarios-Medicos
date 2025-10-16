@@ -2,12 +2,11 @@ import { supabase } from "@/services/supabaseClient";
 
 async function testConn() {
   const { data, error } = await supabase
-    .from("app_users")
-    .select("*")
+    .from("usuarios")
+    .select("id, rol, personas:persona_id(email)")
     .limit(1);
 
-  console.log("DATA:", data);
-  console.log("ERROR:", error);
+  console.log("// CODEx: Test de conexión a usuarios/personas", { data, error });
 }
 
 testConn();

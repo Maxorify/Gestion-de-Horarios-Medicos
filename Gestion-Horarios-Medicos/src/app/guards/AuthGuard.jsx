@@ -9,20 +9,56 @@ export default function AuthGuard() {
   const location = useLocation();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data?.session ?? null);
-      setLoading(false);
+    let mounted = true;
+
+    async function bootstrap() {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          throw error;
+        }
+        if (!mounted) return;
+        setSession(data?.session ?? null);
+      } catch (error) {
+        console.error("// CODEx: Error al obtener la sesión activa en AuthGuard", error);
+        const { error: signOutError } = await supabase.auth.signOut();
+        if (signOutError) {
+          console.error("// CODEx: Error al forzar el cierre de sesión desde AuthGuard", signOutError);
+        }
+        if (mounted) {
+          setSession(null);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    bootstrap();
+
+    const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      if (!mounted) return;
+      setLoading(true);
+      try {
+        setSession(nextSession ?? null);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
-      setSession(sess);
-    });
-
-    return () => sub?.subscription?.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription?.subscription?.unsubscribe();
+    };
   }, []);
 
   if (loading) return null;
-  if (!session)
+  if (!session) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  }
   return <Outlet />;
 }

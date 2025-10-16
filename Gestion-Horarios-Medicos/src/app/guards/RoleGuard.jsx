@@ -1,41 +1,26 @@
 // src/app/guards/RoleGuard.jsx
 import { Outlet, Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { supabase } from "@/services/supabaseClient";
+import { useUser } from "@/hooks/useUser";
+
+const DEFAULT_ROLE = "secretaria";
 
 export default function RoleGuard({ allow = [] }) {
-  const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useUser();
 
-  useEffect(() => {
-    let mounted = true;
+  if (loading) {
+    return null;
+  }
 
-    (async () => {
-      const { data: s } = await supabase.auth.getSession();
-      const uid = s?.session?.user?.id;
-      if (!uid) {
-        setLoading(false);
-        return;
-      }
+  if (!user) {
+    console.warn("// CODEx: No hay usuario activo, se redirige al login desde RoleGuard.");
+    return <Navigate to="/" replace />;
+  }
 
-      const { data: row } = await supabase
-        .from("app_users")
-        .select("role")
-        .eq("user_id", uid)
-        .single();
+  const role = user.rol ?? user.role ?? DEFAULT_ROLE;
 
-      if (mounted) {
-        setRole(row?.role ?? "secretaria");
-        setLoading(false);
-      }
-    })();
+  if (!allow.includes(role)) {
+    return <Navigate to="/" replace />;
+  }
 
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  if (loading) return null;
-  if (!allow.includes(role)) return <Navigate to="/" replace />;
   return <Outlet />;
 }

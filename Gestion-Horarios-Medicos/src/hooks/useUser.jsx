@@ -1,34 +1,65 @@
 // --- ARCHIVO: src/hooks/useUser.jsx ---
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/services/supabaseClient";
-import { loginConEmailYPassword } from "@/services/auth";
+import { loginConEmailYPassword, obtenerPerfilUsuarioPorEmail } from "@/services/auth";
 
 const DEFAULT_ROLE = "secretaria";
+
+function normalizarDato(obj) {
+  if (!obj) return null;
+  if (Array.isArray(obj)) {
+    return obj[0] ?? null;
+  }
+  return obj;
+}
 
 function mapUserProfile(profile) {
   if (!profile) return null;
 
-  const role = profile.rol ?? profile.role ?? DEFAULT_ROLE;
+  // CODEx: Se homogeniza la forma del perfil para exponer idPersona, rol y vínculos opcionales.
+  const persona = profile.personas ?? profile.persona ?? null;
+  const personaId = profile.persona_id ?? persona?.id ?? profile.idPersona ?? null;
+  const doctorInfo = normalizarDato(profile.doctor ?? profile.doctores);
+  const pacienteInfo = normalizarDato(profile.paciente ?? profile.pacientes);
+  const rol = profile.rol ?? profile.role ?? DEFAULT_ROLE;
+
+  const nombreCompleto = [persona?.nombre, persona?.apellido_paterno, persona?.apellido_materno]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
 
   return {
-    ...profile,
-    rol: role,
-    role,
+    idUsuario: profile.id ?? profile.usuario_id ?? null,
+    personaId,
+    idPersona: personaId,
+    persona: persona ?? null,
+    nombre: persona?.nombre ?? null,
+    apellidoPaterno: persona?.apellido_paterno ?? null,
+    apellidoMaterno: persona?.apellido_materno ?? null,
+    nombreCompleto,
+    email: persona?.email ?? profile.email ?? null,
+    rut: persona?.rut ?? profile.rut ?? null,
+    telefono: persona?.telefono ?? profile.telefono ?? null,
+    estado: profile.estado ?? null,
+    rol,
+    role: rol,
+    doctorId: doctorInfo?.id ?? profile.doctor_id ?? null,
+    doctor: doctorInfo ?? null,
+    pacienteId: pacienteInfo?.id ?? profile.paciente_id ?? null,
+    paciente: pacienteInfo ?? null,
   };
 }
 
-async function fetchUserProfileById(userId) {
-  const { data, error } = await supabase
-    .from("usuarios")
-    .select("*, personas(*)")
-    .eq("id", userId)
-    .single();
+async function fetchUserProfileByEmail(email) {
+  const rawProfile = await obtenerPerfilUsuarioPorEmail(email);
+  return mapUserProfile(rawProfile);
+}
 
-  if (error || !data) {
-    throw new Error("No se pudo obtener el perfil de usuario");
+async function safeSignOut() {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.error("// CODEx: Error al forzar signOut", error);
   }
-
-  return data;
 }
 
 const UserContext = createContext(undefined);
@@ -43,33 +74,43 @@ export function UserProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-
     async function syncSession(session) {
-      if (!isMounted) return;
+      if (!isMountedRef.current) return;
 
-      if (!session?.user?.id) {
+      if (!session?.user?.email) {
         setUser(null);
         return;
       }
 
-      const profile = await fetchUserProfileById(session.user.id);
-      if (!isMounted) return;
-      setUser(mapUserProfile(profile));
+      try {
+        const mappedProfile = await fetchUserProfileByEmail(session.user.email);
+        if (!isMountedRef.current) return;
+        setUser(mappedProfile);
+      } catch (error) {
+        console.error("// CODEx: No se pudo sincronizar el perfil activo", error);
+        if (isMountedRef.current) {
+          setUser(null);
+        }
+        await safeSignOut();
+      }
     }
 
     async function bootstrap() {
       setLoading(true);
       try {
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          throw error;
+        }
         await syncSession(data?.session ?? null);
       } catch (error) {
-        console.error("Error al restaurar la sesión", error);
-        if (isMounted) {
+        console.error("// CODEx: Error al restaurar la sesión activa", error);
+        if (isMountedRef.current) {
           setUser(null);
         }
+        await safeSignOut();
       } finally {
-        if (isMounted) {
+        if (isMountedRef.current) {
           setLoading(false);
         }
       }
@@ -78,24 +119,19 @@ export function UserProvider({ children }) {
     bootstrap();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!isMounted) return;
+      if (!isMountedRef.current) return;
       setLoading(true);
       try {
         await syncSession(session ?? null);
-      } catch (error) {
-        console.error("Error al sincronizar la sesión", error);
-        if (isMounted) {
-          setUser(null);
-        }
       } finally {
-        if (isMounted) {
+        if (isMountedRef.current) {
           setLoading(false);
         }
       }
     });
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
       listener?.subscription?.unsubscribe();
     };
   }, []);
@@ -107,8 +143,6 @@ export function UserProvider({ children }) {
       const mappedProfile = mapUserProfile(profile);
       setUser(mappedProfile);
       return mappedProfile;
-    } catch (error) {
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -117,13 +151,8 @@ export function UserProvider({ children }) {
   const logout = useCallback(async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw error;
-      }
+      await safeSignOut();
       setUser(null);
-    } catch (error) {
-      throw error instanceof Error ? error : new Error("Error al cerrar sesión");
     } finally {
       setLoading(false);
     }
@@ -139,7 +168,18 @@ export function UserProvider({ children }) {
     [user, loading, login, logout],
   );
 
-  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+  return (
+    <UserContext.Provider value={value}>
+      {loading ? (
+        <div className="flex w-full justify-center py-8 text-sm text-slate-500">
+          {/* // CODEx: Se muestra un placeholder de carga mientras se restaura la sesión. */}
+          Cargando sesión...
+        </div>
+      ) : (
+        children
+      )}
+    </UserContext.Provider>
+  );
 }
 
 export function useUser() {
