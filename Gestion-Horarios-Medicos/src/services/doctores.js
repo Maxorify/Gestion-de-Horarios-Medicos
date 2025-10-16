@@ -34,6 +34,27 @@ function mapDoctor(row) {
   };
 }
 
+function mapEspecialidad(row) {
+  if (!row) return null;
+  const { id, nombre, ...rest } = row;
+  return {
+    id,
+    nombre,
+    ...rest,
+  };
+}
+
+export async function listarEspecialidadesPrincipales(options = {}) {
+  const client = options.client ?? supabase;
+  const { data, error } = await client
+    .from("especialidades")
+    .select("id, nombre")
+    .order("nombre", { ascending: true });
+
+  handleSupabaseError(error, "No se pudieron listar las especialidades.");
+  return (data ?? []).map(mapEspecialidad);
+}
+
 async function obtenerDoctorPorId(doctorId, client = supabase) {
   const { data, error } = await client
     .from("doctores")
