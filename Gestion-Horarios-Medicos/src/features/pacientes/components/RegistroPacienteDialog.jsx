@@ -155,7 +155,7 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
       apellido_materno: apellidoMaterno || null,
       rut: cleanRutValue(formData.rut),
       email: formData.correo.trim(),
-      telefono: telefonoCompleto,
+      telefono_principal: telefonoCompleto,
       fecha_nacimiento: formData.fechaNacimiento
         ? dayjs(formData.fechaNacimiento).format("YYYY-MM-DD")
         : null,

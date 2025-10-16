@@ -114,12 +114,20 @@ function generarSlotsParaDia(disponibilidades, citas, fechaBase) {
 
 function buildDoctorSearchString(doctor) {
   const persona = doctor?.persona ?? {};
+  const nombres = persona.nombre ?? "";
+  const apellidos = [persona.apellido_paterno, persona.apellido_materno]
+    .filter(Boolean)
+    .join(" ");
+  const rut = persona.rut ?? "";
+  const phone = (doctor?.persona?.telefono_principal || "").toLowerCase();
+  const phone2 = (doctor?.persona?.telefono_secundario || "").toLowerCase();
+  const phoneMatch = `${phone} ${phone2}`.trim();
   return [
-    persona.nombre,
-    persona.apellido_paterno,
-    persona.apellido_materno,
+    nombres,
+    apellidos,
+    rut,
     persona.email,
-    persona.telefono,
+    phoneMatch,
     doctor?.especialidad_principal,
   ]
     .filter(Boolean)

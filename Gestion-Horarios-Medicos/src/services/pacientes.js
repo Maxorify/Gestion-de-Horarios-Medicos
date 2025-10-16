@@ -11,7 +11,8 @@ const PACIENTE_SELECT = `
     apellido_paterno,
     rut,
     email,
-    telefono
+    telefono_principal,
+    telefono_secundario
   )
 `;
 
