@@ -95,7 +95,6 @@ export async function crearPaciente(input) {
       ...paciente,
       persona_id: personaId,
     };
-    delete pacientePayload.estado;
 
     const { data: pacienteRow, error: pacienteError } = await tx
       .from("pacientes")
@@ -153,7 +152,6 @@ export async function actualizarPaciente(pacienteId, input = {}) {
       const updates = { ...input.paciente };
       delete updates.id;
       delete updates.persona_id;
-      delete updates.estado;
 
       const { error } = await tx.from("pacientes").update(updates).eq("id", pacienteId);
       handleSupabaseError(error, "No se pudo actualizar la información del paciente.");

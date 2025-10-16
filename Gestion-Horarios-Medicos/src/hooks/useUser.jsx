@@ -1,9 +1,22 @@
-// --- ARCHIVO: src/hooks/useUser.jsx ---
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import { supabase } from "@/services/supabaseClient";
 import { loginConEmailYPassword, obtenerPerfilUsuarioPorEmail } from "@/services/auth";
 
 const DEFAULT_ROLE = "secretaria";
+const INITIAL_STATE = {
+  user: null,
+  perfil: null,
+  loading: true,
+  error: null
+};
 
 function normalizarDato(obj) {
   if (!obj) return null;
@@ -16,7 +29,6 @@ function normalizarDato(obj) {
 function mapUserProfile(profile) {
   if (!profile) return null;
 
-  // CODEx: Se homogeniza la forma del perfil para exponer idPersona, rol y vínculos opcionales.
   const persona = profile.personas ?? profile.persona ?? null;
   const personaId = profile.persona_id ?? persona?.id ?? profile.idPersona ?? null;
   const doctorInfo = normalizarDato(profile.doctor ?? profile.doctores);
@@ -29,6 +41,7 @@ function mapUserProfile(profile) {
     .trim();
 
   return {
+    id: profile.id ?? profile.usuario_id ?? null,
     idUsuario: profile.id ?? profile.usuario_id ?? null,
     personaId,
     idPersona: personaId,
@@ -49,144 +62,181 @@ function mapUserProfile(profile) {
     doctor: doctorInfo ?? null,
     pacienteId: pacienteInfo?.id ?? profile.paciente_id ?? null,
     paciente: pacienteInfo ?? null,
+    authUserId: profile.auth_user_id ?? profile.authUserId ?? null
   };
 }
 
-async function fetchUserProfileByEmail(email) {
-  const rawProfile = await obtenerPerfilUsuarioPorEmail(email);
-  return mapUserProfile(rawProfile);
-}
+const UserContext = createContext({
+  ...INITIAL_STATE,
+  login: async () => undefined,
+  logout: async () => undefined,
+  refreshPerfil: async () => undefined
+});
 
-async function safeSignOut() {
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    console.error("// CODEx: Error al forzar signOut", error);
-  }
-}
-
-const UserContext = createContext(undefined);
-
-export function UserProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+function useIsMounted() {
   const isMountedRef = useRef(true);
 
-  useEffect(() => () => {
-    isMountedRef.current = false;
-  }, []);
-
   useEffect(() => {
-    async function syncSession(session) {
-      if (!isMountedRef.current) return;
-
-      if (!session?.user?.email) {
-        setUser(null);
-        return;
-      }
-
-      try {
-        const mappedProfile = await fetchUserProfileByEmail(session.user.email);
-        if (!isMountedRef.current) return;
-        setUser(mappedProfile);
-      } catch (error) {
-        console.error("// CODEx: No se pudo sincronizar el perfil activo", error);
-        if (isMountedRef.current) {
-          setUser(null);
-        }
-        await safeSignOut();
-      }
-    }
-
-    async function bootstrap() {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          throw error;
-        }
-        await syncSession(data?.session ?? null);
-      } catch (error) {
-        console.error("// CODEx: Error al restaurar la sesión activa", error);
-        if (isMountedRef.current) {
-          setUser(null);
-        }
-        await safeSignOut();
-      } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
-      }
-    }
-
-    bootstrap();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!isMountedRef.current) return;
-      setLoading(true);
-      try {
-        await syncSession(session ?? null);
-      } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
-      }
-    });
-
     return () => {
       isMountedRef.current = false;
-      listener?.subscription?.unsubscribe();
     };
   }, []);
 
-  const login = useCallback(async (email, password) => {
-    setLoading(true);
-    try {
-      const profile = await loginConEmailYPassword(email, password);
-      const mappedProfile = mapUserProfile(profile);
-      setUser(mappedProfile);
-      return mappedProfile;
-    } finally {
-      setLoading(false);
+  return isMountedRef;
+}
+
+export function UserProvider({ children }) {
+  const [state, setState] = useState(INITIAL_STATE);
+  const isMountedRef = useIsMounted();
+
+  const setSafeState = useCallback((updater) => {
+    if (!isMountedRef.current) return;
+    setState((prev) => (typeof updater === "function" ? updater(prev) : updater));
+  }, [isMountedRef]);
+
+  const handleProfileSuccess = useCallback((rawProfile) => {
+    const mappedProfile = mapUserProfile(rawProfile);
+    setSafeState({
+      user: mappedProfile,
+      perfil: mappedProfile,
+      loading: false,
+      error: null
+    });
+    return mappedProfile;
+  }, [setSafeState]);
+
+  const handleProfileError = useCallback((error) => {
+    const normalizedError =
+      error instanceof Error ? error : new Error("No se pudo recuperar la información del usuario");
+    console.error("// CODEx: No se pudo sincronizar el perfil activo", normalizedError);
+    setSafeState({
+      user: null,
+      perfil: null,
+      loading: false,
+      error: normalizedError
+    });
+    return normalizedError;
+  }, [setSafeState]);
+
+  const fetchPerfilForSessionUser = useCallback(async (sessionUser) => {
+    if (!sessionUser?.email) {
+      setSafeState({ user: null, perfil: null, loading: false, error: null });
+      return null;
     }
-  }, []);
+
+    setSafeState((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const rawProfile = await obtenerPerfilUsuarioPorEmail(sessionUser.email);
+      return handleProfileSuccess(rawProfile);
+    } catch (error) {
+      handleProfileError(error);
+      return null;
+    }
+  }, [handleProfileError, handleProfileSuccess, setSafeState]);
+
+  const refreshPerfil = useCallback(async () => {
+    setSafeState((prev) => ({ ...prev, loading: true }));
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      const sessionUser = data?.session?.user ?? null;
+      if (!sessionUser) {
+        setSafeState({ user: null, perfil: null, loading: false, error: null });
+        return null;
+      }
+      return await fetchPerfilForSessionUser(sessionUser);
+    } catch (error) {
+      handleProfileError(error);
+      return null;
+    }
+  }, [fetchPerfilForSessionUser, handleProfileError, setSafeState]);
+
+  useEffect(() => {
+    let isProcessing = true;
+
+    const bootstrap = async () => {
+      setSafeState((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        const sessionUser = data?.session?.user ?? null;
+        if (!sessionUser) {
+          if (isProcessing) {
+            setSafeState({ user: null, perfil: null, loading: false, error: null });
+          }
+          return;
+        }
+        if (isProcessing) {
+          await fetchPerfilForSessionUser(sessionUser);
+        }
+      } catch (error) {
+        if (isProcessing) {
+          handleProfileError(error);
+        }
+      }
+    };
+
+    bootstrap();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMountedRef.current) return;
+      const sessionUser = session?.user ?? null;
+      if (!sessionUser) {
+        setSafeState({ user: null, perfil: null, loading: false, error: null });
+        return;
+      }
+      fetchPerfilForSessionUser(sessionUser);
+    });
+
+    return () => {
+      isProcessing = false;
+      listener?.subscription?.unsubscribe();
+    };
+  }, [fetchPerfilForSessionUser, handleProfileError, isMountedRef, setSafeState]);
+
+  const login = useCallback(async (email, password) => {
+    setSafeState((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const rawProfile = await loginConEmailYPassword(email, password);
+      return handleProfileSuccess(rawProfile);
+    } catch (error) {
+      const normalizedError =
+        error instanceof Error ? error : new Error("Error al iniciar sesión, inténtalo nuevamente");
+      setSafeState((prev) => ({ ...prev, loading: false, error: normalizedError }));
+      throw normalizedError;
+    }
+  }, [handleProfileSuccess, setSafeState]);
 
   const logout = useCallback(async () => {
-    setLoading(true);
+    setSafeState((prev) => ({ ...prev, loading: true }));
     try {
-      await safeSignOut();
-      setUser(null);
-    } finally {
-      setLoading(false);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setSafeState({ user: null, perfil: null, loading: false, error: null });
+    } catch (error) {
+      const normalizedError =
+        error instanceof Error ? error : new Error("No se pudo cerrar la sesión actualmente");
+      setSafeState((prev) => ({ ...prev, loading: false, error: normalizedError }));
+      throw normalizedError;
     }
-  }, []);
+  }, [setSafeState]);
 
   const value = useMemo(
     () => ({
-      user,
-      loading,
+      ...state,
       login,
       logout,
+      refreshPerfil
     }),
-    [user, loading, login, logout],
+    [login, logout, refreshPerfil, state]
   );
 
-  return (
-    <UserContext.Provider value={value}>
-      {loading ? (
-        <div className="flex w-full justify-center py-8 text-sm text-slate-500">
-          {/* // CODEx: Se muestra un placeholder de carga mientras se restaura la sesión. */}
-          Cargando sesión...
-        </div>
-      ) : (
-        children
-      )}
-    </UserContext.Provider>
-  );
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
 
 export function useUser() {
   const context = useContext(UserContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useUser debe utilizarse dentro de un UserProvider");
   }
   return context;
