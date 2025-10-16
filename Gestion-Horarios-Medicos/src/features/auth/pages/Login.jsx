@@ -2,12 +2,12 @@
 import fondo from "@/assets/fondo.jpg";
 import "@/styles.css";
 
-import { supabase } from "@/services/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useState, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import { useUser } from "@/hooks/useUser";
 
 const loginTheme = createTheme({
   palette: {
@@ -37,80 +37,38 @@ function Login() {
   const [passwordError, setPasswordError] = useState("");
   const [loginError, setLoginError] = useState("");
   const navigate = useNavigate();
+  const { user, loading, login } = useUser();
 
   // Si ya hay sesión, redirige según rol
   useEffect(() => {
-    let mounted = true;
+    if (loading || !user) return;
 
-    async function boot() {
-      const { data: sessData } = await supabase.auth.getSession();
-      const session = sessData?.session ?? null;
-      if (!session || !mounted) return;
+    const role = user.rol ?? DEFAULT_ROLE;
+    const to = HOME_BY_ROLE[role] ?? HOME_BY_ROLE[DEFAULT_ROLE];
 
-      const authUser = session.user;
-      const { data: profile } = await supabase
-        .from("app_users")
-        .select("role")
-        .eq("user_id", authUser.id)
-        .single();
+    try {
+      localStorage.setItem("userEmail", user.correo ?? user.email ?? "");
+      if (user.doctor_id ?? user.doctorId) {
+        localStorage.setItem("doctorId", String(user.doctor_id ?? user.doctorId));
+      }
+      localStorage.setItem("isLoggedIn", role);
+    } catch {}
 
-      const role = profile?.role ?? DEFAULT_ROLE;
-      const to = HOME_BY_ROLE[role] ?? HOME_BY_ROLE[DEFAULT_ROLE];
-      navigate(to, { replace: true });
-    }
-
-    boot();
-    return () => {
-      mounted = false;
-    };
-  }, [navigate]);
+    navigate(to, { replace: true });
+  }, [loading, navigate, user]);
 
   // Handler para login
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setLoginError(error.message || "Error al iniciar sesión");
-      return;
-    }
-
-    const authUser = data?.user;
-    if (!authUser) {
-      setLoginError("No se recibió usuario autenticado.");
-      return;
-    }
-
-    // Lee el rol desde app_users
-    const { data: profile, error: profileErr } = await supabase
-      .from("app_users")
-      .select("role, doctor_id")
-      .eq("user_id", authUser.id)
-      .single();
-
-    const role = profile?.role ?? DEFAULT_ROLE;
-
-    // Si alguien por ahí aún depende de estos, los dejamos sin molestar:
     try {
-      localStorage.setItem("userEmail", email);
-      if (profile?.doctor_id) {
-        localStorage.setItem("doctorId", String(profile.doctor_id));
-      }
-      // Nota: ya NO usamos isLoggedIn para decidir la ruta, pero no estorba si existe.
-      localStorage.setItem("isLoggedIn", role);
-    } catch {}
-
-    // Redirige por rol
-    const to = HOME_BY_ROLE[role] ?? HOME_BY_ROLE[DEFAULT_ROLE];
-    navigate(to, { replace: true });
-
-    setEmail("");
-    setPassword("");
+      await login(email, password);
+      setEmail("");
+      setPassword("");
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Error al iniciar sesión");
+    }
   };
 
   // Handler para reset de password (mock visual)
