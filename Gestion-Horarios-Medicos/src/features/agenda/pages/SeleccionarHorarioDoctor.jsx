@@ -4,7 +4,6 @@ import {
   Avatar,
   Box,
   Button,
-  Chip,
   CircularProgress,
   InputAdornment,
   Paper,
@@ -27,7 +26,9 @@ import "dayjs/locale/es";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { useLocation, useNavigate } from "react-router-dom";
 import { listarDoctores } from "@/services/doctores";
-import { listarSlotsDoctor, reservarSlot } from "@/services/horarios";
+import { listarDisponibilidadPorDoctor } from "@/services/disponibilidad";
+import { crearCita, listarCitasPorDoctor } from "@/services/citas";
+import { useUser } from "@/hooks/useUser";
 
 dayjs.extend(customParseFormat);
 
@@ -36,11 +37,88 @@ const panelVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+function generarSlotsParaDia(disponibilidades, citas, fechaBase) {
+  if (!fechaBase?.isValid?.()) return [];
+  const inicioDia = fechaBase.startOf("day");
+  const finDia = inicioDia.add(1, "day");
+
+  const citasNormalizadas = (Array.isArray(citas) ? citas : [])
+    .map((cita) => {
+      const inicioRaw =
+        cita?.fecha_hora_inicio_agendada ??
+        cita?.fecha_hora_inicio ??
+        cita?.disponibilidad?.fecha_hora_inicio ??
+        null;
+      if (!inicioRaw) return null;
+      const inicio = dayjs(inicioRaw);
+      if (!inicio.isValid()) return null;
+
+      const duracionBloque = Number(cita?.disponibilidad?.duracion_bloque_minutos) || 0;
+      const finRaw =
+        cita?.fecha_hora_fin_agendada ??
+        cita?.fecha_hora_fin ??
+        cita?.disponibilidad?.fecha_hora_fin ??
+        (duracionBloque > 0 ? inicio.add(duracionBloque, "minute").toISOString() : null);
+
+      const fin = finRaw ? dayjs(finRaw) : null;
+      if (!fin || !fin.isValid()) {
+        if (duracionBloque > 0) {
+          return { inicio, fin: inicio.add(duracionBloque, "minute") };
+        }
+        return null;
+      }
+
+      return { inicio, fin };
+    })
+    .filter(Boolean);
+
+  const slots = [];
+  (Array.isArray(disponibilidades) ? disponibilidades : []).forEach((disponibilidad) => {
+    const inicioDisponibilidad = dayjs(disponibilidad?.fecha_hora_inicio);
+    const finDisponibilidad = dayjs(disponibilidad?.fecha_hora_fin);
+    const duracion = Number(disponibilidad?.duracion_bloque_minutos) || 0;
+
+    if (!inicioDisponibilidad.isValid() || !finDisponibilidad.isValid() || duracion <= 0) {
+      return;
+    }
+
+    const inicio = inicioDisponibilidad.isBefore(inicioDia) ? inicioDia : inicioDisponibilidad;
+    const limite = finDisponibilidad.isAfter(finDia) ? finDia : finDisponibilidad;
+
+    let currentStart = inicio;
+    while (currentStart.isBefore(limite)) {
+      const currentEnd = currentStart.add(duracion, "minute");
+      if (currentEnd.isAfter(limite) || currentEnd.isAfter(finDisponibilidad)) {
+        break;
+      }
+
+      const ocupado = citasNormalizadas.some(({ inicio: citaInicio, fin: citaFin }) => {
+        return currentStart.isBefore(citaFin) && currentEnd.isAfter(citaInicio);
+      });
+
+      slots.push({
+        id: `${disponibilidad.id}-${currentStart.toISOString()}`,
+        disponibilidadId: disponibilidad.id,
+        fechaHoraInicio: currentStart.toISOString(),
+        fechaHoraFin: currentEnd.toISOString(),
+        estado: ocupado ? "ocupado" : "disponible",
+      });
+
+      currentStart = currentEnd;
+    }
+  });
+
+  return slots.sort(
+    (a, b) => dayjs(a.fechaHoraInicio).valueOf() - dayjs(b.fechaHoraInicio).valueOf(),
+  );
+}
+
 export default function SeleccionarHorarioDoctor() {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { pacienteId, pacienteEmail } = location.state || {};
+  const { user } = useUser();
+  const { pacienteId } = location.state || {};
 
   useEffect(() => {
     if (!pacienteId) {
@@ -58,16 +136,21 @@ export default function SeleccionarHorarioDoctor() {
   const [selectedDoctorId, setSelectedDoctorId] = useState(null);
   const selectedDoctor = useMemo(
     () => doctores.find((d) => d.id === selectedDoctorId) || null,
-    [doctores, selectedDoctorId]
+    [doctores, selectedDoctorId],
   );
 
   const today = useMemo(() => dayjs().startOf("day"), []);
   const maxDate = useMemo(() => today.add(13, "day"), [today]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(() => dayjs().startOf("day"));
 
-  const [slots, setSlots] = useState([]);
-  const [cargandoSlots, setCargandoSlots] = useState(false);
-  const [errorSlots, setErrorSlots] = useState("");
+  const [disponibilidades, setDisponibilidades] = useState([]);
+  const [citasDelDia, setCitasDelDia] = useState([]);
+  const [cargandoDisponibilidad, setCargandoDisponibilidad] = useState(false);
+  const [cargandoCitas, setCargandoCitas] = useState(false);
+  const [errorDisponibilidad, setErrorDisponibilidad] = useState("");
+  const [errorCitas, setErrorCitas] = useState("");
+  const [refreshCitasCounter, setRefreshCitasCounter] = useState(0);
+
   const [selectedSlotId, setSelectedSlotId] = useState(null);
 
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
@@ -106,47 +189,97 @@ export default function SeleccionarHorarioDoctor() {
 
   useEffect(() => {
     if (!selectedDoctorId) {
-      setSlots([]);
-      setSelectedSlotId(null);
+      setDisponibilidades([]);
+      setErrorDisponibilidad("");
       return;
     }
 
     let cancel = false;
-    const fetchSlots = async () => {
+
+    const fetchDisponibilidad = async () => {
       try {
-        setCargandoSlots(true);
-        setErrorSlots("");
-        const fecha = fechaSeleccionada.startOf("day").format("YYYY-MM-DD");
-        const data = await listarSlotsDoctor({ doctorId: selectedDoctorId, desde: fecha, dias: 1 });
+        setCargandoDisponibilidad(true);
+        setErrorDisponibilidad("");
+        const fechaInicio = today.startOf("day").toISOString();
+        const fechaFin = maxDate.endOf("day").toISOString();
+        const data = await listarDisponibilidadPorDoctor(selectedDoctorId, fechaInicio, fechaFin);
         if (!cancel) {
-          setSlots(data);
-          setSelectedSlotId(null);
+          setDisponibilidades(data);
         }
       } catch (error) {
         if (!cancel) {
-          setErrorSlots(error.message || "No se pudieron cargar los horarios disponibles");
+          setErrorDisponibilidad(
+            error.message || "No se pudo obtener la disponibilidad del doctor seleccionado",
+          );
+          setDisponibilidades([]);
         }
       } finally {
-        if (!cancel) setCargandoSlots(false);
+        if (!cancel) {
+          setCargandoDisponibilidad(false);
+        }
       }
     };
 
-    fetchSlots();
+    fetchDisponibilidad();
 
     return () => {
       cancel = true;
     };
-  }, [fechaSeleccionada, selectedDoctorId]);
+  }, [selectedDoctorId, today, maxDate]);
 
-  const fechaSeleccionadaStr = useMemo(
-    () => fechaSeleccionada.startOf("day").format("YYYY-MM-DD"),
-    [fechaSeleccionada]
-  );
+  useEffect(() => {
+    if (!selectedDoctorId) {
+      setCitasDelDia([]);
+      setErrorCitas("");
+      return;
+    }
+
+    let cancel = false;
+
+    const fetchCitas = async () => {
+      try {
+        setCargandoCitas(true);
+        setErrorCitas("");
+        const fecha = fechaSeleccionada.startOf("day").format("YYYY-MM-DD");
+        const data = await listarCitasPorDoctor(selectedDoctorId, fecha);
+        if (!cancel) {
+          setCitasDelDia(data);
+        }
+      } catch (error) {
+        if (!cancel) {
+          setErrorCitas(error.message || "No se pudieron obtener las citas del doctor");
+          setCitasDelDia([]);
+        }
+      } finally {
+        if (!cancel) {
+          setCargandoCitas(false);
+        }
+      }
+    };
+
+    fetchCitas();
+
+    return () => {
+      cancel = true;
+    };
+  }, [selectedDoctorId, fechaSeleccionada, refreshCitasCounter]);
+
+  useEffect(() => {
+    setSelectedSlotId(null);
+  }, [selectedDoctorId, fechaSeleccionada]);
 
   const slotsDelDia = useMemo(
-    () => slots.filter((slot) => slot.fecha === fechaSeleccionadaStr),
-    [slots, fechaSeleccionadaStr]
+    () => generarSlotsParaDia(disponibilidades, citasDelDia, fechaSeleccionada),
+    [disponibilidades, citasDelDia, fechaSeleccionada],
   );
+
+  const selectedSlot = useMemo(
+    () => (selectedSlotId ? slotsDelDia.find((slot) => slot.id === selectedSlotId) || null : null),
+    [selectedSlotId, slotsDelDia],
+  );
+
+  const cargandoSlots = cargandoDisponibilidad || cargandoCitas;
+  const errorSlots = errorDisponibilidad || errorCitas;
 
   const columns = useMemo(
     () => [
@@ -160,31 +293,42 @@ export default function SeleccionarHorarioDoctor() {
       },
       { field: "email", headerName: "Correo", flex: 1, minWidth: 210 },
     ],
-    []
+    [],
   );
 
-  const handleReservar = async () => {
-    if (!selectedSlotId || !selectedDoctor || !pacienteId) return;
+  const handleReservarSlot = async () => {
+    if (!selectedSlot || !selectedDoctor || !pacienteId) return;
+    if (!user?.id) {
+      setSnackbar({
+        open: true,
+        message: "No se pudo identificar al usuario autenticado.",
+        severity: "error",
+      });
+      return;
+    }
+
     try {
-      const result = await reservarSlot({
-        pacienteId,
-        horarioId: selectedSlotId,
-        email: pacienteEmail || "",
+      await crearCita({
+        paciente_id: pacienteId,
+        doctor_id: selectedDoctor.id,
+        disponibilidad_id: selectedSlot.disponibilidadId,
+        creada_por_usuario_id: user.id,
+        fecha_hora_inicio_agendada: selectedSlot.fechaHoraInicio,
+        fecha_hora_fin_agendada: selectedSlot.fechaHoraFin,
       });
 
-      if (result !== "OK") {
-        throw new Error(typeof result === "string" ? result : "No se pudo reservar");
-      }
+      setSnackbar({
+        open: true,
+        message: "Cita agendada correctamente.",
+        severity: "success",
+      });
 
-      setSnackbar({ open: true, message: "Reserva creada", severity: "success" });
-      const fecha = fechaSeleccionada.startOf("day").format("YYYY-MM-DD");
-      const data = await listarSlotsDoctor({ doctorId: selectedDoctor.id, desde: fecha, dias: 1 });
-      setSlots(data);
       setSelectedSlotId(null);
+      setRefreshCitasCounter((prev) => prev + 1);
     } catch (error) {
       setSnackbar({
         open: true,
-        message: error.message || "No se pudo reservar",
+        message: error.message || "No se pudo agendar la cita.",
         severity: "error",
       });
     }
@@ -402,40 +546,50 @@ export default function SeleccionarHorarioDoctor() {
                         </Typography>
                       ) : slotsDelDia.length === 0 ? (
                         <Typography variant="body2" color="text.secondary">
-                          Sin horarios disponibles en esta fecha
+                          Sin disponibilidad configurada para esta fecha.
                         </Typography>
                       ) : (
                         <Box
                           sx={{
                             display: "grid",
                             gridTemplateColumns: {
-                              xs: "repeat(auto-fit, minmax(120px, 1fr))",
-                              sm: "repeat(auto-fit, minmax(130px, 1fr))",
+                              xs: "repeat(auto-fit, minmax(140px, 1fr))",
+                              sm: "repeat(auto-fit, minmax(150px, 1fr))",
                             },
                             gap: 1,
                           }}
                         >
                           {slotsDelDia.map((slot) => {
-                            const inicio = dayjs(slot.hora_inicio, "HH:mm:ss").format("HH:mm");
-                            const fin = slot.hora_fin
-                              ? dayjs(slot.hora_fin, "HH:mm:ss").format("HH:mm")
-                              : null;
+                            const inicio = dayjs(slot.fechaHoraInicio).format("HH:mm");
+                            const fin = dayjs(slot.fechaHoraFin).format("HH:mm");
+                            const isSelected = selectedSlotId === slot.id;
+                            const isOcupado = slot.estado === "ocupado";
                             return (
-                              <Chip
+                              <Button
                                 key={slot.id}
-                                label={fin ? `${inicio} – ${fin}` : inicio}
-                                clickable
-                                color={selectedSlotId === slot.id ? "primary" : "default"}
-                                onClick={() => setSelectedSlotId(slot.id)}
+                                variant={isSelected ? "contained" : "outlined"}
+                                color={isOcupado ? "inherit" : "primary"}
+                                disabled={isOcupado}
+                                onClick={() => {
+                                  if (!isOcupado) {
+                                    setSelectedSlotId(slot.id);
+                                  }
+                                }}
                                 sx={{
+                                  justifyContent: "center",
                                   borderRadius: 2,
                                   fontWeight: 600,
-                                  boxShadow:
-                                    selectedSlotId === slot.id
-                                      ? "0 10px 24px -18px rgba(67,119,254,0.8)"
-                                      : "none",
+                                  py: 1,
+                                  px: 1.5,
+                                  textTransform: "none",
+                                  boxShadow: isSelected
+                                    ? "0 10px 24px -18px rgba(67,119,254,0.8)"
+                                    : "none",
+                                  opacity: isOcupado ? 0.6 : 1,
                                 }}
-                              />
+                              >
+                                {inicio} – {fin}
+                              </Button>
                             );
                           })}
                         </Box>
@@ -449,8 +603,8 @@ export default function SeleccionarHorarioDoctor() {
                   <Button
                     variant="contained"
                     color="primary"
-                    disabled={!selectedDoctor || !selectedSlotId}
-                    onClick={handleReservar}
+                    disabled={!selectedDoctor || !selectedSlot || selectedSlot?.estado !== "disponible"}
+                    onClick={handleReservarSlot}
                     sx={{
                       borderRadius: 2,
                       px: 3,
@@ -485,4 +639,3 @@ export default function SeleccionarHorarioDoctor() {
     </LocalizationProvider>
   );
 }
-
