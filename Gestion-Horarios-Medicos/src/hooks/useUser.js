@@ -1,5 +1,5 @@
-// src/hooks/useUser.js
-import { useCallback, useEffect, useRef, useState } from "react";
+// --- ARCHIVO: src/hooks/useUser.js ---
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/services/supabaseClient";
 import { loginConEmailYPassword } from "@/services/auth";
 
@@ -8,16 +8,32 @@ const DEFAULT_ROLE = "secretaria";
 function mapUserProfile(profile) {
   if (!profile) return null;
 
-  const resolvedRole = profile.rol ?? profile.role ?? DEFAULT_ROLE;
+  const role = profile.rol ?? profile.role ?? DEFAULT_ROLE;
 
   return {
     ...profile,
-    rol: resolvedRole,
-    role: profile.role ?? resolvedRole,
+    rol: role,
+    role,
   };
 }
 
-export function useUser() {
+async function fetchUserProfileById(userId) {
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("*, personas(*)")
+    .eq("id", userId)
+    .single();
+
+  if (error || !data) {
+    throw new Error("No se pudo obtener el perfil de usuario");
+  }
+
+  return data;
+}
+
+const UserContext = createContext(undefined);
+
+export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
@@ -27,74 +43,109 @@ export function useUser() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
 
-    async function fetchUser() {
+    async function syncSession(session) {
+      if (!isMounted) return;
+
+      if (!session?.user?.id) {
+        setUser(null);
+        return;
+      }
+
+      const profile = await fetchUserProfileById(session.user.id);
+      if (!isMounted) return;
+      setUser(mapUserProfile(profile));
+    }
+
+    async function bootstrap() {
+      setLoading(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const authUser = session?.user || null;
-
-        if (!authUser) {
-          if (mounted && isMountedRef.current) {
-            setUser(null);
-            setLoading(false);
-          }
-          return;
-        }
-
-        const { data, error } = await supabase
-          .from("usuarios")
-          .select("*, personas(*)")
-          .eq("id", authUser.id)
-          .single();
-
-        if (!error && data && mounted && isMountedRef.current) {
-          setUser(mapUserProfile(data));
-        }
-
-        if ((error || !data) && mounted && isMountedRef.current) {
-          setUser(null);
-        }
-      } catch (_error) {
-        if (mounted && isMountedRef.current) {
+        const { data } = await supabase.auth.getSession();
+        await syncSession(data?.session ?? null);
+      } catch (error) {
+        console.error("Error al restaurar la sesión", error);
+        if (isMounted) {
           setUser(null);
         }
       } finally {
-        if (mounted && isMountedRef.current) {
+        if (isMounted) {
           setLoading(false);
         }
       }
     }
 
-    fetchUser();
-    const { data: listener } = supabase.auth.onAuthStateChange(() => fetchUser());
+    bootstrap();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!isMounted) return;
+      setLoading(true);
+      try {
+        await syncSession(session ?? null);
+      } catch (error) {
+        console.error("Error al sincronizar la sesión", error);
+        if (isMounted) {
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    });
 
     return () => {
-      mounted = false;
+      isMounted = false;
       listener?.subscription?.unsubscribe();
     };
   }, []);
 
   const login = useCallback(async (email, password) => {
+    setLoading(true);
     try {
-      if (isMountedRef.current) setLoading(true);
       const profile = await loginConEmailYPassword(email, password);
       const mappedProfile = mapUserProfile(profile);
-
-      if (isMountedRef.current) {
-        setUser(mappedProfile);
-      }
-
+      setUser(mappedProfile);
       return mappedProfile;
     } catch (error) {
-      const message = error instanceof Error && error.message
-        ? error.message
-        : "Error al iniciar sesión";
-      throw new Error(message);
+      throw error;
     } finally {
-      if (isMountedRef.current) setLoading(false);
+      setLoading(false);
     }
   }, []);
 
-  return { user, loading, login };
+  const logout = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
+      setUser(null);
+    } catch (error) {
+      throw error instanceof Error ? error : new Error("Error al cerrar sesión");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      login,
+      logout,
+    }),
+    [user, loading, login, logout],
+  );
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+}
+
+export function useUser() {
+  const context = useContext(UserContext);
+  if (context === undefined) {
+    throw new Error("useUser debe utilizarse dentro de un UserProvider");
+  }
+  return context;
 }
