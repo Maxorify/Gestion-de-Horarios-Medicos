@@ -1,5 +1,5 @@
-// --- ARCHIVO: src/hooks/useUser.js ---
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+// --- ARCHIVO: src/hooks/useUser.jsx ---
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/services/supabaseClient";
 import { loginConEmailYPassword } from "@/services/auth";
 
