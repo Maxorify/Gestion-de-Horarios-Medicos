@@ -30,8 +30,8 @@ import { crearDoctor, listarEspecialidadesPrincipales } from "@/services/doctore
 const schema = yup.object({
   nombre: yup.string().required("Nombre obligatorio").min(2, "Mínimo 2 caracteres").max(100, "Máximo 100 caracteres"),
   email: yup.string().required("Email obligatorio").email("Email inválido"),
-  password: yup.string().required("Contraseña obligatoria").min(8, "Al menos 8 caracteres"),
-  telefono: yup.string().nullable(),
+  telefono_principal: yup.string().nullable(),
+  telefono_secundario: yup.string().nullable(),
   direccion: yup.string().nullable(),
   bio: yup.string().nullable(),
   especialidadesIds: yup
@@ -61,8 +61,8 @@ const schema = yup.object({
 const defaultValues = {
   nombre: "",
   email: "",
-  password: "",
-  telefono: "",
+  telefono_principal: "",
+  telefono_secundario: "",
   direccion: "",
   bio: "",
   especialidadesIds: [],
@@ -150,22 +150,31 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
   const onSubmit = async (values) => {
     setSubmitError("");
     try {
-      await crearDoctor({
+      const especialidadPrincipalId = Array.isArray(values.especialidadesIds)
+        ? values.especialidadesIds[0]
+        : null;
+      const especialidadPrincipalOption = especialidades.find(
+        (item) => item.id === especialidadPrincipalId,
+      );
+
+      const persona = {
         nombre: values.nombre,
         email: values.email,
-        password: values.password,
-        telefono: values.telefono || null,
-        direccion: values.direccion || null,
-        bio: values.bio || null,
-        especialidadesIds: values.especialidadesIds,
+        telefono_principal: values.telefono_principal || null,
+        telefono_secundario: values.telefono_secundario || null,
+      };
+
+      const usuario = {
+        rol: "doctor",
+        estado: "activo",
+      };
+
+      const doctor = {
+        especialidad_principal: especialidadPrincipalOption?.nombre ?? null,
         sueldo_base_mensual: Number(values.sueldo_base_mensual) || 0,
-        pago_por_atencion: Number(values.pago_por_atencion) || 0,
-        tope_variable_mensual:
-          values.tope_variable_mensual === "" || values.tope_variable_mensual === null
-            ? null
-            : Number(values.tope_variable_mensual),
-        avatarFile: values.avatarFile || null,
-      });
+      };
+
+      await crearDoctor({ persona, usuario, doctor });
       reset(defaultValues);
       setAvatarPreview(null);
       onCreated?.();
@@ -232,28 +241,26 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
                   )}
                 />
                 <Controller
-                  name="password"
+                  name="telefono_principal"
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
-                      label="Contraseña"
-                      type="password"
-                      required
-                      error={!!errors.password}
-                      helperText={errors.password?.message}
+                      label="Teléfono principal"
+                      error={!!errors.telefono_principal}
+                      helperText={errors.telefono_principal?.message}
                     />
                   )}
                 />
                 <Controller
-                  name="telefono"
+                  name="telefono_secundario"
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
-                      label="Teléfono"
-                      error={!!errors.telefono}
-                      helperText={errors.telefono?.message}
+                      label="Teléfono secundario (opcional)"
+                      error={!!errors.telefono_secundario}
+                      helperText={errors.telefono_secundario?.message}
                     />
                   )}
                 />

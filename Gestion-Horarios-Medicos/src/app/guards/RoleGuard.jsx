@@ -16,7 +16,9 @@ export default function RoleGuard({ allow = [] }) {
     return <Navigate to="/" replace />;
   }
 
-  const role = user.rol ?? user.role ?? DEFAULT_ROLE;
+  const rawRole = user.rol ?? user.role ?? DEFAULT_ROLE;
+  const userRole = typeof rawRole === "string" ? rawRole.toLowerCase() : DEFAULT_ROLE;
+  const role = userRole === "administrador" ? "admin" : userRole;
 
   if (!allow.includes(role)) {
     return <Navigate to="/" replace />;
