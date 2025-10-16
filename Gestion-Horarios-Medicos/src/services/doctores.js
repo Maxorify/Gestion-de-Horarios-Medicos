@@ -77,73 +77,60 @@ export async function listarDoctores() {
  * @param {{ persona: Record<string, any>, usuario: Record<string, any>, doctor: Record<string, any> }} input
  * @returns {Promise<Record<string, any>>}
  */
-export async function crearDoctor(input) {
-  if (!input || typeof input !== "object") {
+export async function crearDoctor(payload) {
+  if (!payload || typeof payload !== "object") {
     throw new Error("Los datos para crear un doctor son requeridos.");
   }
 
-  const { persona, usuario, doctor } = input;
+  const { persona, usuario, doctor } = payload;
   if (!persona || !usuario || !doctor) {
     throw new Error("El input debe incluir persona, usuario y doctor.");
   }
-
-  const doctorId = await supabase.transaction(async (tx) => {
-    const { data: personaRow, error: personaError } = await tx
-      .from("personas")
-      .insert(persona)
-      .select("id")
-      .single();
-
-    handleSupabaseError(personaError, "No se pudo crear la persona del doctor.");
-    const personaId = personaRow?.id;
-    if (!personaId) {
-      throw new Error("La creación de la persona no devolvió un identificador válido.");
-    }
-
-    // Nueva inserción usando UUID (usuarios.id) provisto por Supabase Auth
-    const { id: userId, rol, estado } = usuario;
-    const { data: usuarioRow, error: usuarioError } = await tx
-      .from("usuarios")
-      .insert({
-        id: userId, // UUID de auth.users.id
-        persona_id: personaId,
-        rol: rol ?? "doctor",
-        estado: estado ?? "activo",
-      })
-      .select("id")
-      .single();
-    if (usuarioError) throw usuarioError;
-
-    handleSupabaseError(usuarioError, "No se pudo crear el usuario del doctor.");
-
-    const doctorPayload = {
-      ...doctor,
-      persona_id: personaId,
-      estado: doctor.estado ?? "activo",
-    };
-
-    const { data: doctorRow, error: doctorError } = await tx
-      .from("doctores")
-      .insert(doctorPayload)
-      .select("id")
-      .single();
-
-    handleSupabaseError(doctorError, "No se pudo crear el registro del doctor.");
-
-    const createdDoctorId = doctorRow?.id;
-    if (!createdDoctorId) {
-      throw new Error("La creación del doctor no devolvió un identificador válido.");
-    }
-
-    return createdDoctorId;
-  });
-
-  const doctorCompleto = await obtenerDoctorPorId(doctorId);
-  if (!doctorCompleto) {
-    throw new Error("No se pudo recuperar el doctor recién creado.");
+  if (!persona.email) {
+    throw new Error("Falta email de la persona");
   }
 
-  return doctorCompleto;
+  const trxPersona = await supabase
+    .from("personas")
+    .insert([persona])
+    .select("id")
+    .maybeSingle();
+  handleSupabaseError(trxPersona.error, "No se pudo crear la persona del doctor.");
+
+  const personaId = trxPersona.data?.id;
+  if (!personaId) {
+    throw new Error("La creación de la persona no devolvió un identificador válido.");
+  }
+
+  if (usuario) {
+    const insUsr = await supabase
+      .from("usuarios")
+      .insert([
+        {
+          persona_id: personaId,
+          rol: usuario.rol,
+          estado: usuario.estado,
+        },
+      ])
+      .select("id")
+      .maybeSingle();
+    handleSupabaseError(insUsr.error, "No se pudo crear el usuario del doctor.");
+  }
+
+  const insDoc = await supabase
+    .from("doctores")
+    .insert([
+      {
+        persona_id: personaId,
+        especialidad_principal: doctor.especialidad_principal,
+        sueldo_base_mensual: doctor.sueldo_base_mensual ?? null,
+      },
+    ])
+    .select()
+    .maybeSingle();
+  handleSupabaseError(insDoc.error, "No se pudo crear el registro del doctor.");
+
+  return { persona_id: personaId, doctor: insDoc.data };
 }
 
 /**

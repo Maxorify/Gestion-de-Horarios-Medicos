@@ -24,6 +24,7 @@ const loginTheme = createTheme({
 
 const HOME_BY_ROLE = {
   admin: "/admin",
+  administrador: "/admin",
   secretaria: "/sec",
   doctor: "/doctor",
 };
@@ -44,15 +45,17 @@ function Login() {
       return;
     }
 
-    const role = user.rol ?? user.role ?? DEFAULT_ROLE;
-    const destination = HOME_BY_ROLE[role] ?? HOME_BY_ROLE[DEFAULT_ROLE];
+    const rawRole = user.rol ?? user.role ?? DEFAULT_ROLE;
+    const normalizedRole = typeof rawRole === "string" ? rawRole.toLowerCase() : DEFAULT_ROLE;
+    const mappedRole = normalizedRole === "administrador" ? "admin" : normalizedRole;
+    const destination = HOME_BY_ROLE[mappedRole] ?? HOME_BY_ROLE[DEFAULT_ROLE];
 
     try {
       localStorage.setItem("userEmail", user.correo ?? user.email ?? "");
       if (user.doctor_id ?? user.doctorId) {
         localStorage.setItem("doctorId", String(user.doctor_id ?? user.doctorId));
       }
-      localStorage.setItem("isLoggedIn", role);
+      localStorage.setItem("isLoggedIn", mappedRole);
     } catch (error) {
       console.warn("No se pudo persistir la información del usuario", error);
     }

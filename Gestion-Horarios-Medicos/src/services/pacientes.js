@@ -15,7 +15,7 @@ const PACIENTE_SELECT = `
   )
 `;
 
-const USUARIO_ESTADO_SELECT = "id, persona_id, estado";
+const USUARIO_ESTADO_SELECT = "id, persona_id";
 
 function handleSupabaseError(error, fallbackMessage) {
   if (!error) {
