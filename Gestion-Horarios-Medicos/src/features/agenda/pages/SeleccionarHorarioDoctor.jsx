@@ -28,6 +28,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { listarDoctores } from "@/services/doctores";
 import { listarDisponibilidadPorDoctor } from "@/services/disponibilidad";
 import { crearCita, listarCitasPorDoctor } from "@/services/citas";
+import { tokenize, matchAllTokens, highlightRenderer } from "@/utils/search";
 import { useUser } from "@/hooks/useUser";
 
 dayjs.extend(customParseFormat);
@@ -108,9 +109,28 @@ function generarSlotsParaDia(disponibilidades, citas, fechaBase) {
     }
   });
 
-  return slots.sort(
-    (a, b) => dayjs(a.fechaHoraInicio).valueOf() - dayjs(b.fechaHoraInicio).valueOf(),
-  );
+  return slots.sort((a, b) => dayjs(a.fechaHoraInicio).valueOf() - dayjs(b.fechaHoraInicio).valueOf());
+}
+
+function buildDoctorSearchString(doctor) {
+  const persona = doctor?.persona ?? {};
+  return [
+    persona.nombre,
+    persona.apellido_paterno,
+    persona.apellido_materno,
+    persona.email,
+    persona.telefono,
+    doctor?.especialidad_principal,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function getDoctorNombre(persona) {
+  if (!persona) return "";
+  return [persona.nombre, persona.apellido_paterno, persona.apellido_materno]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export default function SeleccionarHorarioDoctor() {
@@ -169,12 +189,9 @@ export default function SeleccionarHorarioDoctor() {
       try {
         setCargandoDoctores(true);
         setErrorDoctores("");
-        const rows = await listarDoctores({ search: query });
+        const rows = await listarDoctores();
         if (!cancel) {
-          setDoctores(rows);
-          if (rows.every((row) => row.id !== selectedDoctorId)) {
-            setSelectedDoctorId(null);
-          }
+          setDoctores(rows ?? []);
         }
       } catch (error) {
         if (!cancel) setErrorDoctores(error.message || "No se pudieron cargar los doctores");
@@ -185,7 +202,50 @@ export default function SeleccionarHorarioDoctor() {
     return () => {
       cancel = true;
     };
-  }, [query, selectedDoctorId]);
+  }, []);
+
+  useEffect(() => {
+    if (!doctores.some((doctor) => doctor.id === selectedDoctorId)) {
+      setSelectedDoctorId(null);
+    }
+  }, [doctores, selectedDoctorId]);
+
+  const tokens = useMemo(() => tokenize(query), [query]);
+  const filteredDoctores = useMemo(() => {
+    if (tokens.length === 0) return doctores;
+    return doctores.filter((doctor) => matchAllTokens(buildDoctorSearchString(doctor), tokens));
+  }, [doctores, tokens]);
+
+  const highlight = highlightRenderer(query);
+  const columns = useMemo(
+    () => [
+      {
+        field: "nombre",
+        headerName: "Nombre",
+        flex: 1,
+        minWidth: 180,
+        valueGetter: ({ row }) => getDoctorNombre(row?.persona),
+        renderCell: ({ value }) => highlight(value ?? ""),
+      },
+      {
+        field: "especialidad",
+        headerName: "Especialidad",
+        flex: 1.1,
+        minWidth: 220,
+        valueGetter: ({ row }) => row?.especialidad_principal ?? "",
+        renderCell: ({ value }) => highlight(value ?? ""),
+      },
+      {
+        field: "email",
+        headerName: "Correo",
+        flex: 1,
+        minWidth: 210,
+        valueGetter: ({ row }) => row?.persona?.email ?? "",
+        renderCell: ({ value }) => highlight(value ?? ""),
+      },
+    ],
+    [highlight],
+  );
 
   useEffect(() => {
     if (!selectedDoctorId) {
@@ -204,7 +264,7 @@ export default function SeleccionarHorarioDoctor() {
         const fechaFin = maxDate.endOf("day").toISOString();
         const data = await listarDisponibilidadPorDoctor(selectedDoctorId, fechaInicio, fechaFin);
         if (!cancel) {
-          setDisponibilidades(data);
+          setDisponibilidades(data ?? []);
         }
       } catch (error) {
         if (!cancel) {
@@ -243,7 +303,7 @@ export default function SeleccionarHorarioDoctor() {
         const fecha = fechaSeleccionada.startOf("day").format("YYYY-MM-DD");
         const data = await listarCitasPorDoctor(selectedDoctorId, fecha);
         if (!cancel) {
-          setCitasDelDia(data);
+          setCitasDelDia(data ?? []);
         }
       } catch (error) {
         if (!cancel) {
@@ -280,21 +340,6 @@ export default function SeleccionarHorarioDoctor() {
 
   const cargandoSlots = cargandoDisponibilidad || cargandoCitas;
   const errorSlots = errorDisponibilidad || errorCitas;
-
-  const columns = useMemo(
-    () => [
-      { field: "nombre", headerName: "Nombre", flex: 1, minWidth: 180 },
-      {
-        field: "especialidades",
-        headerName: "Especialidades",
-        flex: 1.2,
-        minWidth: 220,
-        renderCell: ({ value }) => value || "—",
-      },
-      { field: "email", headerName: "Correo", flex: 1, minWidth: 210 },
-    ],
-    [],
-  );
 
   const handleReservarSlot = async () => {
     if (!selectedSlot || !selectedDoctor || !pacienteId) return;
@@ -335,8 +380,13 @@ export default function SeleccionarHorarioDoctor() {
   };
 
   const avatarUrl = selectedDoctor
-    ? selectedDoctor.avatar_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${selectedDoctor.id}`
+    ? selectedDoctor.avatar_url ||
+      `https://api.dicebear.com/7.x/notionists/svg?seed=${selectedDoctor.id}`
     : "";
+
+  const selectedDoctorNombre = getDoctorNombre(selectedDoctor?.persona);
+  const selectedDoctorEspecialidad = selectedDoctor?.especialidad_principal || "Sin especialidad";
+  const selectedDoctorEmail = selectedDoctor?.persona?.email || "Sin correo";
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
@@ -390,7 +440,7 @@ export default function SeleccionarHorarioDoctor() {
                 <TextField
                   value={qInternal}
                   onChange={(event) => setQInternal(event.target.value)}
-                  placeholder="Buscar por nombre"
+                  placeholder="Buscar por nombre o especialidad"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -411,7 +461,7 @@ export default function SeleccionarHorarioDoctor() {
 
               <Box sx={{ width: "100%", overflowX: "auto" }}>
                 <DataGrid
-                  rows={doctores}
+                  rows={filteredDoctores}
                   getRowId={(row) => row.id}
                   columns={columns}
                   disableColumnMenu
@@ -488,22 +538,22 @@ export default function SeleccionarHorarioDoctor() {
                       Selecciona un doctor para ver sus horarios disponibles
                     </Typography>
                     <Typography variant="body2" color="text.secondary" align="center">
-                      Puedes utilizar el buscador para filtrar por nombre.
+                      Puedes utilizar el buscador para filtrar por nombre o especialidad.
                     </Typography>
                   </Stack>
                 ) : (
                   <Stack spacing={3} sx={{ flexGrow: 1 }}>
                     <Stack direction="row" spacing={2} alignItems="center">
-                      <Avatar src={avatarUrl} alt={selectedDoctor.nombre} sx={{ width: 64, height: 64 }} />
+                      <Avatar src={avatarUrl} alt={selectedDoctorNombre} sx={{ width: 64, height: 64 }} />
                       <Box>
                         <Typography variant="h6" fontWeight={700}>
-                          {selectedDoctor.nombre}
+                          {selectedDoctorNombre}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {selectedDoctor.especialidades || "Sin especialidades registradas"}
+                          {selectedDoctorEspecialidad}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {selectedDoctor.email || "Sin correo"}
+                          {selectedDoctorEmail}
                         </Typography>
                       </Box>
                     </Stack>

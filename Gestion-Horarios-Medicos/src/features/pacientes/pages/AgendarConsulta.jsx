@@ -19,9 +19,31 @@ import { DataGrid } from "@mui/x-data-grid";
 import { esES as dataGridEsES } from "@mui/x-data-grid/locales";
 import RegistroPacienteDialog from "@/features/pacientes/components/RegistroPacienteDialog.jsx";
 import { tokenize, matchAllTokens, highlightRenderer } from "@/utils/search";
+import { formatRut } from "@/utils/rut";
 import { listarPacientes } from "@/services/pacientes";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+
+function buildPacienteSearchString(paciente) {
+  const persona = paciente?.persona ?? {};
+  return [
+    persona.rut,
+    persona.nombre,
+    persona.apellido_paterno,
+    persona.apellido_materno,
+    persona.email,
+    persona.telefono,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function buildNombreCompleto(persona) {
+  if (!persona) return "";
+  return [persona.nombre, persona.apellido_paterno, persona.apellido_materno]
+    .filter(Boolean)
+    .join(" ");
+}
 
 export default function AgendarConsulta() {
   const theme = useTheme();
@@ -45,7 +67,6 @@ export default function AgendarConsulta() {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [openPacienteCheck, setOpenPacienteCheck] = useState(false);
   const [openRegistroPaciente, setOpenRegistroPaciente] = useState(false);
-  const idCounter = useRef(1);
   const [selectedPacienteId, setSelectedPacienteId] = useState(null);
 
   // handlers únicos
@@ -62,10 +83,17 @@ export default function AgendarConsulta() {
   };
   const handleCloseRegistroPaciente = () => setOpenRegistroPaciente(false);
   const handleRegistroSuccess = (nuevoPaciente) => {
+    if (!nuevoPaciente) {
+      return;
+    }
     setPacientes((prev) => {
-      const assignedId = nuevoPaciente?.id ?? idCounter.current++;
-      return [{ id: assignedId, ...nuevoPaciente }, ...prev];
+      const filteredPrev = Array.isArray(prev)
+        ? prev.filter((paciente) => paciente.id !== nuevoPaciente.id)
+        : [];
+      return [nuevoPaciente, ...filteredPrev];
     });
+    setSelectedPacienteId(nuevoPaciente.id ?? null);
+    setError("");
     setOpenRegistroPaciente(false);
     setOpenPacienteCheck(false);
   };
@@ -75,44 +103,34 @@ export default function AgendarConsulta() {
     (async () => {
       try {
         setCargando(true);
+        setError("");
         const rows = await listarPacientes();
-        if (!cancel) setPacientes(rows);
+        if (!cancel) setPacientes(rows ?? []);
       } catch (e) {
         if (!cancel) setError(e.message || "Error al cargar pacientes");
       } finally {
         if (!cancel) setCargando(false);
       }
     })();
-    return () => { cancel = true; };
+    return () => {
+      cancel = true;
+    };
   }, []);
-
-  useEffect(() => {
-    const maxId = pacientes.reduce((max, paciente) => {
-      const numeric = typeof paciente.id === "number" ? paciente.id : Number.parseInt(paciente.id, 10);
-      return Number.isFinite(numeric) ? Math.max(max, numeric) : max;
-    }, 0);
-    idCounter.current = maxId + 1;
-  }, [pacientes]);
 
   // filtrado client-side
   const tokens = useMemo(() => tokenize(query), [query]);
   const filtered = useMemo(() => {
     if (tokens.length === 0) return pacientes;
-    return pacientes.filter((p) =>
-      matchAllTokens(
-        `${p.rut} ${p.nombre} ${p.apellido} ${p.correo} ${p.numero}`,
-        tokens
-      )
-    );
+    return pacientes.filter((p) => matchAllTokens(buildPacienteSearchString(p), tokens));
   }, [pacientes, tokens]);
 
   const selectedPaciente = useMemo(
     () => pacientes.find((p) => p.id === selectedPacienteId) || null,
-    [pacientes, selectedPacienteId]
+    [pacientes, selectedPacienteId],
   );
 
   // highlight renderers
-  const h = highlightRenderer(query);
+  const highlight = highlightRenderer(query);
   const columns = useMemo(
     () => [
       {
@@ -120,38 +138,35 @@ export default function AgendarConsulta() {
         headerName: "RUT",
         flex: 0.8,
         minWidth: 160,
-        renderCell: ({ value }) => h(value),
+        valueGetter: ({ row }) => formatRut(row?.persona?.rut ?? ""),
+        renderCell: ({ value }) => highlight(value ?? ""),
       },
       {
-        field: "nombre",
-        headerName: "Nombre",
-        flex: 1,
-        minWidth: 140,
-        renderCell: ({ value }) => h(value),
-      },
-      {
-        field: "apellido",
-        headerName: "Apellido",
-        flex: 1,
-        minWidth: 150,
-        renderCell: ({ value }) => h(value),
+        field: "nombreCompleto",
+        headerName: "Nombre completo",
+        flex: 1.2,
+        minWidth: 200,
+        valueGetter: ({ row }) => buildNombreCompleto(row?.persona),
+        renderCell: ({ value }) => highlight(value ?? ""),
       },
       {
         field: "correo",
         headerName: "Correo",
         flex: 1.3,
         minWidth: 220,
-        renderCell: ({ value }) => h(value),
+        valueGetter: ({ row }) => row?.persona?.email ?? "",
+        renderCell: ({ value }) => highlight(value ?? ""),
       },
       {
-        field: "numero",
+        field: "telefono",
         headerName: "Teléfono",
         flex: 1,
         minWidth: 170,
-        renderCell: ({ value }) => h(value),
+        valueGetter: ({ row }) => row?.persona?.telefono ?? "",
+        renderCell: ({ value }) => highlight(value ?? ""),
       },
     ],
-    [query]
+    [highlight],
   );
 
   return (
@@ -255,7 +270,7 @@ export default function AgendarConsulta() {
                     navigate("/admin/agendar/seleccionar-horario", {
                       state: {
                         pacienteId: selectedPaciente.id,
-                        pacienteEmail: selectedPaciente.correo || "",
+                        pacienteEmail: selectedPaciente.persona?.email || "",
                       },
                     })
                   }
@@ -359,12 +374,6 @@ export default function AgendarConsulta() {
               )}
             </Box>
           </Fade>
-
-          {!!error && (
-            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
-              {error}
-            </Typography>
-          )}
 
           {/* CTA: nuevo */}
           <Box display="flex" justifyContent="flex-end" mt={2}>

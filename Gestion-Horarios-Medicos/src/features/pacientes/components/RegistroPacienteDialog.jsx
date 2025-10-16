@@ -14,7 +14,7 @@ import {
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { useState } from "react";
-import { guardarPaciente } from "@/services/pacientes";
+import { crearPaciente } from "@/services/pacientes";
 import { cleanRutValue, formatRut, isValidRut } from "@/utils/rut";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -42,6 +42,7 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
     correo: "",
     telefonoNumero: "",
   });
+  const [submitting, setSubmitting] = useState(false);
 
   function validaCorreo(correo) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
@@ -138,31 +139,52 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
     });
   };
 
-  // SOLO este pacienteBD dentro del handleSubmit
   const handleSubmit = async () => {
-    const pacienteBD = {
-      nombres_apellidos: `${formData.nombres} ${formData.apellidos}`.trim(),
+    if (submitting || !isFormValid) return;
+
+    const nombres = formData.nombres.trim();
+    const apellidos = formData.apellidos.trim();
+    const [apellidoPaterno = "", ...restApellidos] = apellidos.split(/\s+/);
+    const apellidoMaterno = restApellidos.join(" ");
+
+    const telefonoCompleto = `${formData.telefonoCodigo}${formData.telefonoNumero}`;
+
+    const personaPayload = {
+      nombre: nombres,
+      apellido_paterno: apellidoPaterno || null,
+      apellido_materno: apellidoMaterno || null,
       rut: cleanRutValue(formData.rut),
-      email: formData.correo,
-      telefono: `${formData.telefonoCodigo}${formData.telefonoNumero}`,
-      fecha_nacimiento: dayjs(formData.fechaNacimiento).format("YYYY-MM-DD"),
-      // creado_en: dayjs().tz("America/Santiago").format("YYYY-MM-DD HH:mm:ss"), // opcional si quieres forzar hora local
+      email: formData.correo.trim(),
+      telefono: telefonoCompleto,
+      fecha_nacimiento: formData.fechaNacimiento
+        ? dayjs(formData.fechaNacimiento).format("YYYY-MM-DD")
+        : null,
     };
+
+    if (!personaPayload.fecha_nacimiento) {
+      delete personaPayload.fecha_nacimiento;
+    }
+
+    const pacientePayload = {
+      estado: "activo",
+      alerta_medica_general: null,
+    };
+
     try {
-      await guardarPaciente(pacienteBD);
-      const nuevoPaciente = {
-        rut: formatRut(formData.rut),
-        nombre: formData.nombres.trim(),
-        apellido: formData.apellidos.trim(),
-        correo: formData.correo.trim(),
-        numero: `${formData.telefonoCodigo}${formData.telefonoNumero}`,
-      };
+      setSubmitting(true);
+      const nuevoPaciente = await crearPaciente({
+        persona: personaPayload,
+        paciente: pacientePayload,
+      });
+
       onSuccess?.(nuevoPaciente);
       alert("¡Paciente registrado exitosamente!");
-      onClose();
+      onClose?.();
       resetForm();
     } catch (error) {
-      alert("Error al registrar paciente: " + error.message);
+      alert("Error al registrar paciente: " + (error?.message || ""));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -315,6 +337,7 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
           variant="text"
           color="inherit"
           sx={{ fontWeight: 500 }}
+          disabled={submitting}
         >
           Cancelar
         </Button>
@@ -322,14 +345,14 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
           onClick={handleSubmit}
           variant="contained"
           color="primary"
-          disabled={!isFormValid}
+          disabled={!isFormValid || submitting}
           sx={{
             fontWeight: "bold",
             ...primaryBtn,
             boxShadow: "0 2px 8px 0 rgba(51,120,255,0.08)",
           }}
         >
-          REGISTRAR PACIENTE
+          {submitting ? "Registrando..." : "REGISTRAR PACIENTE"}
         </Button>
       </DialogActions>
     </Dialog>
