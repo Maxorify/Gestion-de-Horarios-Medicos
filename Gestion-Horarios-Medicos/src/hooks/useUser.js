@@ -1,45 +1,146 @@
-// src/hooks/useUser.js
-import { useEffect, useState } from "react";
+// --- ARCHIVO: src/hooks/useUser.js ---
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/services/supabaseClient";
+import { loginConEmailYPassword } from "@/services/auth";
 
-export function useUser() {
+const DEFAULT_ROLE = "secretaria";
+
+function mapUserProfile(profile) {
+  if (!profile) return null;
+
+  const role = profile.rol ?? profile.role ?? DEFAULT_ROLE;
+
+  return {
+    ...profile,
+    rol: role,
+    role,
+  };
+}
+
+async function fetchUserProfileById(userId) {
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("*, personas(*)")
+    .eq("id", userId)
+    .single();
+
+  if (error || !data) {
+    throw new Error("No se pudo obtener el perfil de usuario");
+  }
+
+  return data;
+}
+
+const UserContext = createContext(undefined);
+
+export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
 
-    async function fetchUser() {
-      const { data: { session } } = await supabase.auth.getSession();
-      const authUser = session?.user || null;
+    async function syncSession(session) {
+      if (!isMounted) return;
 
-      if (!authUser) {
-        if (mounted) { setUser(null); setLoading(false); }
+      if (!session?.user?.id) {
+        setUser(null);
         return;
       }
 
-      const { data, error } = await supabase
-        .from("app_users")
-        .select("user_id, role, display_name, email, doctor_id")
-        .eq("user_id", authUser.id)
-        .single();
-
-      if (!error && mounted) {
-        setUser({
-          id: authUser.id,
-          email: data?.email ?? authUser.email ?? "",
-          role: data?.role ?? "secretaria",
-          name: data?.display_name ?? "",
-          doctorId: data?.doctor_id ?? null,
-        });
-      }
-      if (mounted) setLoading(false);
+      const profile = await fetchUserProfileById(session.user.id);
+      if (!isMounted) return;
+      setUser(mapUserProfile(profile));
     }
 
-    fetchUser();
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, _s) => fetchUser());
-    return () => { mounted = false; sub?.subscription?.unsubscribe(); };
+    async function bootstrap() {
+      setLoading(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        await syncSession(data?.session ?? null);
+      } catch (error) {
+        console.error("Error al restaurar la sesión", error);
+        if (isMounted) {
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    bootstrap();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!isMounted) return;
+      setLoading(true);
+      try {
+        await syncSession(session ?? null);
+      } catch (error) {
+        console.error("Error al sincronizar la sesión", error);
+        if (isMounted) {
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      listener?.subscription?.unsubscribe();
+    };
   }, []);
 
-  return { user, loading };
+  const login = useCallback(async (email, password) => {
+    setLoading(true);
+    try {
+      const profile = await loginConEmailYPassword(email, password);
+      const mappedProfile = mapUserProfile(profile);
+      setUser(mappedProfile);
+      return mappedProfile;
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
+      setUser(null);
+    } catch (error) {
+      throw error instanceof Error ? error : new Error("Error al cerrar sesión");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      login,
+      logout,
+    }),
+    [user, loading, login, logout],
+  );
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+}
+
+export function useUser() {
+  const context = useContext(UserContext);
+  if (context === undefined) {
+    throw new Error("useUser debe utilizarse dentro de un UserProvider");
+  }
+  return context;
 }
