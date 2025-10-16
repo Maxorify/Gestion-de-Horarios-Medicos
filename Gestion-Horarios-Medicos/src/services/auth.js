@@ -21,7 +21,7 @@ async function obtenerPacientePorPersonaId(personaId) {
 
   const { data, error } = await supabase
     .from("pacientes")
-    .select("id, persona_id, estado")
+    .select("id, persona_id")
     .eq("persona_id", personaId)
     .maybeSingle();
 
