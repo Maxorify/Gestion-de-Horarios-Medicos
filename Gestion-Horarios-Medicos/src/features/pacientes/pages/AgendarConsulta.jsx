@@ -85,18 +85,34 @@ export default function AgendarConsulta() {
     setOpenRegistroPaciente(true);
   };
   const handleCloseRegistroPaciente = () => setOpenRegistroPaciente(false);
-  const handleRegistroSuccess = (nuevoPaciente) => {
+  const handleRegistroSuccess = async (nuevoPaciente) => {
     if (!nuevoPaciente) {
       return;
     }
-    setPacientes((prev) => {
-      const filteredPrev = Array.isArray(prev)
-        ? prev.filter((paciente) => paciente.id !== nuevoPaciente.id)
-        : [];
-      return [nuevoPaciente, ...filteredPrev];
-    });
-    setSelectedPacienteId(nuevoPaciente.id ?? null);
-    setError("");
+
+    if (typeof nuevoPaciente === "number") {
+      try {
+        setCargando(true);
+        const rows = await listarPacientes();
+        setPacientes(rows ?? []);
+        setSelectedPacienteId(nuevoPaciente);
+        setError("");
+      } catch (e) {
+        setError(e?.message || "Error al refrescar pacientes");
+      } finally {
+        setCargando(false);
+      }
+    } else {
+      setPacientes((prev) => {
+        const filteredPrev = Array.isArray(prev)
+          ? prev.filter((paciente) => paciente.id !== nuevoPaciente.id)
+          : [];
+        return [nuevoPaciente, ...filteredPrev];
+      });
+      setSelectedPacienteId(nuevoPaciente.id ?? null);
+      setError("");
+    }
+
     setOpenRegistroPaciente(false);
     setOpenPacienteCheck(false);
   };

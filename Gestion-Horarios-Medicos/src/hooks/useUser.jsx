@@ -125,12 +125,24 @@ export function UserProvider({ children }) {
     }
 
     setSafeState((prev) => ({ ...prev, loading: true, error: null }));
+    const timeoutId = setTimeout(() => {
+      setSafeState((prev) => ({ ...prev, loading: false }));
+    }, 10000);
+
     try {
       const rawProfile = await obtenerPerfilUsuarioPorEmail(sessionUser.email);
+      if (!rawProfile) {
+        throw new Error("Perfil inválido");
+      }
       return handleProfileSuccess(rawProfile);
     } catch (error) {
+      console.error("Perfil no disponible, cerrando sesión defensiva", error);
+      await supabase.auth.signOut();
       handleProfileError(error);
       return null;
+    } finally {
+      clearTimeout(timeoutId);
+      setSafeState((prev) => ({ ...prev, loading: false }));
     }
   }, [handleProfileError, handleProfileSuccess, setSafeState]);
 
