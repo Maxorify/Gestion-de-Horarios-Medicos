@@ -2,13 +2,14 @@ import { supabase } from "@/services/supabaseClient";
 
 const DOCTOR_SELECT = `
   id, persona_id, especialidad_principal, estado,
-  personas:persona_id (id, nombre, apellido_paterno, rut, email, telefono_principal, telefono_secundario)
+  personas:persona_id (
+    id, nombre, apellido_paterno, apellido_materno, rut, email,
+    telefono_principal, telefono_secundario
+  )
 `;
 
 function handleSupabaseError(error, fallbackMessage) {
-  if (!error) {
-    return;
-  }
+  if (!error) return;
   const message = error.message || fallbackMessage || "Error inesperado de Supabase";
   const wrapped = new Error(message);
   wrapped.cause = error;
@@ -18,19 +19,16 @@ function handleSupabaseError(error, fallbackMessage) {
 function mapDoctor(row) {
   if (!row) return null;
   const { personas, ...rest } = row;
-  return {
-    ...rest,
-    persona: personas ?? null,
-  };
-}
+  const persona = personas ?? null;
 
-function mapEspecialidad(row) {
-  if (!row) return null;
-  const { id, nombre, ...rest } = row;
   return {
-    id,
-    nombre,
     ...rest,
+    persona,
+    nombre: persona
+      ? [persona.nombre, persona.apellido_paterno, persona.apellido_materno].filter(Boolean).join(" ")
+      : "",
+    email: persona?.email ?? "",
+    especialidades: rest.especialidad_principal ?? "",
   };
 }
 
@@ -42,7 +40,7 @@ export async function listarEspecialidadesPrincipales(options = {}) {
     .order("nombre", { ascending: true });
 
   handleSupabaseError(error, "No se pudieron listar las especialidades.");
-  return (data ?? []).map(mapEspecialidad);
+  return (data ?? []).map(({ id, nombre, ...rest }) => ({ id, nombre, ...rest }));
 }
 
 async function obtenerDoctorPorId(doctorId, client = supabase) {
@@ -56,11 +54,6 @@ async function obtenerDoctorPorId(doctorId, client = supabase) {
   return data ? mapDoctor(data) : null;
 }
 
-/**
- * Lista todos los doctores ordenados por su identificador incluyendo su persona.
- *
- * @returns {Promise<Array<Record<string, any>>>}
- */
 export async function listarDoctores() {
   const { data, error } = await supabase
     .from("doctores")
@@ -72,87 +65,72 @@ export async function listarDoctores() {
 }
 
 /**
- * Crea un doctor mediante la transacción personas -> usuarios -> doctores.
- *
- * @param {{ persona: Record<string, any>, usuario: Record<string, any>, doctor: Record<string, any> }} input
- * @returns {Promise<Record<string, any>>}
+ * Crea persona y doctor. NO toca 'usuarios' desde el cliente.
+ * Si falla crear el doctor, borra la persona creada (rollback compensatorio).
  */
 export async function crearDoctor(payload) {
   if (!payload || typeof payload !== "object") {
     throw new Error("Los datos para crear un doctor son requeridos.");
   }
-
-  const { persona, usuario, doctor } = payload;
-  if (!persona || !usuario || !doctor) {
-    throw new Error("El input debe incluir persona, usuario y doctor.");
-  }
-  if (!persona.email) {
-    throw new Error("Falta email de la persona");
+  const { persona, doctor } = payload;
+  if (!persona || !doctor) {
+    throw new Error("El input debe incluir persona y doctor.");
   }
 
-  const trxPersona = await supabase
+  // Validaciones mínimas del esquema actual
+  if (!persona.nombre?.trim()) throw new Error("Falta nombre de la persona");
+  if (!persona.apellido_paterno?.trim()) throw new Error("Falta apellido paterno");
+  if (!persona.rut?.trim()) throw new Error("Falta RUT");
+  if (!persona.email?.trim()) throw new Error("Falta email");
+  if (!doctor.especialidad_principal?.trim()) throw new Error("Falta especialidad principal");
+
+  // 1) Crear persona
+  const { data: personaRow, error: personaErr } = await supabase
     .from("personas")
-    .insert([persona])
+    .insert([{
+      nombre: persona.nombre.trim(),
+      apellido_paterno: persona.apellido_paterno.trim(),
+      apellido_materno: persona.apellido_materno?.trim() || null,
+      rut: persona.rut.trim(),
+      email: persona.email.trim(),
+      telefono_principal: persona.telefono_principal?.trim() || null,
+      telefono_secundario: persona.telefono_secundario?.trim() || null,
+      direccion: persona.direccion?.trim?.() || null
+    }])
     .select("id")
     .maybeSingle();
-  handleSupabaseError(trxPersona.error, "No se pudo crear la persona del doctor.");
 
-  const personaId = trxPersona.data?.id;
-  if (!personaId) {
-    throw new Error("La creación de la persona no devolvió un identificador válido.");
-  }
+  handleSupabaseError(personaErr, "No se pudo crear la persona del doctor.");
+  const personaId = personaRow?.id;
+  if (!personaId) throw new Error("La creación de la persona no devolvió un identificador válido.");
 
-  if (usuario) {
-    const insUsr = await supabase
-      .from("usuarios")
-      .insert([
-        {
-          persona_id: personaId,
-          rol: usuario.rol,
-          estado: usuario.estado,
-        },
-      ])
-      .select("id")
-      .maybeSingle();
-    handleSupabaseError(insUsr.error, "No se pudo crear el usuario del doctor.");
-  }
-
-  const insDoc = await supabase
-    .from("doctores")
-    .insert([
-      {
+  try {
+    // 2) Crear doctor
+    const { data: docRow, error: docErr } = await supabase
+      .from("doctores")
+      .insert([{
         persona_id: personaId,
-        especialidad_principal: doctor.especialidad_principal,
+        especialidad_principal: doctor.especialidad_principal.trim(),
         sueldo_base_mensual: doctor.sueldo_base_mensual ?? null,
-      },
-    ])
-    .select()
-    .maybeSingle();
-  handleSupabaseError(insDoc.error, "No se pudo crear el registro del doctor.");
+        estado: "activo",
+      }])
+      .select(DOCTOR_SELECT)
+      .maybeSingle();
 
-  return { persona_id: personaId, doctor: insDoc.data };
+    handleSupabaseError(docErr, "No se pudo crear el registro del doctor.");
+    return mapDoctor(docRow);
+  } catch (e) {
+    await supabase.from("personas").delete().eq("id", personaId);
+    throw e;
+  }
 }
 
-/**
- * Actualiza la persona, usuario o doctor asociado a un médico.
- *
- * @param {number|string} doctorId
- * @param {{ persona?: Record<string, any>, usuario?: Record<string, any>, doctor?: Record<string, any> }} input
- * @returns {Promise<Record<string, any>>}
- */
 export async function actualizarDoctor(doctorId, input = {}) {
-  if (!doctorId) {
-    throw new Error("El identificador del doctor es requerido.");
-  }
-  if (!input || typeof input !== "object") {
-    throw new Error("Los datos para actualizar el doctor son requeridos.");
-  }
+  if (!doctorId) throw new Error("El identificador del doctor es requerido.");
+  if (!input || typeof input !== "object") throw new Error("Los datos para actualizar el doctor son requeridos.");
 
   const doctorActual = await obtenerDoctorPorId(doctorId);
-  if (!doctorActual) {
-    throw new Error("El doctor especificado no existe.");
-  }
-
+  if (!doctorActual) throw new Error("El doctor especificado no existe.");
   const personaId = doctorActual.persona_id;
 
   if (input.persona && Object.keys(input.persona).length > 0) {
@@ -160,57 +138,31 @@ export async function actualizarDoctor(doctorId, input = {}) {
     handleSupabaseError(error, "No se pudo actualizar la información personal del doctor.");
   }
 
-  if (input.usuario && Object.keys(input.usuario).length > 0) {
-    const { error } = await supabase.from("usuarios").update(input.usuario).eq("persona_id", personaId);
-    handleSupabaseError(error, "No se pudo actualizar el usuario del doctor.");
-  }
+  // No tocar usuarios desde cliente
 
   if (input.doctor && Object.keys(input.doctor).length > 0) {
     const updates = { ...input.doctor };
     delete updates.id;
     delete updates.persona_id;
-
     const { error } = await supabase.from("doctores").update(updates).eq("id", doctorId);
     handleSupabaseError(error, "No se pudo actualizar la información del doctor.");
   }
 
   const doctorActualizado = await obtenerDoctorPorId(doctorId);
-  if (!doctorActualizado) {
-    throw new Error("No se pudo recuperar la información del doctor actualizada.");
-  }
-
+  if (!doctorActualizado) throw new Error("No se pudo recuperar la información del doctor actualizada.");
   return doctorActualizado;
 }
 
-/**
- * Desactiva un doctor junto con su usuario asociado.
- *
- * @param {number|string} doctorId
- * @returns {Promise<void>}
- */
 export async function desactivarDoctor(doctorId) {
-  if (!doctorId) {
-    throw new Error("El identificador del doctor es requerido para desactivarlo.");
-  }
-
+  if (!doctorId) throw new Error("El identificador del doctor es requerido para desactivarlo.");
   const doctorActual = await obtenerDoctorPorId(doctorId);
-  if (!doctorActual) {
-    throw new Error("El doctor especificado no existe.");
-  }
-
-  const personaId = doctorActual.persona_id;
+  if (!doctorActual) throw new Error("El doctor especificado no existe.");
 
   const { error: doctorError } = await supabase
     .from("doctores")
     .update({ estado: "inactivo" })
     .eq("id", doctorId);
-
   handleSupabaseError(doctorError, "No se pudo desactivar el doctor.");
 
-  const { error: usuarioError } = await supabase
-    .from("usuarios")
-    .update({ estado: "inactivo" })
-    .eq("persona_id", personaId);
-
-  handleSupabaseError(usuarioError, "No se pudo desactivar el usuario asociado al doctor.");
+  // No tocar usuarios aquí
 }

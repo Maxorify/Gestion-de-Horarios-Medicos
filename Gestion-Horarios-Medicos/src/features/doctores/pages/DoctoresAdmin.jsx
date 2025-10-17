@@ -96,6 +96,12 @@ export default function DoctoresAdmin() {
         minWidth: 200,
       },
       {
+        field: "rut",
+        headerName: "RUT",
+        width: 150,
+        valueGetter: (p) => p.row.persona?.rut ?? "",
+      },
+      {
         field: "especialidades",
         headerName: "Especialidades",
         flex: 1,
