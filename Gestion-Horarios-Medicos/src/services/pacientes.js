@@ -63,61 +63,18 @@ export async function listarPacientes() {
 }
 
 /**
- * Crea un paciente mediante la transacción personas -> pacientes.
- *
- * @param {{ persona: Record<string, any>, paciente: Record<string, any> }} input
- * @returns {Promise<Record<string, any>>}
+ * Registra paciente de forma transaccional usando la RPC en BD.
+ * Requiere: persona.rut y persona.email (la BD valida).
+ * Devuelve: paciente_id (number).
  */
-export async function crearPaciente(input) {
-  if (!input || typeof input !== "object") {
-    throw new Error("Los datos para crear un paciente son requeridos.");
-  }
-
-  const { persona, paciente } = input;
-  if (!persona || !paciente) {
-    throw new Error("El input debe incluir persona y paciente.");
-  }
-
-  const pacienteId = await supabase.transaction(async (tx) => {
-    const { data: personaRow, error: personaError } = await tx
-      .from("personas")
-      .insert(persona)
-      .select("id")
-      .single();
-
-    handleSupabaseError(personaError, "No se pudo crear la persona del paciente.");
-    const personaId = personaRow?.id;
-    if (!personaId) {
-      throw new Error("La creación de la persona no devolvió un identificador válido.");
-    }
-
-    const pacientePayload = {
-      ...paciente,
-      persona_id: personaId,
-    };
-
-    const { data: pacienteRow, error: pacienteError } = await tx
-      .from("pacientes")
-      .insert(pacientePayload)
-      .select("id")
-      .single();
-
-    handleSupabaseError(pacienteError, "No se pudo crear el registro del paciente.");
-
-    const createdPacienteId = pacienteRow?.id;
-    if (!createdPacienteId) {
-      throw new Error("La creación del paciente no devolvió un identificador válido.");
-    }
-
-    return createdPacienteId;
+export async function registrarPacienteRPC({ persona, paciente, idemKey }) {
+  const { data, error } = await supabase.rpc("registrar_paciente", {
+    _persona: persona,
+    _paciente: paciente,
+    _idempotency_key: idemKey ?? null,
   });
-
-  const pacienteCompleto = await obtenerPacientePorId(pacienteId);
-  if (!pacienteCompleto) {
-    throw new Error("No se pudo recuperar el paciente recién creado.");
-  }
-
-  return pacienteCompleto;
+  if (error) throw error;
+  return data;
 }
 
 /**
@@ -142,21 +99,19 @@ export async function actualizarPaciente(pacienteId, input = {}) {
 
   const personaId = pacienteActual.persona_id;
 
-  await supabase.transaction(async (tx) => {
-    if (input.persona && Object.keys(input.persona).length > 0) {
-      const { error } = await tx.from("personas").update(input.persona).eq("id", personaId);
-      handleSupabaseError(error, "No se pudo actualizar la información personal del paciente.");
-    }
+  if (input.persona && Object.keys(input.persona).length > 0) {
+    const { error } = await supabase.from("personas").update(input.persona).eq("id", personaId);
+    handleSupabaseError(error, "No se pudo actualizar la información personal del paciente.");
+  }
 
-    if (input.paciente && Object.keys(input.paciente).length > 0) {
-      const updates = { ...input.paciente };
-      delete updates.id;
-      delete updates.persona_id;
+  if (input.paciente && Object.keys(input.paciente).length > 0) {
+    const updates = { ...input.paciente };
+    delete updates.id;
+    delete updates.persona_id;
 
-      const { error } = await tx.from("pacientes").update(updates).eq("id", pacienteId);
-      handleSupabaseError(error, "No se pudo actualizar la información del paciente.");
-    }
-  });
+    const { error } = await supabase.from("pacientes").update(updates).eq("id", pacienteId);
+    handleSupabaseError(error, "No se pudo actualizar la información del paciente.");
+  }
 
   const pacienteActualizado = await obtenerPacientePorId(pacienteId);
   if (!pacienteActualizado) {

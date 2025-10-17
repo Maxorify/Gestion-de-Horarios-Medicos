@@ -14,7 +14,7 @@ import {
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { useState } from "react";
-import { crearPaciente } from "@/services/pacientes";
+import { registrarPacienteRPC } from "@/services/pacientes";
 import { cleanRutValue, formatRut, isValidRut } from "@/utils/rut";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -147,7 +147,10 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
     const [apellidoPaterno = "", ...restApellidos] = apellidos.split(/\s+/);
     const apellidoMaterno = restApellidos.join(" ");
 
-    const telefonoCompleto = `${formData.telefonoCodigo}${formData.telefonoNumero}`;
+    const telefonoPrincipal = `${formData?.telefonoCodigo ?? ""}${formData?.telefonoNumero ?? ""}`.replace(
+      /\s+/g,
+      "",
+    );
 
     const personaPayload = {
       nombre: nombres,
@@ -155,7 +158,8 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
       apellido_materno: apellidoMaterno || null,
       rut: cleanRutValue(formData.rut),
       email: formData.correo.trim(),
-      telefono_principal: telefonoCompleto,
+      telefono_principal: telefonoPrincipal || null,
+      telefono_secundario: null,
       fecha_nacimiento: formData.fechaNacimiento
         ? dayjs(formData.fechaNacimiento).format("YYYY-MM-DD")
         : null,
@@ -167,16 +171,20 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
 
     const pacientePayload = {
       alerta_medica_general: null,
+      contacto_emergencia_nombre: null,
+      contacto_emergencia_telefono: null,
     };
 
     try {
       setSubmitting(true);
-      const nuevoPaciente = await crearPaciente({
+      const idemKey = `reg-${personaPayload.email}-${Date.now()}`;
+      const nuevoPacienteId = await registrarPacienteRPC({
         persona: personaPayload,
         paciente: pacientePayload,
+        idemKey,
       });
 
-      onSuccess?.(nuevoPaciente);
+      onSuccess?.(nuevoPacienteId);
       alert("¡Paciente registrado exitosamente!");
       onClose?.();
       resetForm();

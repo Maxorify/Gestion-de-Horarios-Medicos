@@ -155,26 +155,24 @@ export async function actualizarDoctor(doctorId, input = {}) {
 
   const personaId = doctorActual.persona_id;
 
-  await supabase.transaction(async (tx) => {
-    if (input.persona && Object.keys(input.persona).length > 0) {
-      const { error } = await tx.from("personas").update(input.persona).eq("id", personaId);
-      handleSupabaseError(error, "No se pudo actualizar la información personal del doctor.");
-    }
+  if (input.persona && Object.keys(input.persona).length > 0) {
+    const { error } = await supabase.from("personas").update(input.persona).eq("id", personaId);
+    handleSupabaseError(error, "No se pudo actualizar la información personal del doctor.");
+  }
 
-    if (input.usuario && Object.keys(input.usuario).length > 0) {
-      const { error } = await tx.from("usuarios").update(input.usuario).eq("persona_id", personaId);
-      handleSupabaseError(error, "No se pudo actualizar el usuario del doctor.");
-    }
+  if (input.usuario && Object.keys(input.usuario).length > 0) {
+    const { error } = await supabase.from("usuarios").update(input.usuario).eq("persona_id", personaId);
+    handleSupabaseError(error, "No se pudo actualizar el usuario del doctor.");
+  }
 
-    if (input.doctor && Object.keys(input.doctor).length > 0) {
-      const updates = { ...input.doctor };
-      delete updates.id;
-      delete updates.persona_id;
+  if (input.doctor && Object.keys(input.doctor).length > 0) {
+    const updates = { ...input.doctor };
+    delete updates.id;
+    delete updates.persona_id;
 
-      const { error } = await tx.from("doctores").update(updates).eq("id", doctorId);
-      handleSupabaseError(error, "No se pudo actualizar la información del doctor.");
-    }
-  });
+    const { error } = await supabase.from("doctores").update(updates).eq("id", doctorId);
+    handleSupabaseError(error, "No se pudo actualizar la información del doctor.");
+  }
 
   const doctorActualizado = await obtenerDoctorPorId(doctorId);
   if (!doctorActualizado) {
@@ -202,19 +200,17 @@ export async function desactivarDoctor(doctorId) {
 
   const personaId = doctorActual.persona_id;
 
-  await supabase.transaction(async (tx) => {
-    const { error: doctorError } = await tx
-      .from("doctores")
-      .update({ estado: "inactivo" })
-      .eq("id", doctorId);
+  const { error: doctorError } = await supabase
+    .from("doctores")
+    .update({ estado: "inactivo" })
+    .eq("id", doctorId);
 
-    handleSupabaseError(doctorError, "No se pudo desactivar el doctor.");
+  handleSupabaseError(doctorError, "No se pudo desactivar el doctor.");
 
-    const { error: usuarioError } = await tx
-      .from("usuarios")
-      .update({ estado: "inactivo" })
-      .eq("persona_id", personaId);
+  const { error: usuarioError } = await supabase
+    .from("usuarios")
+    .update({ estado: "inactivo" })
+    .eq("persona_id", personaId);
 
-    handleSupabaseError(usuarioError, "No se pudo desactivar el usuario asociado al doctor.");
-  });
+  handleSupabaseError(usuarioError, "No se pudo desactivar el usuario asociado al doctor.");
 }
