@@ -1,54 +1,57 @@
 // src/app/guards/AuthGuard.jsx
-import { Outlet, Navigate, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Navigate, Outlet } from "react-router-dom";
 import { supabase } from "@/services/supabaseClient";
 
 export default function AuthGuard() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const location = useLocation();
+  const wasAuthenticatedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
-    async function bootstrap() {
-      setLoading(true);
+    const synchronizeSession = async () => {
       try {
         const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
+
         if (!mounted) return;
-        setSession(data?.session ?? null);
+
+        const nextSession = data?.session ?? null;
+        setSession(nextSession);
       } catch (error) {
-        console.error("// CODEx: Error al obtener la sesión activa en AuthGuard", error);
-        const { error: signOutError } = await supabase.auth.signOut();
-        if (signOutError) {
-          console.error("// CODEx: Error al forzar el cierre de sesión desde AuthGuard", signOutError);
-        }
+        console.error(
+          "// CODEx: Error al obtener la sesión activa en AuthGuard",
+          error
+        );
+        wasAuthenticatedRef.current = false;
         if (mounted) {
           setSession(null);
         }
+        try {
+          await supabase.auth.signOut();
+        } catch (signOutError) {
+          console.error(
+            "// CODEx: Error al forzar el cierre de sesión desde AuthGuard",
+            signOutError
+          );
+        }
       } finally {
         if (mounted) {
           setLoading(false);
         }
       }
-    }
+    };
 
-    bootstrap();
+    synchronizeSession();
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      if (!mounted) return;
-      setLoading(true);
-      try {
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      (_event, nextSession) => {
+        if (!mounted) return;
         setSession(nextSession ?? null);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
       }
-    });
+    );
 
     return () => {
       mounted = false;
@@ -56,9 +59,26 @@ export default function AuthGuard() {
     };
   }, []);
 
+  useEffect(() => {
+    if (session) {
+      wasAuthenticatedRef.current = true;
+      return;
+    }
+
+    if (!loading && wasAuthenticatedRef.current) {
+      wasAuthenticatedRef.current = false;
+      supabase.auth
+        .signOut()
+        .catch((error) =>
+          console.error(
+            "// CODEx: Error al cerrar sesión tras expirar la sesión",
+            error
+          )
+        );
+    }
+  }, [loading, session]);
+
   if (loading) return null;
-  if (!session) {
-    return <Navigate to="/" replace state={{ from: location.pathname }} />;
-  }
+  if (!session) return <Navigate to="/" replace />;
   return <Outlet />;
 }
