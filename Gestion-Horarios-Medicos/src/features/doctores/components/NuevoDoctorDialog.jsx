@@ -29,6 +29,9 @@ import { crearDoctor, listarEspecialidadesPrincipales } from "@/services/doctore
 
 const schema = yup.object({
   nombre: yup.string().required("Nombre obligatorio").min(2, "Mínimo 2 caracteres").max(100, "Máximo 100 caracteres"),
+  apellido_paterno: yup.string().required("Apellido paterno obligatorio").min(2).max(100),
+  apellido_materno: yup.string().nullable(),
+  rut: yup.string().required("RUT obligatorio"),
   email: yup.string().required("Email obligatorio").email("Email inválido"),
   telefono_principal: yup.string().nullable(),
   telefono_secundario: yup.string().nullable(),
@@ -60,6 +63,9 @@ const schema = yup.object({
 
 const defaultValues = {
   nombre: "",
+  apellido_paterno: "",
+  apellido_materno: "",
+  rut: "",
   email: "",
   telefono_principal: "",
   telefono_secundario: "",
@@ -158,23 +164,22 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
       );
 
       const persona = {
-        nombre: values.nombre,
-        email: values.email,
-        telefono_principal: values.telefono_principal || null,
-        telefono_secundario: values.telefono_secundario || null,
-      };
-
-      const usuario = {
-        rol: "doctor",
-        estado: "activo",
+        nombre: values.nombre.trim(),
+        apellido_paterno: values.apellido_paterno.trim(),
+        apellido_materno: values.apellido_materno?.trim() || null,
+        rut: values.rut.trim(),
+        email: values.email.trim(),
+        telefono_principal: values.telefono_principal?.trim() || null,
+        telefono_secundario: values.telefono_secundario?.trim() || null,
+        direccion: values.direccion?.trim() || null,
       };
 
       const doctor = {
-        especialidad_principal: especialidadPrincipalOption?.nombre ?? null,
+        especialidad_principal: (especialidadPrincipalOption?.nombre ?? "").trim(),
         sueldo_base_mensual: Number(values.sueldo_base_mensual) || 0,
       };
 
-      await crearDoctor({ persona, usuario, doctor });
+      await crearDoctor({ persona, doctor });
       reset(defaultValues);
       setAvatarPreview(null);
       onCreated?.();
@@ -224,6 +229,44 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
                       required
                       error={!!errors.nombre}
                       helperText={errors.nombre?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  name="apellido_paterno"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Apellido paterno"
+                      required
+                      error={!!errors.apellido_paterno}
+                      helperText={errors.apellido_paterno?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  name="apellido_materno"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Apellido materno (opcional)"
+                      error={!!errors.apellido_materno}
+                      helperText={errors.apellido_materno?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  name="rut"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="RUT"
+                      required
+                      error={!!errors.rut}
+                      helperText={errors.rut?.message}
                     />
                   )}
                 />
