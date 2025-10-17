@@ -29,7 +29,7 @@ export const router = createBrowserRouter(
       children: [
         // ADMIN
         {
-          element: <RoleGuard allow={["admin"]} />,
+          element: <RoleGuard allow={["adminisntrador"]} />,
           children: [
             {
               path: "/admin",
@@ -50,7 +50,10 @@ export const router = createBrowserRouter(
                   element: <Outlet />,
                   children: [
                     { index: true, element: <AgendarConsulta /> },
-                    { path: "seleccionar-horario", element: <SeleccionarHorarioDoctor /> },
+                    {
+                      path: "seleccionar-horario",
+                      element: <SeleccionarHorarioDoctor />,
+                    },
                   ],
                 },
                 { path: "mis-citas", element: <MisCitas /> },

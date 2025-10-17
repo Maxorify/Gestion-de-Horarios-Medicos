@@ -5,17 +5,20 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState
+  useState,
 } from "react";
 import { supabase } from "@/services/supabaseClient";
-import { loginConEmailYPassword, obtenerPerfilUsuarioPorEmail } from "@/services/auth";
+import {
+  loginConEmailYPassword,
+  obtenerPerfilUsuarioPorEmail,
+} from "@/services/auth";
 
 const DEFAULT_ROLE = "secretaria";
 const INITIAL_STATE = {
   user: null,
   perfil: null,
   loading: true,
-  error: null
+  error: null,
 };
 
 function normalizarDato(obj) {
@@ -30,12 +33,19 @@ function mapUserProfile(profile) {
   if (!profile) return null;
 
   const persona = profile.personas ?? profile.persona ?? null;
-  const personaId = profile.persona_id ?? persona?.id ?? profile.idPersona ?? null;
+  const personaId =
+    profile.persona_id ?? persona?.id ?? profile.idPersona ?? null;
   const doctorInfo = normalizarDato(profile.doctor ?? profile.doctores);
   const pacienteInfo = normalizarDato(profile.paciente ?? profile.pacientes);
-  const rol = profile.rol ?? profile.role ?? DEFAULT_ROLE;
+  // Normaliza alias de rol por si alguien guarda "admin" en vez de "administrador"
+  const rawRol = (profile.rol ?? profile.role ?? DEFAULT_ROLE)?.toLowerCase();
+  const rol = rawRol === "admin" ? "administrador" : rawRol;
 
-  const nombreCompleto = [persona?.nombre, persona?.apellido_paterno, persona?.apellido_materno]
+  const nombreCompleto = [
+    persona?.nombre,
+    persona?.apellido_paterno,
+    persona?.apellido_materno,
+  ]
     .filter(Boolean)
     .join(" ")
     .trim();
@@ -52,7 +62,8 @@ function mapUserProfile(profile) {
     nombreCompleto,
     email: persona?.email ?? profile.email ?? null,
     rut: persona?.rut ?? profile.rut ?? null,
-    telefono: persona?.telefono_principal ?? profile?.telefono_principal ?? null,
+    telefono:
+      persona?.telefono_principal ?? profile?.telefono_principal ?? null,
     telefonoPrincipal: persona?.telefono_principal ?? null,
     telefonoSecundario: persona?.telefono_secundario ?? null,
     estado: profile.estado ?? null,
@@ -62,7 +73,7 @@ function mapUserProfile(profile) {
     doctor: doctorInfo ?? null,
     pacienteId: pacienteInfo?.id ?? profile.paciente_id ?? null,
     paciente: pacienteInfo ?? null,
-    authUserId: profile.auth_user_id ?? profile.authUserId ?? null
+    authUserId: profile.auth_user_id ?? profile.authUserId ?? null,
   };
 }
 
@@ -70,7 +81,7 @@ const UserContext = createContext({
   ...INITIAL_STATE,
   login: async () => undefined,
   logout: async () => undefined,
-  refreshPerfil: async () => undefined
+  refreshPerfil: async () => undefined,
 });
 
 function useIsMounted() {
@@ -89,62 +100,83 @@ export function UserProvider({ children }) {
   const [state, setState] = useState(INITIAL_STATE);
   const isMountedRef = useIsMounted();
 
-  const setSafeState = useCallback((updater) => {
-    if (!isMountedRef.current) return;
-    setState((prev) => (typeof updater === "function" ? updater(prev) : updater));
-  }, [isMountedRef]);
+  const setSafeState = useCallback(
+    (updater) => {
+      if (!isMountedRef.current) return;
+      setState((prev) =>
+        typeof updater === "function" ? updater(prev) : updater
+      );
+    },
+    [isMountedRef]
+  );
 
-  const handleProfileSuccess = useCallback((rawProfile) => {
-    const mappedProfile = mapUserProfile(rawProfile);
-    setSafeState({
-      user: mappedProfile,
-      perfil: mappedProfile,
-      loading: false,
-      error: null
-    });
-    return mappedProfile;
-  }, [setSafeState]);
+  const handleProfileSuccess = useCallback(
+    (rawProfile) => {
+      const mappedProfile = mapUserProfile(rawProfile);
+      setSafeState({
+        user: mappedProfile,
+        perfil: mappedProfile,
+        loading: false,
+        error: null,
+      });
+      return mappedProfile;
+    },
+    [setSafeState]
+  );
 
-  const handleProfileError = useCallback((error) => {
-    const normalizedError =
-      error instanceof Error ? error : new Error("No se pudo recuperar la información del usuario");
-    console.error("// CODEx: No se pudo sincronizar el perfil activo", normalizedError);
-    setSafeState({
-      user: null,
-      perfil: null,
-      loading: false,
-      error: normalizedError
-    });
-    return normalizedError;
-  }, [setSafeState]);
+  const handleProfileError = useCallback(
+    (error) => {
+      const normalizedError =
+        error instanceof Error
+          ? error
+          : new Error("No se pudo recuperar la información del usuario");
+      console.error(
+        "// CODEx: No se pudo sincronizar el perfil activo",
+        normalizedError
+      );
+      setSafeState({
+        user: null,
+        perfil: null,
+        loading: false,
+        error: normalizedError,
+      });
+      return normalizedError;
+    },
+    [setSafeState]
+  );
 
-  const fetchPerfilForSessionUser = useCallback(async (sessionUser) => {
-    if (!sessionUser?.email) {
-      setSafeState({ user: null, perfil: null, loading: false, error: null });
-      return null;
-    }
-
-    setSafeState((prev) => ({ ...prev, loading: true, error: null }));
-    const timeoutId = setTimeout(() => {
-      setSafeState((prev) => ({ ...prev, loading: false }));
-    }, 10000);
-
-    try {
-      const rawProfile = await obtenerPerfilUsuarioPorEmail(sessionUser.email);
-      if (!rawProfile) {
-        throw new Error("Perfil inválido");
+  const fetchPerfilForSessionUser = useCallback(
+    async (sessionUser) => {
+      if (!sessionUser?.email) {
+        setSafeState({ user: null, perfil: null, loading: false, error: null });
+        return null;
       }
-      return handleProfileSuccess(rawProfile);
-    } catch (error) {
-      console.error("Perfil no disponible, cerrando sesión defensiva", error);
-      await supabase.auth.signOut();
-      handleProfileError(error);
-      return null;
-    } finally {
-      clearTimeout(timeoutId);
-      setSafeState((prev) => ({ ...prev, loading: false }));
-    }
-  }, [handleProfileError, handleProfileSuccess, setSafeState]);
+
+      setSafeState((prev) => ({ ...prev, loading: true, error: null }));
+      const timeoutId = setTimeout(() => {
+        setSafeState((prev) => ({ ...prev, loading: false }));
+      }, 10000);
+
+      try {
+        const rawProfile = await obtenerPerfilUsuarioPorEmail(
+          sessionUser.email
+        );
+        if (!rawProfile) {
+          throw new Error("Perfil inválido");
+        }
+        return handleProfileSuccess(rawProfile);
+      } catch (error) {
+        console.error("Perfil no disponible, cerrando sesión defensiva", error);
+        await supabase.auth.signOut();
+        handleProfileError(error);
+        return null;
+      } finally {
+        clearTimeout(timeoutId);
+        setSafeState((prev) => ({ ...prev, loading: false }));
+      }
+    },
+    [handleProfileError, handleProfileSuccess, setSafeState]
+  );
 
   const refreshPerfil = useCallback(async () => {
     setSafeState((prev) => ({ ...prev, loading: true }));
@@ -174,7 +206,12 @@ export function UserProvider({ children }) {
         const sessionUser = data?.session?.user ?? null;
         if (!sessionUser) {
           if (isProcessing) {
-            setSafeState({ user: null, perfil: null, loading: false, error: null });
+            setSafeState({
+              user: null,
+              perfil: null,
+              loading: false,
+              error: null,
+            });
           }
           return;
         }
@@ -190,34 +227,55 @@ export function UserProvider({ children }) {
 
     bootstrap();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!isMountedRef.current) return;
-      const sessionUser = session?.user ?? null;
-      if (!sessionUser) {
-        setSafeState({ user: null, perfil: null, loading: false, error: null });
-        return;
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!isMountedRef.current) return;
+        const sessionUser = session?.user ?? null;
+        if (!sessionUser) {
+          setSafeState({
+            user: null,
+            perfil: null,
+            loading: false,
+            error: null,
+          });
+          return;
+        }
+        fetchPerfilForSessionUser(sessionUser);
       }
-      fetchPerfilForSessionUser(sessionUser);
-    });
+    );
 
     return () => {
       isProcessing = false;
       listener?.subscription?.unsubscribe();
     };
-  }, [fetchPerfilForSessionUser, handleProfileError, isMountedRef, setSafeState]);
+  }, [
+    fetchPerfilForSessionUser,
+    handleProfileError,
+    isMountedRef,
+    setSafeState,
+  ]);
 
-  const login = useCallback(async (email, password) => {
-    setSafeState((prev) => ({ ...prev, loading: true, error: null }));
-    try {
-      const rawProfile = await loginConEmailYPassword(email, password);
-      return handleProfileSuccess(rawProfile);
-    } catch (error) {
-      const normalizedError =
-        error instanceof Error ? error : new Error("Error al iniciar sesión, inténtalo nuevamente");
-      setSafeState((prev) => ({ ...prev, loading: false, error: normalizedError }));
-      throw normalizedError;
-    }
-  }, [handleProfileSuccess, setSafeState]);
+  const login = useCallback(
+    async (email, password) => {
+      setSafeState((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const rawProfile = await loginConEmailYPassword(email, password);
+        return handleProfileSuccess(rawProfile);
+      } catch (error) {
+        const normalizedError =
+          error instanceof Error
+            ? error
+            : new Error("Error al iniciar sesión, inténtalo nuevamente");
+        setSafeState((prev) => ({
+          ...prev,
+          loading: false,
+          error: normalizedError,
+        }));
+        throw normalizedError;
+      }
+    },
+    [handleProfileSuccess, setSafeState]
+  );
 
   const logout = useCallback(async () => {
     setSafeState((prev) => ({ ...prev, loading: true }));
@@ -227,8 +285,14 @@ export function UserProvider({ children }) {
       setSafeState({ user: null, perfil: null, loading: false, error: null });
     } catch (error) {
       const normalizedError =
-        error instanceof Error ? error : new Error("No se pudo cerrar la sesión actualmente");
-      setSafeState((prev) => ({ ...prev, loading: false, error: normalizedError }));
+        error instanceof Error
+          ? error
+          : new Error("No se pudo cerrar la sesión actualmente");
+      setSafeState((prev) => ({
+        ...prev,
+        loading: false,
+        error: normalizedError,
+      }));
       throw normalizedError;
     }
   }, [setSafeState]);
@@ -238,7 +302,7 @@ export function UserProvider({ children }) {
       ...state,
       login,
       logout,
-      refreshPerfil
+      refreshPerfil,
     }),
     [login, logout, refreshPerfil, state]
   );
