@@ -21,6 +21,17 @@ const INITIAL_STATE = {
   error: null,
 };
 
+function clearLocalSession() {
+  try {
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("doctorId");
+    localStorage.removeItem("isLoggedIn");
+  } catch (error) {
+    console.warn("No se pudo limpiar la sesión local", error);
+  }
+}
+
 function normalizarDato(obj) {
   if (!obj) return null;
   if (Array.isArray(obj)) {
@@ -37,9 +48,7 @@ function mapUserProfile(profile) {
     profile.persona_id ?? persona?.id ?? profile.idPersona ?? null;
   const doctorInfo = normalizarDato(profile.doctor ?? profile.doctores);
   const pacienteInfo = normalizarDato(profile.paciente ?? profile.pacientes);
-  // Normaliza alias de rol por si alguien guarda "admin" en vez de "administrador"
-  const rawRol = (profile.rol ?? profile.role ?? DEFAULT_ROLE)?.toLowerCase();
-  const rol = rawRol === "admin" ? "administrador" : rawRol;
+  const rol = (profile.rol ?? profile.role ?? DEFAULT_ROLE).toLowerCase();
 
   const nombreCompleto = [
     persona?.nombre,
@@ -134,6 +143,7 @@ export function UserProvider({ children }) {
         "// CODEx: No se pudo sincronizar el perfil activo",
         normalizedError
       );
+      clearLocalSession();
       setSafeState({
         user: null,
         perfil: null,
@@ -148,6 +158,7 @@ export function UserProvider({ children }) {
   const fetchPerfilForSessionUser = useCallback(
     async (sessionUser) => {
       if (!sessionUser?.email) {
+        clearLocalSession();
         setSafeState({ user: null, perfil: null, loading: false, error: null });
         return null;
       }
@@ -185,6 +196,7 @@ export function UserProvider({ children }) {
       if (error) throw error;
       const sessionUser = data?.session?.user ?? null;
       if (!sessionUser) {
+        clearLocalSession();
         setSafeState({ user: null, perfil: null, loading: false, error: null });
         return null;
       }
@@ -205,6 +217,7 @@ export function UserProvider({ children }) {
         if (error) throw error;
         const sessionUser = data?.session?.user ?? null;
         if (!sessionUser) {
+          clearLocalSession();
           if (isProcessing) {
             setSafeState({
               user: null,
@@ -232,6 +245,7 @@ export function UserProvider({ children }) {
         if (!isMountedRef.current) return;
         const sessionUser = session?.user ?? null;
         if (!sessionUser) {
+          clearLocalSession();
           setSafeState({
             user: null,
             perfil: null,
@@ -282,6 +296,7 @@ export function UserProvider({ children }) {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      clearLocalSession();
       setSafeState({ user: null, perfil: null, loading: false, error: null });
     } catch (error) {
       const normalizedError =
@@ -293,6 +308,7 @@ export function UserProvider({ children }) {
         loading: false,
         error: normalizedError,
       }));
+      clearLocalSession();
       throw normalizedError;
     }
   }, [setSafeState]);

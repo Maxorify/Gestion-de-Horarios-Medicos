@@ -22,13 +22,6 @@ const loginTheme = createTheme({
   },
 });
 
-const HOME_BY_ROLE = {
-  admin: "/admin",
-  administrador: "/admin",
-  secretaria: "/sec",
-  doctor: "/doctor",
-};
-
 const DEFAULT_ROLE = "secretaria";
 
 function Login() {
@@ -41,21 +34,19 @@ function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (userLoading || !user) {
-      return;
-    }
+    if (userLoading || !user) return;
 
-    const rawRole = user.rol ?? user.role ?? DEFAULT_ROLE;
-    const normalizedRole = typeof rawRole === "string" ? rawRole.toLowerCase() : DEFAULT_ROLE;
-    const mappedRole = normalizedRole === "administrador" ? "admin" : normalizedRole;
-    const destination = HOME_BY_ROLE[mappedRole] ?? HOME_BY_ROLE[DEFAULT_ROLE];
+    const role = (user.rol ?? DEFAULT_ROLE).toLowerCase();
+    const destination =
+      role === "administrador"
+        ? "/admin"
+        : role === "secretaria"
+        ? "/sec"
+        : "/doctor";
 
     try {
-      localStorage.setItem("userEmail", user.correo ?? user.email ?? "");
-      if (user.doctor_id ?? user.doctorId) {
-        localStorage.setItem("doctorId", String(user.doctor_id ?? user.doctorId));
-      }
-      localStorage.setItem("isLoggedIn", mappedRole);
+      localStorage.setItem("userEmail", user.email ?? "");
+      localStorage.setItem("userRole", role);
     } catch (error) {
       console.warn("No se pudo persistir la información del usuario", error);
     }

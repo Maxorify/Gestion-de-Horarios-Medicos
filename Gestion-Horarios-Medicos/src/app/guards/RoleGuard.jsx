@@ -1,27 +1,20 @@
-// src/app/guards/RoleGuard.jsx
-import { Outlet, Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useUser } from "@/hooks/useUser";
-
-const DEFAULT_ROLE = "secretaria";
 
 export default function RoleGuard({ allow = [] }) {
   const { user, loading } = useUser();
+  if (loading) return null;
+  if (!user) return <Navigate to="/" replace />;
 
-  if (loading) {
-    return null;
-  }
+  const role = (user.rol ?? user.role ?? "secretaria").toLowerCase();
+  const hasAccess = allow.includes(role);
 
-  if (!user) {
-    console.warn("// CODEx: No hay usuario activo, se redirige al login desde RoleGuard.");
-    return <Navigate to="/" replace />;
-  }
-
-  const rawRole = user.rol ?? user.role ?? DEFAULT_ROLE;
-  const userRole = typeof rawRole === "string" ? rawRole.toLowerCase() : DEFAULT_ROLE;
-  const role = userRole === "administrador" ? "admin" : userRole;
-
-  if (!allow.includes(role)) {
-    return <Navigate to="/" replace />;
+  if (!hasAccess) {
+    const redirect = role === "administrador" ? "/admin"
+                    : role === "secretaria"     ? "/sec"
+                    : role === "doctor"         ? "/doctor"
+                    : "/";
+    return <Navigate to={redirect} replace />;
   }
 
   return <Outlet />;
