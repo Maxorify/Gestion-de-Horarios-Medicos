@@ -1,5 +1,14 @@
 import { supabase } from "@/services/supabaseClient";
 
+// Lista local de especialidades (sin tabla en BD)
+export const SPECIALIDADES = [
+  { id: 1, nombre: "Kinesiología" },
+  { id: 2, nombre: "Fonoaudiología" },
+  { id: 3, nombre: "Psicología" },
+  { id: 4, nombre: "Nutricionista" },
+  { id: 5, nombre: "Odontología" },
+];
+
 const DOCTOR_SELECT = `
   id, persona_id, especialidad_principal, estado,
   personas:persona_id (
@@ -31,14 +40,9 @@ function mapDoctor(row) {
   };
 }
 
-export async function listarEspecialidadesPrincipales(options = {}) {
-  const client = options.client ?? supabase;
-  const { data, error } = await client
-    .from("especialidades")
-    .select("id, nombre")
-    .order("nombre", { ascending: true });
-  handleSupabaseError(error, "No se pudieron listar las especialidades.");
-  return (data ?? []).map(({ id, nombre, ...rest }) => ({ id, nombre, ...rest }));
+// Devuelve la lista local (sin consultar BD)
+export async function listarEspecialidadesPrincipales() {
+  return SPECIALIDADES.slice();
 }
 
 async function obtenerDoctorPorId(doctorId, client = supabase) {
@@ -60,6 +64,10 @@ export async function listarDoctores() {
   return (data ?? []).map(mapDoctor);
 }
 
+/**
+ * Crea persona y doctor. NO toca 'usuarios' desde el cliente.
+ * Si falla crear el doctor, borra la persona creada (rollback compensatorio).
+ */
 export async function crearDoctor(payload) {
   if (!payload || typeof payload !== "object") {
     throw new Error("Los datos para crear un doctor son requeridos.");
@@ -94,7 +102,7 @@ export async function crearDoctor(payload) {
   if (dupErr) throw new Error("No se pudo validar duplicados de persona");
   if (dup) throw new Error("Ya existe una persona registrada con ese correo o RUT.");
 
-  // Crear persona
+  // 1) Crear persona
   const { data: personaRow, error: personaErr } = await supabase
     .from("personas")
     .insert([{
@@ -114,6 +122,7 @@ export async function crearDoctor(payload) {
   if (!personaId) throw new Error("La creación de la persona no devolvió un identificador válido.");
 
   try {
+    // 2) Crear doctor
     const { data: docRow, error: docErr } = await supabase
       .from("doctores")
       .insert([{
@@ -123,7 +132,6 @@ export async function crearDoctor(payload) {
       }])
       .select(DOCTOR_SELECT)
       .maybeSingle();
-
     handleSupabaseError(docErr, "No se pudo crear el registro del doctor.");
     return mapDoctor(docRow);
   } catch (e) {
@@ -144,6 +152,8 @@ export async function actualizarDoctor(doctorId, input = {}) {
     const { error } = await supabase.from("personas").update(input.persona).eq("id", personaId);
     handleSupabaseError(error, "No se pudo actualizar la información personal del doctor.");
   }
+
+  // No tocar usuarios desde cliente
 
   if (input.doctor && Object.keys(input.doctor).length > 0) {
     const updates = { ...input.doctor };

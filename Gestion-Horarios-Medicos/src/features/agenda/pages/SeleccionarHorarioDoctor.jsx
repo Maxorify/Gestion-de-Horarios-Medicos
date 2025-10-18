@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   CircularProgress,
@@ -387,14 +386,18 @@ export default function SeleccionarHorarioDoctor() {
     }
   };
 
-  const avatarUrl = selectedDoctor
-    ? selectedDoctor.avatar_url ||
-      `https://api.dicebear.com/7.x/notionists/svg?seed=${selectedDoctor.id}`
-    : "";
-
   const selectedDoctorNombre = getDoctorNombre(selectedDoctor?.persona);
   const selectedDoctorEspecialidad = selectedDoctor?.especialidad_principal || "Sin especialidad";
   const selectedDoctorEmail = selectedDoctor?.persona?.email || "Sin correo";
+  const selectedDoctorIniciales = useMemo(() => {
+    if (!selectedDoctorNombre) return "";
+    return selectedDoctorNombre
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase?.() ?? "")
+      .join("");
+  }, [selectedDoctorNombre]);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
@@ -552,7 +555,22 @@ export default function SeleccionarHorarioDoctor() {
                 ) : (
                   <Stack spacing={3} sx={{ flexGrow: 1 }}>
                     <Stack direction="row" spacing={2} alignItems="center">
-                      <Avatar src={avatarUrl} alt={selectedDoctorNombre} sx={{ width: 64, height: 64 }} />
+                      <Box
+                        sx={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: "50%",
+                          backgroundColor: "primary.main",
+                          color: "primary.contrastText",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: 700,
+                          fontSize: "1.5rem",
+                        }}
+                      >
+                        {selectedDoctorIniciales || "DR"}
+                      </Box>
                       <Box>
                         <Typography variant="h6" fontWeight={700}>
                           {selectedDoctorNombre}

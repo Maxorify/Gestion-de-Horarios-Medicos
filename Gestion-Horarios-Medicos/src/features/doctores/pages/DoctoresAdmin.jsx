@@ -17,7 +17,6 @@ import { esES as dataGridEsES } from "@mui/x-data-grid/locales";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 
-import AvatarCell from "@/components/AvatarCell.jsx";
 import { listarDoctores } from "@/services/doctores.js";
 import NuevoDoctorDialog from "@/features/doctores/components/NuevoDoctorDialog.jsx";
 
@@ -49,9 +48,24 @@ export default function DoctoresAdmin() {
       setLoading(true);
       setError("");
       try {
-        const data = await listarDoctores({ search: currentSearch, limit: 100, offset: 0 });
+        const data = await listarDoctores();
+        const filtered = currentSearch
+          ? data.filter((item) => {
+              const term = currentSearch.toLowerCase();
+              const nombre = item.nombre?.toLowerCase() ?? "";
+              const email = item.email?.toLowerCase() ?? "";
+              const rut = item.persona?.rut?.toLowerCase() ?? "";
+              const especialidad = item.especialidades?.toLowerCase() ?? "";
+              return (
+                nombre.includes(term) ||
+                email.includes(term) ||
+                rut.includes(term) ||
+                especialidad.includes(term)
+              );
+            })
+          : data;
         if (fetchIdRef.current === currentFetchId) {
-          setRows(data);
+          setRows(filtered);
         }
       } catch (err) {
         if (fetchIdRef.current === currentFetchId) {
@@ -72,17 +86,6 @@ export default function DoctoresAdmin() {
 
   const columns = useMemo(
     () => [
-      {
-        field: "avatar",
-        headerName: "",
-        width: 80,
-        sortable: false,
-        filterable: false,
-        disableColumnMenu: true,
-        renderCell: (params) => (
-          <AvatarCell name={params.row.nombre} avatarUrl={params.row.avatar_url} />
-        ),
-      },
       {
         field: "nombre",
         headerName: "Nombre",
