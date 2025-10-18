@@ -184,6 +184,9 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
   }, [slotsByDay, weekStart]);
 
   const handleCellMouseDown = (dayIndex, slotIndex) => {
+    if (editMode) {
+      return; // en edición no se crean bloques nuevos
+    }
     if (!doctorId) {
       setFeedback({ type: "warning", message: "Selecciona un doctor antes de crear bloques." });
       return;
@@ -198,6 +201,9 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
   };
 
   const handleCellMouseEnter = (dayIndex, slotIndex) => {
+    if (editMode) {
+      return; // no extender selección en edición
+    }
     setSelection((current) => {
       if (!selecting || !current || current.dayIndex !== dayIndex) {
         return current;
@@ -393,6 +399,7 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
                     position: "relative",
                     borderRight: dayIndex === weekDays.length - 1 ? "none" : "1px solid",
                     borderColor: "divider",
+                    overflow: "visible",
                   }}
                 >
                   {timeSlots.map((_, rowIndex) => {
@@ -444,6 +451,7 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
                           pointerEvents: editMode ? "auto" : "none",
                           textAlign: "center",
                           px: 1,
+                          zIndex: 3, // refuerzo visual
                         }}
                       >
                         <Typography variant="caption" sx={{ fontWeight: 600 }}>

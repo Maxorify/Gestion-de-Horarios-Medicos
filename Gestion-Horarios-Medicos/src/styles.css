@@ -196,10 +196,7 @@ html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.4
   border-radius: 8px;
   padding: 4px 8px;
   font-size: 12px;
-}
-
-.slot-badge.editable {
-  position: relative;
+  z-index: 2; /* que quede por encima de las celdas */
 }
 
 .slot-badge .delete-icon {
