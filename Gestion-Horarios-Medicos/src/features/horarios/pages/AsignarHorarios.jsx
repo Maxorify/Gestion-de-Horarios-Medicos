@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
-  Button,
   CircularProgress,
   FormControl,
   Grid,
@@ -10,44 +9,34 @@ import {
   MenuItem,
   Paper,
   Select,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
   Typography,
 } from "@mui/material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { DatePicker, LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 
 import { listarDoctores } from "@/services/doctores.js";
-import {
-  crearDisponibilidad,
-  listarDisponibilidadPorDoctor,
-} from "@/services/disponibilidad.js";
+import { listarDisponibilidadPorDoctor, rangoSemana } from "@/services/disponibilidad.js";
 
-const DURACION_BLOQUE_OPTIONS = [10, 15, 20, 30, 45, 60];
+import WeeklyPlanner from "../components/WeeklyPlanner.jsx";
+
+function normalizeToMonday(date) {
+  if (!date) {
+    return null;
+  }
+  const day = date.day();
+  const diff = (day + 6) % 7;
+  return date.startOf("day").subtract(diff, "day");
+}
 
 export default function AsignarHorarios() {
   const [doctores, setDoctores] = useState([]);
   const [doctoresLoading, setDoctoresLoading] = useState(false);
   const [doctoresError, setDoctoresError] = useState("");
-  const [selectedDoctorId, setSelectedDoctorId] = useState("");
-
-  const [disponibilidades, setDisponibilidades] = useState([]);
-  const [disponibilidadesLoading, setDisponibilidadesLoading] = useState(false);
-  const [disponibilidadesError, setDisponibilidadesError] = useState("");
-
-  const [fechaInicio, setFechaInicio] = useState(null);
-  const [horaInicio, setHoraInicio] = useState(null);
-  const [fechaFin, setFechaFin] = useState(null);
-  const [horaFin, setHoraFin] = useState(null);
-  const [duracionBloque, setDuracionBloque] = useState(DURACION_BLOQUE_OPTIONS[3]);
-  const [formError, setFormError] = useState("");
-  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [selectedDoctorId, setSelectedDoctorId] = useState(null);
+  const [weekStart, setWeekStart] = useState(() => normalizeToMonday(dayjs()));
+  const [reloadError, setReloadError] = useState("");
+  const [lastReload, setLastReload] = useState(null);
 
   useEffect(() => {
     const loadDoctores = async () => {
@@ -67,33 +56,6 @@ export default function AsignarHorarios() {
     loadDoctores();
   }, []);
 
-  const loadDisponibilidades = useCallback(
-    async (doctorId) => {
-      if (!doctorId) {
-        setDisponibilidades([]);
-        return;
-      }
-      setDisponibilidadesLoading(true);
-      setDisponibilidadesError("");
-      try {
-        const data = await listarDisponibilidadPorDoctor(doctorId);
-        setDisponibilidades(data ?? []);
-      } catch (error) {
-        setDisponibilidadesError(
-          error?.message || "No se pudo obtener la disponibilidad del doctor seleccionado.",
-        );
-        setDisponibilidades([]);
-      } finally {
-        setDisponibilidadesLoading(false);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    loadDisponibilidades(selectedDoctorId);
-  }, [loadDisponibilidades, selectedDoctorId]);
-
   const doctorOptions = useMemo(
     () =>
       doctores.map((doctor) => ({
@@ -103,62 +65,34 @@ export default function AsignarHorarios() {
     [doctores],
   );
 
-  const resetForm = () => {
-    setFechaInicio(null);
-    setHoraInicio(null);
-    setFechaFin(null);
-    setHoraFin(null);
-    setDuracionBloque(DURACION_BLOQUE_OPTIONS[3]);
+  const handleDoctorChange = (event) => {
+    const value = event.target.value;
+    setSelectedDoctorId(value === "" ? null : Number(value));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setFormError("");
+  const handleWeekChange = (value) => {
+    setWeekStart(value ? normalizeToMonday(value) : null);
+  };
 
-    if (!selectedDoctorId) {
-      setFormError("Debes seleccionar un doctor para asignar disponibilidad.");
+  const reload = useCallback(async () => {
+    if (!selectedDoctorId || !weekStart) {
       return;
     }
-    if (!fechaInicio || !horaInicio || !fechaFin || !horaFin) {
-      setFormError("Completa las fechas y horas de inicio y fin.");
-      return;
-    }
-
-    const fechaHoraInicio = dayjs(fechaInicio)
-      .set("hour", dayjs(horaInicio).hour())
-      .set("minute", dayjs(horaInicio).minute())
-      .set("second", 0)
-      .set("millisecond", 0);
-
-    const fechaHoraFin = dayjs(fechaFin)
-      .set("hour", dayjs(horaFin).hour())
-      .set("minute", dayjs(horaFin).minute())
-      .set("second", 0)
-      .set("millisecond", 0);
-
-    if (!fechaHoraFin.isAfter(fechaHoraInicio)) {
-      setFormError("La fecha y hora de fin debe ser posterior al inicio.");
-      return;
-    }
-
-    const payload = {
-      doctor_id: selectedDoctorId,
-      fecha_hora_inicio: fechaHoraInicio.toISOString(),
-      fecha_hora_fin: fechaHoraFin.toISOString(),
-      duracion_bloque_minutos: Number(duracionBloque),
-    };
-
-    setFormSubmitting(true);
+    setReloadError("");
     try {
-      await crearDisponibilidad(payload);
-      await loadDisponibilidades(selectedDoctorId);
-      resetForm();
+      const [inicioSemana, finSemana] = rangoSemana(weekStart);
+      await listarDisponibilidadPorDoctor(selectedDoctorId, inicioSemana, finSemana);
+      setLastReload(dayjs());
     } catch (error) {
-      setFormError(error?.message || "No se pudo crear la disponibilidad.");
-    } finally {
-      setFormSubmitting(false);
+      setReloadError(error?.message || "No se pudo actualizar la disponibilidad.");
     }
-  };
+  }, [selectedDoctorId, weekStart]);
+
+  useEffect(() => {
+    if (selectedDoctorId && weekStart) {
+      reload();
+    }
+  }, [selectedDoctorId, weekStart, reload]);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -174,8 +108,8 @@ export default function AsignarHorarios() {
                 <Select
                   labelId="doctor-select-label"
                   label="Doctor"
-                  value={selectedDoctorId}
-                  onChange={(event) => setSelectedDoctorId(event.target.value)}
+                  value={selectedDoctorId ?? ""}
+                  onChange={handleDoctorChange}
                   disabled={doctoresLoading}
                 >
                   {doctorOptions.map((doctor) => (
@@ -185,6 +119,14 @@ export default function AsignarHorarios() {
                   ))}
                 </Select>
               </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <DatePicker
+                label="Semana"
+                value={weekStart}
+                onChange={handleWeekChange}
+                slotProps={{ textField: { fullWidth: true } }}
+              />
             </Grid>
             {doctoresLoading && (
               <Grid item>
@@ -200,113 +142,15 @@ export default function AsignarHorarios() {
         </Paper>
 
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Nueva disponibilidad
-          </Typography>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={3}>
-                <DatePicker
-                  label="Fecha inicio"
-                  value={fechaInicio}
-                  onChange={setFechaInicio}
-                  slotProps={{ textField: { fullWidth: true } }}
-                />
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <TimePicker
-                  label="Hora inicio"
-                  value={horaInicio}
-                  onChange={setHoraInicio}
-                  slotProps={{ textField: { fullWidth: true } }}
-                />
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <DatePicker
-                  label="Fecha fin"
-                  value={fechaFin}
-                  onChange={setFechaFin}
-                  slotProps={{ textField: { fullWidth: true } }}
-                />
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <TimePicker
-                  label="Hora fin"
-                  value={horaFin}
-                  onChange={setHoraFin}
-                  slotProps={{ textField: { fullWidth: true } }}
-                />
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <TextField
-                  label="Duración del bloque (min)"
-                  type="number"
-                  fullWidth
-                  value={duracionBloque}
-                  onChange={(event) => setDuracionBloque(event.target.value)}
-                  inputProps={{ min: 5 }}
-                />
-              </Grid>
-              {formError && (
-                <Grid item xs={12}>
-                  <Alert severity="error">{formError}</Alert>
-                </Grid>
-              )}
-              <Grid item xs={12}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={formSubmitting}
-                >
-                  {formSubmitting ? "Guardando..." : "Crear disponibilidad"}
-                </Button>
-              </Grid>
-            </Grid>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {reloadError && <Alert severity="error">{reloadError}</Alert>}
+            {lastReload && (
+              <Typography variant="body2" color="text.secondary">
+                Última actualización: {lastReload.format("DD/MM/YYYY HH:mm")}
+              </Typography>
+            )}
+            <WeeklyPlanner doctorId={selectedDoctorId} weekStart={weekStart} onChange={reload} />
           </Box>
-        </Paper>
-
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Disponibilidades del doctor
-          </Typography>
-          {disponibilidadesLoading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : disponibilidadesError ? (
-            <Alert severity="error">{disponibilidadesError}</Alert>
-          ) : disponibilidades.length === 0 ? (
-            <Typography color="text.secondary">
-              {selectedDoctorId
-                ? "No hay disponibilidades registradas para este doctor."
-                : "Selecciona un doctor para ver su disponibilidad."}
-            </Typography>
-          ) : (
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Inicio</TableCell>
-                    <TableCell>Fin</TableCell>
-                    <TableCell>Duración (min)</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {disponibilidades.map((item) => {
-                    const inicio = dayjs(item.fecha_hora_inicio);
-                    const fin = dayjs(item.fecha_hora_fin);
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell>{inicio.format("DD/MM/YYYY HH:mm")}</TableCell>
-                        <TableCell>{fin.format("DD/MM/YYYY HH:mm")}</TableCell>
-                        <TableCell>{item.duracion_bloque_minutos}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
         </Paper>
       </Box>
     </LocalizationProvider>
