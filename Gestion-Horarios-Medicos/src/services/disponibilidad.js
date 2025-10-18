@@ -1,4 +1,9 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
 import { supabase } from "@/services/supabaseClient";
+
+dayjs.extend(utc);
 
 function handleSupabaseError(error, fallbackMessage) {
   if (!error) {
@@ -65,11 +70,108 @@ export async function listarDisponibilidadPorDoctor(doctorId, fechaInicio, fecha
   }
 
   if (fechaFin) {
-    query = query.lte("fecha_hora_fin", fechaFin);
+    query = query.lt("fecha_hora_fin", fechaFin);
   }
 
   const { data, error } = await query;
   handleSupabaseError(error, "No se pudo listar la disponibilidad del doctor.");
 
-  return data ?? [];
+  if (!data) {
+    return [];
+  }
+
+  return data.map((item) => ({
+    id: item.id,
+    doctor_id: item.doctor_id,
+    fecha_hora_inicio: item.fecha_hora_inicio,
+    fecha_hora_fin: item.fecha_hora_fin,
+    duracion_bloque_minutos: item.duracion_bloque_minutos,
+  }));
+}
+
+/**
+ * Elimina una disponibilidad por su identificador.
+ *
+ * @param {number|string} id
+ * @returns {Promise<void>}
+ */
+export async function eliminarDisponibilidad(id) {
+  if (!id) {
+    throw new Error("El identificador de la disponibilidad es requerido.");
+  }
+
+  const { error } = await supabase.from("disponibilidad").delete().eq("id", id);
+  handleSupabaseError(error, "No se pudo eliminar la disponibilidad.");
+}
+
+/**
+ * Actualiza campos de una disponibilidad.
+ *
+ * @param {number|string} id
+ * @param {{ fecha_hora_inicio?: string, fecha_hora_fin?: string, duracion_bloque_minutos?: number, estado?: string }} patch
+ * @returns {Promise<Record<string, any> | void>}
+ */
+export async function actualizarDisponibilidad(id, patch) {
+  if (!id) {
+    throw new Error("El identificador de la disponibilidad es requerido.");
+  }
+
+  if (!patch || typeof patch !== "object" || Object.keys(patch).length === 0) {
+    throw new Error("Se requiere al menos un campo para actualizar.");
+  }
+
+  const { data, error } = await supabase
+    .from("disponibilidad")
+    .update(patch)
+    .eq("id", id)
+    .select()
+    .single();
+
+  handleSupabaseError(error, "No se pudo actualizar la disponibilidad.");
+  return data;
+}
+
+/**
+ * Calcula el rango de una semana [inicio, fin) en UTC.
+ *
+ * @param {import("dayjs").Dayjs} fechaDayjs
+ * @returns {[string, string]}
+ */
+export function rangoSemana(fechaDayjs) {
+  if (!fechaDayjs) {
+    throw new Error("Se requiere una fecha para calcular el rango semanal.");
+  }
+
+  const inicioLocal = fechaDayjs.startOf("day");
+  const finLocal = inicioLocal.add(7, "day");
+
+  return [inicioLocal.utc().toISOString(), finLocal.utc().toISOString()];
+}
+
+/**
+ * Determina si un rango se solapa con una lista de disponibilidades existentes.
+ *
+ * @param {string | import("dayjs").Dayjs} nuevoInicio
+ * @param {string | import("dayjs").Dayjs} nuevoFin
+ * @param {Array<{ fecha_hora_inicio: string | import("dayjs").Dayjs, fecha_hora_fin: string | import("dayjs").Dayjs }>} listaExistente
+ * @returns {boolean}
+ */
+export function haySolape(nuevoInicio, nuevoFin, listaExistente = []) {
+  if (!nuevoInicio || !nuevoFin) {
+    return false;
+  }
+
+  const inicio = dayjs(nuevoInicio);
+  const fin = dayjs(nuevoFin);
+
+  if (!fin.isAfter(inicio)) {
+    return true;
+  }
+
+  return listaExistente.some((item) => {
+    const existenteInicio = dayjs(item.fecha_hora_inicio);
+    const existenteFin = dayjs(item.fecha_hora_fin);
+
+    return inicio.isBefore(existenteFin) && fin.isAfter(existenteInicio);
+  });
 }
