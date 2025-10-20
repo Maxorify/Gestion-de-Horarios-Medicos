@@ -23,7 +23,7 @@ import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
-import { crearDoctor, listarEspecialidadesPrincipales } from "@/services/doctores.js";
+import { crearDoctorConUsuario, listarEspecialidadesPrincipales } from "@/services/doctores.js";
 
 const schema = yup.object({
   nombre: yup.string().required("Nombre obligatorio").min(2, "Mínimo 2 caracteres").max(100, "Máximo 100 caracteres"),
@@ -112,10 +112,14 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
         especialidad_principal: values.especialidad_principal.trim(),
       };
 
-      await crearDoctor({ persona, doctor });
+      const resultado = await crearDoctorConUsuario({ persona, doctor });
       reset(defaultValues);
-      onCreated?.();
+      onCreated?.(resultado);
     } catch (err) {
+      if (err?.code === "AUTH_EMAIL_DUPLICATE") {
+        setSubmitError("Ese correo ya se encuentra registrado. Usa uno distinto o recupera el acceso existente.");
+        return;
+      }
       setSubmitError(err?.message || "No se pudo crear el doctor. Intenta nuevamente.");
     }
   };
@@ -198,7 +202,7 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
                   name="telefono_secundario"
                   control={control}
                   render={({ field }) => (
-                    <TextField {...field} label="Teléfono secundario (opcional)" error={!!errors.telefono_secundario} helperText={errors.telefono_secundario?.message} />
+                    <TextField {...field} label="Teléfono secundario" error={!!errors.telefono_secundario} helperText={errors.telefono_secundario?.message} />
                   )}
                 />
                 <Controller
@@ -208,32 +212,37 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
                     <TextField {...field} label="Dirección" error={!!errors.direccion} helperText={errors.direccion?.message} />
                   )}
                 />
-                <Controller
-                  name="especialidad_principal"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.especialidad_principal} disabled={loadingEspecialidades}>
-                      <InputLabel id="esp-label" required>Especialidad</InputLabel>
+                <FormControl fullWidth error={!!errors.especialidad_principal} disabled={loadingEspecialidades}>
+                  <InputLabel id="especialidad-label">Especialidad</InputLabel>
+                  <Controller
+                    name="especialidad_principal"
+                    control={control}
+                    render={({ field }) => (
                       <Select
                         {...field}
-                        labelId="esp-label"
+                        labelId="especialidad-label"
                         label="Especialidad"
-                        value={field.value || ""}
-                        onChange={(e) => field.onChange(e.target.value)}
+                        MenuProps={{
+                          MenuListProps: {
+                            dense: true,
+                          },
+                        }}
                       >
                         {especialidadesOptions.map((opt) => (
-                          <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                          <MenuItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </MenuItem>
                         ))}
                       </Select>
-                      <FormHelperText>{errors.especialidad_principal?.message}</FormHelperText>
-                    </FormControl>
-                  )}
-                />
+                    )}
+                  />
+                  {errors.especialidad_principal && <FormHelperText>{errors.especialidad_principal.message}</FormHelperText>}
+                  {loadingEspecialidades && <FormHelperText>Cargando especialidades...</FormHelperText>}
+                </FormControl>
               </Stack>
             </Grid>
           </Grid>
         </Box>
-
         {!!submitError && (
           <Typography variant="body2" color="error" sx={{ mt: 2 }}>
             {submitError}
@@ -241,18 +250,12 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
         )}
       </DialogContent>
 
-      <DialogActions sx={{ justifyContent: "space-between", px: 3, py: 2.5 }}>
-        <Button onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
-        <Button
-          form="nuevo-doctor-form"
-          type="submit"
-          variant="contained"
-          component={motion.button}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Guardando…" : "Guardar"}
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button onClick={onClose} color="inherit" disabled={isSubmitting}>
+          Cancelar
+        </Button>
+        <Button type="submit" form="nuevo-doctor-form" variant="contained" disabled={isSubmitting}>
+          Crear doctor
         </Button>
       </DialogActions>
     </Dialog>

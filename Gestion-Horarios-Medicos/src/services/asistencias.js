@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabaseClient";
+import { fechaLocalISO, fechaLocalYYYYMMDD } from "@/utils/fechaLocal";
 
 function handleSupabaseError(error, fallbackMessage) {
   if (!error) {
@@ -11,10 +12,9 @@ function handleSupabaseError(error, fallbackMessage) {
 }
 
 function obtenerMarcaTemporalActual() {
-  const ahora = new Date();
-  const iso = ahora.toISOString();
+  const iso = fechaLocalISO();
   return {
-    fecha: iso.slice(0, 10),
+    fecha: fechaLocalYYYYMMDD(iso),
     hora: iso.slice(11, 19),
   };
 }
@@ -61,11 +61,13 @@ export async function verificarAsistencia(doctorId, fecha) {
     throw new Error("La fecha es requerida para verificar la asistencia.");
   }
 
+  const fechaConsulta = fechaLocalYYYYMMDD(fecha);
+
   const { data, error } = await supabase
     .from("asistencias")
     .select("id")
     .eq("doctor_id", doctorId)
-    .eq("fecha_asistencia", fecha)
+    .eq("fecha_asistencia", fechaConsulta)
     .maybeSingle();
 
   handleSupabaseError(error, "No se pudo verificar la asistencia del doctor.");

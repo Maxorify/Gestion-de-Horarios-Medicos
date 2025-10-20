@@ -1,4 +1,12 @@
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
 import { supabase } from "@/services/supabaseClient";
+import { fechaLocalISO, ZONA_HORARIA_CHILE } from "@/utils/fechaLocal";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const ESTADOS_ACTIVOS = ["programada", "confirmada", "pendiente"];
 
@@ -59,13 +67,23 @@ function buildDayRange(fecha) {
   if (!fecha) {
     throw new Error("La fecha es requerida para filtrar.");
   }
-  const date = new Date(`${fecha}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) {
+  const base = dayjs.tz(`${fecha}T00:00:00`, ZONA_HORARIA_CHILE, true);
+  if (!base.isValid()) {
     throw new Error("La fecha proporcionada no es válida.");
   }
-  const start = date.toISOString();
-  const end = new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString();
-  return { start, end };
+  const start = base.startOf("day");
+  const end = start.add(1, "day");
+  return {
+    start: start.format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    end: end.format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
+}
+
+function normalizarISO(fecha) {
+  if (!fecha) {
+    return fecha;
+  }
+  return fechaLocalISO(fecha);
 }
 
 async function obtenerCitaPorId(citaId, client = supabase) {
@@ -73,6 +91,10 @@ async function obtenerCitaPorId(citaId, client = supabase) {
     .from("citas")
     .select(CITA_SELECT)
     .eq("id", citaId)
+    .is("deleted_at", null)
+    .is("pacientes.deleted_at", null)
+    .is("doctores.deleted_at", null)
+    .is("disponibilidad.deleted_at", null)
     .maybeSingle();
 
   handleSupabaseError(error, "No se pudo obtener la información de la cita.");
@@ -95,11 +117,19 @@ export async function crearCita(input) {
     throw new Error("paciente_id, doctor_id, disponibilidad_id y creada_por_usuario_id son obligatorios.");
   }
 
+  const payload = { ...input };
+  if (payload.fecha_hora_inicio_agendada) {
+    payload.fecha_hora_inicio_agendada = normalizarISO(payload.fecha_hora_inicio_agendada);
+  }
+  if (payload.fecha_hora_fin_agendada) {
+    payload.fecha_hora_fin_agendada = normalizarISO(payload.fecha_hora_fin_agendada);
+  }
+
   const { data, error } = await supabase
     .from("citas")
     .insert({
-      ...input,
-      estado: input.estado ?? "programada",
+      ...payload,
+      estado: payload.estado ?? "programada",
     })
     .select("id")
     .single();
@@ -137,6 +167,10 @@ export async function listarCitasPorDoctor(doctorId, fecha) {
     .eq("doctor_id", doctorId)
     .gte("disponibilidad.fecha_hora_inicio", start)
     .lt("disponibilidad.fecha_hora_inicio", end)
+    .is("deleted_at", null)
+    .is("pacientes.deleted_at", null)
+    .is("doctores.deleted_at", null)
+    .is("disponibilidad.deleted_at", null)
     .order("fecha_hora_inicio", { ascending: true, foreignTable: "disponibilidad" });
 
   handleSupabaseError(error, "No se pudieron listar las citas del doctor.");
@@ -158,6 +192,10 @@ export async function listarCitasPorPaciente(pacienteId) {
     .from("citas")
     .select(CITA_SELECT)
     .eq("paciente_id", pacienteId)
+    .is("deleted_at", null)
+    .is("pacientes.deleted_at", null)
+    .is("doctores.deleted_at", null)
+    .is("disponibilidad.deleted_at", null)
     .order("fecha_hora_inicio", {
       ascending: false,
       nullsFirst: false,
@@ -185,8 +223,9 @@ export async function actualizarEstadoCita(citaId, nuevoEstado) {
 
   const { error } = await supabase
     .from("citas")
-    .update({ estado: nuevoEstado })
-    .eq("id", citaId);
+    .update({ estado: nuevoEstado, updated_at: fechaLocalISO() })
+    .eq("id", citaId)
+    .is("deleted_at", null);
 
   handleSupabaseError(error, "No se pudo actualizar el estado de la cita.");
 
@@ -210,6 +249,7 @@ export async function obtenerCitaActivaDePaciente(pacienteId) {
     )
     .eq("paciente_id", pacienteId)
     .in("estado", ESTADOS_ACTIVOS)
+    .is("deleted_at", null)
     .maybeSingle();
 
   handleSupabaseError(error, "No se pudo obtener la cita activa del paciente.");
@@ -224,8 +264,8 @@ export async function reservarCita({ paciente_id, doctor_id, disponibilidad_id, 
         paciente_id,
         doctor_id,
         disponibilidad_id,
-        fecha_hora_inicio_agendada: inicioISO,
-        fecha_hora_fin_agendada: finISO,
+        fecha_hora_inicio_agendada: normalizarISO(inicioISO),
+        fecha_hora_fin_agendada: normalizarISO(finISO),
         estado: "programada",
       },
     ])
@@ -245,12 +285,26 @@ export async function cancelarCita(citaId, motivo = "cancelada por reprogramaci�
     .from("citas")
     .update({
       estado: "cancelada",
-      updated_at: new Date().toISOString(),
+      updated_at: fechaLocalISO(),
       notas_administrativas: motivo,
     })
-    .eq("id", citaId);
+    .eq("id", citaId)
+    .is("deleted_at", null);
 
   handleSupabaseError(error, "No se pudo cancelar la cita.");
+}
+
+export async function borrarCita(citaId) {
+  if (!citaId) {
+    throw new Error("El identificador de la cita es requerido para borrarla.");
+  }
+
+  const { error } = await supabase
+    .from("citas")
+    .update({ deleted_at: fechaLocalISO() })
+    .eq("id", citaId);
+
+  handleSupabaseError(error, "No se pudo borrar la cita.");
 }
 
 export async function reprogramarCita(citaId, { disponibilidad_id, inicioISO, finISO }) {
@@ -262,11 +316,12 @@ export async function reprogramarCita(citaId, { disponibilidad_id, inicioISO, fi
     .from("citas")
     .update({
       disponibilidad_id,
-      fecha_hora_inicio_agendada: inicioISO,
-      fecha_hora_fin_agendada: finISO,
-      updated_at: new Date().toISOString(),
+      fecha_hora_inicio_agendada: normalizarISO(inicioISO),
+      fecha_hora_fin_agendada: normalizarISO(finISO),
+      updated_at: fechaLocalISO(),
     })
     .eq("id", citaId)
+    .is("deleted_at", null)
     .select()
     .maybeSingle();
 

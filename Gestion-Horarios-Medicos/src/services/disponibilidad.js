@@ -1,9 +1,12 @@
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 
 import { supabase } from "@/services/supabaseClient";
+import { fechaLocalISO, ZONA_HORARIA_CHILE } from "@/utils/fechaLocal";
 
 dayjs.extend(utc);
+dayjs.extend(timezone);
 
 function mapPgErrorToFriendly(error) {
   const msg = String(error?.message || "");
@@ -36,6 +39,13 @@ function handleSupabaseError(error, fallbackMessage) {
   throw wrapped;
 }
 
+function normalizarISO(input) {
+  if (!input) {
+    return input;
+  }
+  return fechaLocalISO(input);
+}
+
 /**
  * Crea una nueva disponibilidad para un doctor.
  *
@@ -56,8 +66,8 @@ export async function crearDisponibilidad(input) {
     .from("disponibilidad")
     .insert({
       doctor_id,
-      fecha_hora_inicio,
-      fecha_hora_fin,
+      fecha_hora_inicio: normalizarISO(fecha_hora_inicio),
+      fecha_hora_fin: normalizarISO(fecha_hora_fin),
       duracion_bloque_minutos,
     })
     .select()
@@ -84,6 +94,7 @@ export async function listarDisponibilidadPorDoctor(doctorId, fechaInicio, fecha
     .from("disponibilidad")
     .select("*")
     .eq("doctor_id", doctorId)
+    .is("deleted_at", null)
     .order("fecha_hora_inicio", { ascending: true });
 
   if (fechaInicio) {
@@ -121,7 +132,10 @@ export async function eliminarDisponibilidad(id) {
     throw new Error("El identificador de la disponibilidad es requerido.");
   }
 
-  const { error } = await supabase.from("disponibilidad").delete().eq("id", id);
+  const { error } = await supabase
+    .from("disponibilidad")
+    .update({ deleted_at: fechaLocalISO() })
+    .eq("id", id);
   handleSupabaseError(error, "No se pudo eliminar la disponibilidad.");
 }
 
@@ -141,9 +155,17 @@ export async function actualizarDisponibilidad(id, patch) {
     throw new Error("Se requiere al menos un campo para actualizar.");
   }
 
+  const updates = { ...patch };
+  if (updates.fecha_hora_inicio) {
+    updates.fecha_hora_inicio = normalizarISO(updates.fecha_hora_inicio);
+  }
+  if (updates.fecha_hora_fin) {
+    updates.fecha_hora_fin = normalizarISO(updates.fecha_hora_fin);
+  }
+
   const { data, error } = await supabase
     .from("disponibilidad")
-    .update(patch)
+    .update(updates)
     .eq("id", id)
     .select()
     .single();
@@ -153,9 +175,9 @@ export async function actualizarDisponibilidad(id, patch) {
 }
 
 /**
- * Calcula el rango de una semana [inicio, fin) en UTC.
+ * Calcula el rango de una semana [inicio, fin) en hora local.
  *
- * @param {import("dayjs").Dayjs} fechaDayjs
+ * @param {import("dayjs").Dayjs} weekStartDayjs
  * @returns {[string, string]}
  */
 export function rangoSemana(weekStartDayjs) {
@@ -163,9 +185,9 @@ export function rangoSemana(weekStartDayjs) {
     throw new Error("Se requiere una fecha para calcular el rango semanal.");
   }
 
-  const start = weekStartDayjs.startOf("day").toDate();
-  const end = weekStartDayjs.add(7, "day").startOf("day").toDate();
-  return [start.toISOString(), end.toISOString()];
+  const start = dayjs(weekStartDayjs).tz(ZONA_HORARIA_CHILE).startOf("day");
+  const end = start.add(7, "day");
+  return [start.format("YYYY-MM-DDTHH:mm:ss.SSS"), end.format("YYYY-MM-DDTHH:mm:ss.SSS")];
 }
 
 /**

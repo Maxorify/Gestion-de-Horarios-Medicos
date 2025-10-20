@@ -7,6 +7,7 @@ async function obtenerDoctorPorPersonaId(personaId) {
     .from("doctores")
     .select("id, persona_id, especialidad_principal, estado")
     .eq("persona_id", personaId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (error) {
@@ -23,6 +24,7 @@ async function obtenerPacientePorPersonaId(personaId) {
     .from("pacientes")
     .select("id, persona_id")
     .eq("persona_id", personaId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (error) {
@@ -46,6 +48,9 @@ export async function obtenerPerfilUsuarioPorEmail(email) {
       "id, persona_id, rol, estado, personas:persona_id (id, nombre, apellido_paterno, apellido_materno, rut, email, telefono_principal, telefono_secundario)"
     )
     .eq("personas.email", email)
+    .eq("estado", "activo")
+    .is("deleted_at", null)
+    .is("personas.deleted_at", null)
     .maybeSingle();
 
   if (usuarioError) {
