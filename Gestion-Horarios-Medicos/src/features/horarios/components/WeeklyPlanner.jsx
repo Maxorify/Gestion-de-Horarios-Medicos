@@ -27,6 +27,7 @@ import {
   listarDisponibilidadPorDoctor,
   rangoSemana,
 } from "@/services/disponibilidad.js";
+import { humanizeError } from "@/utils/errorMap.js";
 
 dayjs.extend(utc);
 
@@ -260,7 +261,7 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
       onChange?.();
       setFeedback({ type: "success", message: "Bloque creado correctamente." });
     } catch (creationError) {
-      setFeedback({ type: "error", message: creationError?.message || "No se pudo crear el bloque." });
+      setFeedback({ type: "error", message: humanizeError(creationError) });
     } finally {
       setDialogSubmitting(false);
     }
@@ -288,7 +289,7 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
       onChange?.();
       setFeedback({ type: "success", message: "Bloque eliminado." });
     } catch (deleteError) {
-      setFeedback({ type: "error", message: deleteError?.message || "No se pudo eliminar el bloque." });
+      setFeedback({ type: "error", message: humanizeError(deleteError) });
     } finally {
       setDeleteSubmitting(false);
     }

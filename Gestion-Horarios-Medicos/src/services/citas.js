@@ -1,5 +1,7 @@
 import { supabase } from "@/services/supabaseClient";
 
+const ESTADOS_ACTIVOS = ["programada", "confirmada", "pendiente"];
+
 const CITA_SELECT = `
   id,
   paciente_id,
@@ -194,4 +196,106 @@ export async function actualizarEstadoCita(citaId, nuevoEstado) {
   }
 
   return citaActualizada;
+}
+
+export async function obtenerCitaActivaDePaciente(pacienteId) {
+  if (!pacienteId) {
+    throw new Error("El identificador del paciente es requerido.");
+  }
+
+  const { data, error } = await supabase
+    .from("citas")
+    .select(
+      "id, estado, doctor_id, disponibilidad_id, fecha_hora_inicio_agendada, fecha_hora_fin_agendada",
+    )
+    .eq("paciente_id", pacienteId)
+    .in("estado", ESTADOS_ACTIVOS)
+    .maybeSingle();
+
+  handleSupabaseError(error, "No se pudo obtener la cita activa del paciente.");
+  return data || null;
+}
+
+export async function reservarCita({ paciente_id, doctor_id, disponibilidad_id, inicioISO, finISO }) {
+  const { data, error } = await supabase
+    .from("citas")
+    .insert([
+      {
+        paciente_id,
+        doctor_id,
+        disponibilidad_id,
+        fecha_hora_inicio_agendada: inicioISO,
+        fecha_hora_fin_agendada: finISO,
+        estado: "programada",
+      },
+    ])
+    .select()
+    .maybeSingle();
+
+  handleSupabaseError(error, "No se pudo reservar la cita.");
+  return data;
+}
+
+export async function cancelarCita(citaId, motivo = "cancelada por reprogramación") {
+  if (!citaId) {
+    throw new Error("El identificador de la cita es requerido.");
+  }
+
+  const { error } = await supabase
+    .from("citas")
+    .update({
+      estado: "cancelada",
+      updated_at: new Date().toISOString(),
+      notas_administrativas: motivo,
+    })
+    .eq("id", citaId);
+
+  handleSupabaseError(error, "No se pudo cancelar la cita.");
+}
+
+export async function reprogramarCita(citaId, { disponibilidad_id, inicioISO, finISO }) {
+  if (!citaId) {
+    throw new Error("El identificador de la cita es requerido.");
+  }
+
+  const { data, error } = await supabase
+    .from("citas")
+    .update({
+      disponibilidad_id,
+      fecha_hora_inicio_agendada: inicioISO,
+      fecha_hora_fin_agendada: finISO,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", citaId)
+    .select()
+    .maybeSingle();
+
+  handleSupabaseError(error, "No se pudo reprogramar la cita.");
+  return data;
+}
+
+export async function reservarOCambiar({
+  paciente_id,
+  doctor_id,
+  disponibilidad_id,
+  inicioISO,
+  finISO,
+  reprogramarSiExiste = false,
+}) {
+  if (!paciente_id || !doctor_id || !disponibilidad_id || !inicioISO || !finISO) {
+    throw new Error("paciente_id, doctor_id, disponibilidad_id, inicioISO y finISO son obligatorios.");
+  }
+
+  const vigente = await obtenerCitaActivaDePaciente(paciente_id);
+  if (vigente) {
+    if (!reprogramarSiExiste) {
+      const error = new Error("El paciente ya tiene una cita activa.");
+      error.code = "CITA_ACTIVA";
+      error.cita = vigente;
+      throw error;
+    }
+    return reprogramarCita(vigente.id, { disponibilidad_id, inicioISO, finISO });
+  }
+
+  return reservarCita({ paciente_id, doctor_id, disponibilidad_id, inicioISO, finISO });
 }

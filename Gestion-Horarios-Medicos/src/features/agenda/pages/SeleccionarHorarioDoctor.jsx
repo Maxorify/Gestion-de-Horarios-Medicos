@@ -4,6 +4,10 @@ import {
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   InputAdornment,
   Paper,
   Snackbar,
@@ -26,9 +30,10 @@ import customParseFormat from "dayjs/plugin/customParseFormat";
 import { useLocation, useNavigate } from "react-router-dom";
 import { listarDoctores } from "@/services/doctores";
 import { listarDisponibilidadPorDoctor } from "@/services/disponibilidad";
-import { crearCita, listarCitasPorDoctor } from "@/services/citas";
+import { listarCitasPorDoctor, reservarOCambiar } from "@/services/citas";
 import { tokenize, matchAllTokens, highlightRenderer } from "@/utils/search";
 import { useUser } from "@/hooks/useUser";
+import { humanizeError } from "@/utils/errorMap.js";
 
 dayjs.extend(customParseFormat);
 
@@ -181,6 +186,8 @@ export default function SeleccionarHorarioDoctor() {
   const [selectedSlotId, setSelectedSlotId] = useState(null);
 
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [reprogramacionPendiente, setReprogramacionPendiente] = useState(null);
+  const [reprogramando, setReprogramando] = useState(false);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
@@ -360,13 +367,13 @@ export default function SeleccionarHorarioDoctor() {
     }
 
     try {
-      await crearCita({
+      await reservarOCambiar({
         paciente_id: pacienteId,
         doctor_id: selectedDoctor.id,
         disponibilidad_id: selectedSlot.disponibilidadId,
-        creada_por_usuario_id: perfil.id,
-        fecha_hora_inicio_agendada: selectedSlot.fechaHoraInicio,
-        fecha_hora_fin_agendada: selectedSlot.fechaHoraFin,
+        inicioISO: selectedSlot.fechaHoraInicio,
+        finISO: selectedSlot.fechaHoraFin,
+        reprogramarSiExiste: false,
       });
 
       setSnackbar({
@@ -378,13 +385,77 @@ export default function SeleccionarHorarioDoctor() {
       setSelectedSlotId(null);
       setRefreshCitasCounter((prev) => prev + 1);
     } catch (error) {
+      if (error?.code === "CITA_ACTIVA") {
+        setReprogramacionPendiente({
+          cita: error.cita || null,
+          slot: selectedSlot,
+          doctor: selectedDoctor,
+        });
+        return;
+      }
+
       setSnackbar({
         open: true,
-        message: error.message || "No se pudo agendar la cita.",
+        message: humanizeError(error),
         severity: "error",
       });
     }
   };
+
+  const handleCancelarReprogramacion = () => {
+    if (reprogramando) return;
+    setReprogramacionPendiente(null);
+  };
+
+  const handleConfirmarReprogramacion = async () => {
+    if (!reprogramacionPendiente?.slot || !reprogramacionPendiente?.doctor || !pacienteId) {
+      return;
+    }
+
+    setReprogramando(true);
+    try {
+      await reservarOCambiar({
+        paciente_id: pacienteId,
+        doctor_id: reprogramacionPendiente.doctor.id,
+        disponibilidad_id: reprogramacionPendiente.slot.disponibilidadId,
+        inicioISO: reprogramacionPendiente.slot.fechaHoraInicio,
+        finISO: reprogramacionPendiente.slot.fechaHoraFin,
+        reprogramarSiExiste: true,
+      });
+
+      setSnackbar({
+        open: true,
+        message: "Cita reprogramada.",
+        severity: "success",
+      });
+      setReprogramacionPendiente(null);
+      setSelectedSlotId(null);
+      setRefreshCitasCounter((prev) => prev + 1);
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: humanizeError(error),
+        severity: "error",
+      });
+    } finally {
+      setReprogramando(false);
+    }
+  };
+
+  const reprogramacionSlot = reprogramacionPendiente?.slot || null;
+  const reprogramacionInicio = reprogramacionSlot
+    ? dayjs(reprogramacionSlot.fechaHoraInicio).format("DD/MM HH:mm")
+    : "";
+  const reprogramacionFin = reprogramacionSlot
+    ? dayjs(reprogramacionSlot.fechaHoraFin).format("HH:mm")
+    : "";
+  const citaActiva = reprogramacionPendiente?.cita || null;
+  const citaActivaInicio = citaActiva
+    ? dayjs(citaActiva.fecha_hora_inicio_agendada).format("DD/MM HH:mm")
+    : "";
+  const citaActivaFin = citaActiva
+    ? dayjs(citaActiva.fecha_hora_fin_agendada).format("HH:mm")
+    : "";
 
   const selectedDoctorNombre = getDoctorNombre(selectedDoctor?.persona);
   const selectedDoctorEspecialidad = selectedDoctor?.especialidad_principal || "Sin especialidad";
@@ -694,6 +765,43 @@ export default function SeleccionarHorarioDoctor() {
             </motion.div>
           </Box>
         </Stack>
+
+        <Dialog
+          open={Boolean(reprogramacionPendiente)}
+          onClose={handleCancelarReprogramacion}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>Reprogramar cita</DialogTitle>
+          <DialogContent>
+            {reprogramacionSlot ? (
+              <Stack spacing={2} sx={{ mt: 1 }}>
+                <Typography>
+                  {`Este paciente ya tiene una cita activa. ¿Quieres reprogramarla al bloque ${reprogramacionInicio} – ${reprogramacionFin}?`}
+                </Typography>
+                {citaActiva && (
+                  <Alert severity="info">
+                    {`Cita actual: ${citaActivaInicio} – ${citaActivaFin}.`}
+                  </Alert>
+                )}
+              </Stack>
+            ) : (
+              <Typography>Este paciente ya tiene una cita activa.</Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelarReprogramacion} disabled={reprogramando}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmarReprogramacion}
+              variant="contained"
+              disabled={reprogramando}
+            >
+              {reprogramando ? "Reprogramando..." : "Reprogramar"}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Snackbar
           open={snackbar.open}
