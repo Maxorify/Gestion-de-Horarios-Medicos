@@ -5,9 +5,30 @@ import { supabase } from "@/services/supabaseClient";
 
 dayjs.extend(utc);
 
+function mapPgErrorToFriendly(error) {
+  const msg = String(error?.message || "");
+  if (msg.includes("DISPONIBILIDAD_TIENE_CITAS_ACTIVAS")) {
+    const friendly = new Error(
+      "No puedes eliminar este bloque porque tiene citas activas. Reprograma o cancela esas citas primero.",
+    );
+    friendly.code = "BLOQUE_CON_CITAS_ACTIVAS";
+    return friendly;
+  }
+  if (msg.includes("ux_citas_unica_por_paciente_activa") || error?.code === "23505") {
+    const friendly = new Error("El paciente ya tiene una cita activa.");
+    friendly.code = "CITA_ACTIVA";
+    return friendly;
+  }
+  return error;
+}
+
 function handleSupabaseError(error, fallbackMessage) {
   if (!error) {
     return;
+  }
+  const mapped = mapPgErrorToFriendly(error);
+  if (mapped !== error) {
+    throw mapped;
   }
   const message = error.message || fallbackMessage || "Error inesperado de Supabase";
   const wrapped = new Error(message);
@@ -137,15 +158,14 @@ export async function actualizarDisponibilidad(id, patch) {
  * @param {import("dayjs").Dayjs} fechaDayjs
  * @returns {[string, string]}
  */
-export function rangoSemana(fechaDayjs) {
-  if (!fechaDayjs) {
+export function rangoSemana(weekStartDayjs) {
+  if (!weekStartDayjs) {
     throw new Error("Se requiere una fecha para calcular el rango semanal.");
   }
 
-  const inicioLocal = fechaDayjs.startOf("day");
-  const finLocal = inicioLocal.add(7, "day");
-
-  return [inicioLocal.utc().toISOString(), finLocal.utc().toISOString()];
+  const start = weekStartDayjs.startOf("day").toDate();
+  const end = weekStartDayjs.add(7, "day").startOf("day").toDate();
+  return [start.toISOString(), end.toISOString()];
 }
 
 /**
@@ -156,22 +176,23 @@ export function rangoSemana(fechaDayjs) {
  * @param {Array<{ fecha_hora_inicio: string | import("dayjs").Dayjs, fecha_hora_fin: string | import("dayjs").Dayjs }>} listaExistente
  * @returns {boolean}
  */
-export function haySolape(nuevoInicio, nuevoFin, listaExistente = []) {
-  if (!nuevoInicio || !nuevoFin) {
+export function haySolape(inicio, fin, existingRanges = []) {
+  if (!inicio || !fin) {
     return false;
   }
 
-  const inicio = dayjs(nuevoInicio);
-  const fin = dayjs(nuevoFin);
-
-  if (!fin.isAfter(inicio)) {
+  const s = inicio.valueOf();
+  const e = fin.valueOf();
+  if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) {
     return true;
   }
 
-  return listaExistente.some((item) => {
-    const existenteInicio = dayjs(item.fecha_hora_inicio);
-    const existenteFin = dayjs(item.fecha_hora_fin);
-
-    return inicio.isBefore(existenteFin) && fin.isAfter(existenteInicio);
+  return existingRanges.some(({ fecha_hora_inicio, fecha_hora_fin }) => {
+    const a = new Date(fecha_hora_inicio).getTime();
+    const b = new Date(fecha_hora_fin).getTime();
+    if (!Number.isFinite(a) || !Number.isFinite(b)) {
+      return false;
+    }
+    return s < b && a < e;
   });
 }
