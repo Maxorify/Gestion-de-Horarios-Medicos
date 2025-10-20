@@ -224,9 +224,12 @@ export default function DoctoresAdmin() {
       <NuevoDoctorDialog
         open={openNuevo}
         onClose={() => setOpenNuevo(false)}
-        onCreated={() => {
+        onCreated={(resultado) => {
           setOpenNuevo(false);
-          setSnackbar({ open: true, message: "Doctor creado", severity: "success" });
+          const passwordInfo = resultado?.passwordTemporal
+            ? ` Contraseña temporal: ${resultado.passwordTemporal}`
+            : "";
+          setSnackbar({ open: true, message: `Doctor creado.${passwordInfo}`, severity: "success" });
           fetchDoctores(debouncedSearch);
         }}
       />

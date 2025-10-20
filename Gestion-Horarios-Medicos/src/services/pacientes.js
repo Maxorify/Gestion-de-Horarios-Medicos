@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabaseClient";
+import { fechaLocalISO } from "@/utils/fechaLocal";
 
 const PACIENTE_SELECT = `
   id,
@@ -41,6 +42,8 @@ async function obtenerPacientePorId(pacienteId, client = supabase) {
     .from("pacientes")
     .select(PACIENTE_SELECT)
     .eq("id", pacienteId)
+    .is("deleted_at", null)
+    .is("personas.deleted_at", null)
     .maybeSingle();
 
   handleSupabaseError(error, "No se pudo obtener la información del paciente.");
@@ -56,6 +59,8 @@ export async function listarPacientes() {
   const { data, error } = await supabase
     .from("pacientes")
     .select(PACIENTE_SELECT)
+    .is("deleted_at", null)
+    .is("personas.deleted_at", null)
     .order("id", { ascending: true });
 
   handleSupabaseError(error, "No se pudieron listar los pacientes.");
@@ -122,7 +127,7 @@ export async function actualizarPaciente(pacienteId, input = {}) {
 }
 
 /**
- * Desactiva un paciente cambiando el estado de su usuario asociado a inactivo.
+ * Desactiva un paciente aplicando soft-delete y bloqueando su usuario asociado.
  *
  * @param {number|string} pacienteId
  * @returns {Promise<Array<Record<string, any>>>}
@@ -143,12 +148,20 @@ export async function desactivarPaciente(pacienteId) {
     throw new Error("El paciente no tiene una persona asociada válida para desactivar.");
   }
 
-  const { data, error } = await supabase
+  const timestamp = fechaLocalISO();
+
+  const { error: pacienteError } = await supabase
+    .from("pacientes")
+    .update({ deleted_at: timestamp })
+    .eq("id", pacienteId);
+  handleSupabaseError(pacienteError, "No se pudo desactivar el paciente.");
+
+  const { data, error: usuarioError } = await supabase
     .from("usuarios")
-    .update({ estado: "inactivo" })
+    .update({ estado: "inactivo", deleted_at: timestamp })
     .eq("persona_id", personaId)
     .select(USUARIO_ESTADO_SELECT);
 
-  handleSupabaseError(error, "No se pudo desactivar el paciente.");
+  handleSupabaseError(usuarioError, "No se pudo desactivar el paciente.");
   return data ?? [];
 }
