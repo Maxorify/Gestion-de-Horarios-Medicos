@@ -95,7 +95,6 @@ export async function login(email, password) {
     .from("usuarios")
     .select("id, password_hash, rol, estado, persona_id")
     .eq("persona_id", personaId)
-    .eq("estado", "activo")
     .is("deleted_at", null)
     .maybeSingle();
 
@@ -110,6 +109,20 @@ export async function login(email, password) {
 
   const passwordMatches = await bcrypt.compare(plainPassword, usuario.password_hash);
   if (!passwordMatches) {
+    throw new Error("Credenciales inválidas o usuario inactivo");
+  }
+
+  if (usuario.estado === "pendiente") {
+    return {
+      pending: true,
+      usuario_id: usuario.id,
+      persona_id: personaId,
+      rol: usuario.rol,
+      email: normalizedEmail,
+    };
+  }
+
+  if (usuario.estado !== "activo") {
     throw new Error("Credenciales inválidas o usuario inactivo");
   }
 
@@ -137,6 +150,30 @@ export async function login(email, password) {
 
 export function logout() {
   removeSession();
+}
+
+export async function activarContrasenaInicial(usuarioId, nuevaPassword) {
+  if (!usuarioId) {
+    throw new Error("El identificador del usuario es obligatorio");
+  }
+  if (!minPasswordOk(nuevaPassword)) {
+    throw new Error("La contraseña no cumple con los requisitos mínimos");
+  }
+
+  const password_hash = await bcrypt.hash(nuevaPassword, SALT_ROUNDS);
+  const { error } = await supabase
+    .from("usuarios")
+    .update({ password_hash, estado: "activo", updated_at: fechaLocalISO() })
+    .eq("id", usuarioId);
+
+  if (error) {
+    console.error("No se pudo activar la contraseña inicial", error);
+    throw new Error("No se pudo actualizar la contraseña");
+  }
+}
+
+export function minPasswordOk(password) {
+  return typeof password === "string" && password.length >= 8;
 }
 
 export function requireRole(...roles) {

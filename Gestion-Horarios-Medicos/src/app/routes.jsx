@@ -5,6 +5,7 @@ import AdminLayout from "./layouts/AdminLayout.jsx";
 import SecretariaLayout from "./layouts/SecretariaLayout.jsx";
 
 import Login from "@/features/auth/pages/Login.jsx";
+import CambioPasswordInicial from "@/features/auth/pages/CambioPasswordInicial.jsx";
 import AdminPanel from "@/features/auth/pages/AdminPanel.jsx";
 import DoctorPanel from "@/features/auth/pages/DoctorPanel.jsx";
 import SecretariaPanel from "@/features/auth/pages/SecretariaPanel.jsx";
@@ -56,6 +57,7 @@ export const router = createBrowserRouter(
   [
     { path: "/", element: <Navigate to="/login" replace /> },
     { path: "/login", element: <Login /> },
+    { path: "/cambio-password", element: <CambioPasswordInicial /> },
     {
       path: "/admin",
       element: (

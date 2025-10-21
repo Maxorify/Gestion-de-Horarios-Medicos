@@ -1,5 +1,29 @@
 const cleanRut = (raw = "") => raw.replace(/[^0-9kK]/g, "").toUpperCase();
 
+// formatea 20952457 -> "20.952.457" y al agregar un dígito verificador -> "20.952.457-3"
+export function formatRutForDisplay(value) {
+  if (!value) return "";
+  const cleaned = cleanRut(value);
+  if (!cleaned) return "";
+
+  const shouldShowDv = cleaned.length > 8 || /[kK]$/.test(cleaned);
+  const body = shouldShowDv ? cleaned.slice(0, -1) : cleaned;
+  const dv = shouldShowDv ? cleaned.slice(-1) : "";
+
+  const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  if (!dv) {
+    return formattedBody;
+  }
+
+  return `${formattedBody}-${dv}`;
+}
+
+export function cleanRutValue(value) {
+  if (!value) return "";
+  return cleanRut(value);
+}
+
 export const formatRut = (raw = "") => {
   const cleaned = cleanRut(raw);
   if (!cleaned) return "";
@@ -26,5 +50,3 @@ export const isValidRut = (raw = "") => {
   const normalized = expected === 11 ? "0" : expected === 10 ? "K" : `${expected}`;
   return normalized === dv.toUpperCase();
 };
-
-export const cleanRutValue = (raw = "") => cleanRut(raw);
