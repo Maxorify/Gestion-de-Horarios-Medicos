@@ -1,3 +1,4 @@
+// NOTA: los doctores se crean directamente desde doctores.js (sin usar este servicio)
 import bcrypt from "bcryptjs";
 import { supabase } from "@/services/supabaseClient";
 
