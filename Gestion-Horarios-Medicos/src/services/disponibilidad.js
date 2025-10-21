@@ -15,6 +15,7 @@ dayjs.extend(timezone);
 
 function mapPgErrorToFriendly(error) {
   const msg = String(error?.message || "");
+  const normalized = msg.toLowerCase();
   if (msg.includes("DISPONIBILIDAD_TIENE_CITAS_ACTIVAS")) {
     const friendly = new Error(
       "No puedes eliminar este bloque porque tiene citas activas. Reprograma o cancela esas citas primero.",
@@ -22,10 +23,14 @@ function mapPgErrorToFriendly(error) {
     friendly.code = "BLOQUE_CON_CITAS_ACTIVAS";
     return friendly;
   }
-  if (msg.includes("exclude") || msg.includes("&&") || msg.includes("overlap")) {
-    return new Error("El bloque se solapa con otro existente.");
-  }
-  if (msg.includes("exclude") || msg.includes("&&") || msg.includes("overlap")) {
+  if (
+    normalized.includes("exclude") ||
+    normalized.includes("exclusion") ||
+    normalized.includes("&&") ||
+    normalized.includes("overlap") ||
+    normalized.includes("ux_disponibilidad_sin_solape") ||
+    normalized.includes("duplicate key value")
+  ) {
     return new Error("El bloque se solapa con otro existente.");
   }
   return error;
@@ -56,6 +61,47 @@ function normalizarISO(input) {
   return toUtcISO(date);
 }
 
+async function reactivarDisponibilidadSiExiste({
+  doctor_id,
+  fecha_hora_inicio,
+  fecha_hora_fin,
+  duracion_bloque_minutos,
+}) {
+  const { data: existingRows, error: lookupError } = await supabase
+    .from("disponibilidad")
+    .select("id, deleted_at, estado")
+    .eq("doctor_id", doctor_id)
+    .eq("fecha_hora_inicio", fecha_hora_inicio)
+    .eq("fecha_hora_fin", fecha_hora_fin)
+    .limit(1);
+
+  if (lookupError) {
+    return { error: lookupError };
+  }
+
+  const existing = Array.isArray(existingRows) ? existingRows[0] : existingRows;
+  if (!existing || existing.deleted_at == null) {
+    return {};
+  }
+
+  const { data, error } = await supabase
+    .from("disponibilidad")
+    .update({
+      deleted_at: null,
+      estado: "activo",
+      duracion_bloque_minutos,
+    })
+    .eq("id", existing.id)
+    .select()
+    .single();
+
+  if (error) {
+    return { error };
+  }
+
+  return { data };
+}
+
 /**
  * Crea una nueva disponibilidad para un doctor.
  *
@@ -82,9 +128,32 @@ export async function crearDisponibilidad(input) {
       fecha_hora_inicio: inicioUtcISO,
       fecha_hora_fin: finUtcISO,
       duracion_bloque_minutos,
+      estado: "activo",
     })
     .select()
     .single();
+
+  if (error) {
+    const normalizedMsg = String(error.message || "").toLowerCase();
+    if (
+      normalizedMsg.includes("duplicate key value") ||
+      normalizedMsg.includes("ux_disponibilidad_sin_solape") ||
+      normalizedMsg.includes("exclusion")
+    ) {
+      const { data: revived, error: reviveError } = await reactivarDisponibilidadSiExiste({
+        doctor_id,
+        fecha_hora_inicio: inicioUtcISO,
+        fecha_hora_fin: finUtcISO,
+        duracion_bloque_minutos,
+      });
+      if (reviveError) {
+        handleSupabaseError(reviveError, "No se pudo reactivar la disponibilidad eliminada.");
+      }
+      if (revived) {
+        return revived;
+      }
+    }
+  }
 
   handleSupabaseError(error, "No se pudo crear la disponibilidad.");
   return data;
@@ -159,7 +228,10 @@ export async function eliminarDisponibilidad(id) {
 
   const { error } = await supabase
     .from("disponibilidad")
-    .update({ deleted_at: fechaLocalISO() })
+    .update({
+      deleted_at: fechaLocalISO(),
+      estado: "eliminado",
+    })
     .eq("id", id);
   handleSupabaseError(error, "No se pudo eliminar la disponibilidad.");
 }
