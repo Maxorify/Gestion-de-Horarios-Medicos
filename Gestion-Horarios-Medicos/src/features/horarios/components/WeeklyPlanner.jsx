@@ -18,19 +18,14 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 
 import {
   crearDisponibilidad,
   eliminarDisponibilidad,
   haySolape,
   listarDisponibilidadPorDoctor,
-  rangoSemana,
 } from "@/services/disponibilidad.js";
-import { fechaLocalISO } from "@/utils/fechaLocal";
 import { humanizeError } from "@/utils/errorMap.js";
-
-dayjs.extend(utc);
 
 const HOURS_START = 8;
 const HOURS_END = 20;
@@ -38,6 +33,10 @@ const SLOT_MINUTES = 30;
 const SLOT_COUNT = ((HOURS_END - HOURS_START) * 60) / SLOT_MINUTES;
 const SLOT_HEIGHT = 44;
 const DAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
+
+function overlaps(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && bStart < aEnd;
+}
 
 function formatHourLabel(index) {
   const totalMinutes = HOURS_START * 60 + index * SLOT_MINUTES;
@@ -69,12 +68,32 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
-  const weekDays = useMemo(() => {
+  const weekStartDate = useMemo(() => {
     if (!weekStart) {
+      return null;
+    }
+    if (weekStart instanceof Date) {
+      return new Date(weekStart);
+    }
+    if (typeof weekStart?.toDate === "function") {
+      return weekStart.toDate();
+    }
+    return new Date(weekStart);
+  }, [weekStart]);
+
+  const weekStartDayjs = useMemo(() => {
+    if (!weekStartDate) {
+      return null;
+    }
+    return dayjs(weekStartDate);
+  }, [weekStartDate]);
+
+  const weekDays = useMemo(() => {
+    if (!weekStartDayjs) {
       return [];
     }
-    return Array.from({ length: 7 }, (_, index) => weekStart.add(index, "day"));
-  }, [weekStart]);
+    return Array.from({ length: 7 }, (_, index) => weekStartDayjs.add(index, "day"));
+  }, [weekStartDayjs]);
 
   const timeSlots = useMemo(
     () => Array.from({ length: SLOT_COUNT }, (_, index) => formatHourLabel(index)),
@@ -82,7 +101,7 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
   );
 
   const fetchSlots = useCallback(async () => {
-    if (!doctorId || !weekStart) {
+    if (!doctorId || !weekStartDate) {
       setSlots([]);
       return;
     }
@@ -90,8 +109,7 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
     setLoading(true);
     setError("");
     try {
-      const [inicioSemana, finSemana] = rangoSemana(weekStart);
-      const data = await listarDisponibilidadPorDoctor(doctorId, inicioSemana, finSemana);
+      const data = await listarDisponibilidadPorDoctor(doctorId, weekStartDate);
       setSlots(data ?? []);
     } catch (fetchError) {
       setError(fetchError?.message || "No se pudieron cargar los bloques de disponibilidad.");
@@ -99,7 +117,7 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
     } finally {
       setLoading(false);
     }
-  }, [doctorId, weekStart]);
+  }, [doctorId, weekStartDate]);
 
   useEffect(() => {
     fetchSlots();
@@ -113,15 +131,34 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
   }, [dialogOpen]);
 
   const slotsByDay = useMemo(() => {
-    if (!weekStart) {
+    if (!weekStartDate) {
       return [];
     }
 
     const groups = Array.from({ length: 7 }, () => []);
+    const mondayUtc = Date.UTC(
+      weekStartDate.getFullYear(),
+      weekStartDate.getMonth(),
+      weekStartDate.getDate(),
+    );
+
     slots.forEach((slot) => {
-      const inicioLocal = dayjs.utc(slot.fecha_hora_inicio).local();
-      const finLocal = dayjs.utc(slot.fecha_hora_fin).local();
-      const diffDays = inicioLocal.diff(weekStart.startOf("day"), "day");
+      const inicioLocal = new Date(slot.fecha_hora_inicio);
+      const finLocal = new Date(slot.fecha_hora_fin);
+      if (Number.isNaN(inicioLocal?.getTime?.()) || Number.isNaN(finLocal?.getTime?.())) {
+        return;
+      }
+
+      const startOfDay = new Date(inicioLocal);
+      startOfDay.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor(
+        (Date.UTC(
+          startOfDay.getFullYear(),
+          startOfDay.getMonth(),
+          startOfDay.getDate(),
+        ) - mondayUtc) /
+          86400000,
+      );
 
       if (diffDays >= 0 && diffDays < 7) {
         groups[diffDays].push({
@@ -133,16 +170,45 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
     });
 
     groups.forEach((daySlots) => {
-      daySlots.sort((a, b) => a.inicioLocal.valueOf() - b.inicioLocal.valueOf());
+      daySlots.sort((a, b) => a.inicioLocal.getTime() - b.inicioLocal.getTime());
     });
 
     return groups;
-  }, [slots, weekStart]);
+  }, [slots, weekStartDate]);
+
+  const getCellRange = useCallback(
+    (dayIndex, slotIndex) => {
+      if (weekStartDate == null) {
+        return null;
+      }
+      const start = new Date(weekStartDate);
+      start.setDate(start.getDate() + dayIndex);
+      start.setHours(HOURS_START, 0, 0, 0);
+      start.setMinutes(start.getMinutes() + slotIndex * SLOT_MINUTES);
+      const end = new Date(start);
+      end.setMinutes(end.getMinutes() + SLOT_MINUTES);
+      return { start, end };
+    },
+    [weekStartDate],
+  );
+
+  const isCellTaken = useCallback(
+    (dayIndex, slotIndex) => {
+      const range = getCellRange(dayIndex, slotIndex);
+      if (!range) {
+        return false;
+      }
+      return (slotsByDay?.[dayIndex] ?? []).some((slot) =>
+        overlaps(range.start, range.end, slot.inicioLocal, slot.finLocal),
+      );
+    },
+    [getCellRange, slotsByDay],
+  );
 
   const finalizeSelection = useCallback(() => {
     setSelecting(false);
     setSelection((current) => {
-      if (!current || !weekStart) {
+      if (!current || !weekStartDayjs) {
         return null;
       }
 
@@ -160,7 +226,7 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
         return null;
       }
 
-      const dayStart = weekStart.add(dayIndex, "day").startOf("day");
+      const dayStart = weekStartDayjs.add(dayIndex, "day").startOf("day");
       const inicio = dayStart.add(HOURS_START, "hour").add(slotStart * SLOT_MINUTES, "minute");
       const fin = dayStart.add(HOURS_START, "hour").add(slotEnd * SLOT_MINUTES, "minute");
 
@@ -183,9 +249,9 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
       setDialogOpen(true);
       return null;
     });
-  }, [slotsByDay, weekStart]);
+  }, [slotsByDay, weekStartDayjs]);
 
-  const handleCellMouseDown = (dayIndex, slotIndex) => {
+  const handleCellMouseDown = (dayIndex, slotIndex, taken) => {
     if (editMode) {
       return; // en edición no se crean bloques nuevos
     }
@@ -193,7 +259,11 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
       setFeedback({ type: "warning", message: "Selecciona un doctor antes de crear bloques." });
       return;
     }
-    if (!weekStart) {
+    if (!weekStartDayjs) {
+      return;
+    }
+    if (taken) {
+      setFeedback({ type: "warning", message: "Ese bloque ya está ocupado." });
       return;
     }
 
@@ -208,6 +278,9 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
     }
     setSelection((current) => {
       if (!selecting || !current || current.dayIndex !== dayIndex) {
+        return current;
+      }
+      if (isCellTaken(dayIndex, slotIndex)) {
         return current;
       }
       return { ...current, endSlot: slotIndex };
@@ -253,12 +326,12 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
     try {
       await crearDisponibilidad({
         doctor_id: doctorId,
-        fecha_hora_inicio: fechaLocalISO(inicio.toDate()),
-        fecha_hora_fin: fechaLocalISO(fin.toDate()),
+        fecha_hora_inicio: inicio.toDate(),
+        fecha_hora_fin: fin.toDate(),
         duracion_bloque_minutos: duration,
       });
-      setDialogOpen(false);
       await fetchSlots();
+      setDialogOpen(false);
       onChange?.();
       setFeedback({ type: "success", message: "Bloque creado correctamente." });
     } catch (creationError) {
@@ -285,8 +358,8 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
     setFeedback(null);
     try {
       await eliminarDisponibilidad(deleteTarget.id);
-      setDeleteTarget(null);
       await fetchSlots();
+      setDeleteTarget(null);
       onChange?.();
       setFeedback({ type: "success", message: "Bloque eliminado." });
     } catch (deleteError) {
@@ -406,6 +479,7 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
                 >
                   {timeSlots.map((_, rowIndex) => {
                     const isSelectedCell = isCellSelected(dayIndex, rowIndex);
+                    const taken = isCellTaken(dayIndex, rowIndex);
 
                     return (
                       <Box
@@ -414,18 +488,24 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
                           borderBottom: rowIndex === SLOT_COUNT - 1 ? "none" : "1px solid",
                           borderColor: "divider",
                           height: SLOT_HEIGHT,
-                          backgroundColor: isSelectedCell ? "action.selected" : rowIndex % 2 === 0 ? "background.paper" : "background.default",
-                          cursor: doctorId ? "crosshair" : "not-allowed",
+                          backgroundColor: isSelectedCell
+                            ? "action.selected"
+                            : taken
+                            ? "action.disabledBackground"
+                            : rowIndex % 2 === 0
+                            ? "background.paper"
+                            : "background.default",
+                          cursor: doctorId && !taken ? "crosshair" : "not-allowed",
                         }}
-                        onMouseDown={() => handleCellMouseDown(dayIndex, rowIndex)}
+                        onMouseDown={() => handleCellMouseDown(dayIndex, rowIndex, taken)}
                         onMouseEnter={() => handleCellMouseEnter(dayIndex, rowIndex)}
                       />
                     );
                   })}
 
                   {(slotsByDay?.[dayIndex] ?? []).map((slot) => {
-                    const startMinutes = slot.inicioLocal.hour() * 60 + slot.inicioLocal.minute();
-                    const endMinutes = slot.finLocal.hour() * 60 + slot.finLocal.minute();
+                    const startMinutes = slot.inicioLocal.getHours() * 60 + slot.inicioLocal.getMinutes();
+                    const endMinutes = slot.finLocal.getHours() * 60 + slot.finLocal.getMinutes();
                     const relativeStart = startMinutes - HOURS_START * 60;
                     const relativeEnd = endMinutes - HOURS_START * 60;
                     const clampedStart = Math.max(relativeStart, 0);
@@ -457,7 +537,7 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
                         }}
                       >
                         <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                          {`${slot.inicioLocal.format("HH:mm")}–${slot.finLocal.format("HH:mm")}`}
+                          {`${dayjs(slot.inicioLocal).format("HH:mm")}–${dayjs(slot.finLocal).format("HH:mm")}`}
                         </Typography>
                         {editMode && (
                           <Tooltip title="Eliminar bloque">
@@ -518,8 +598,8 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
         <DialogContent>
           {deleteTarget && (
             <Typography>
-              ¿Eliminar el bloque {deleteTarget?.inicioLocal?.format("DD/MM HH:mm")} –
-              {deleteTarget?.finLocal?.format("HH:mm")}? Esta acción no se puede deshacer.
+              ¿Eliminar el bloque {dayjs(deleteTarget?.inicioLocal).format("DD/MM HH:mm")} –
+              {dayjs(deleteTarget?.finLocal).format("HH:mm")}? Esta acción no se puede deshacer.
             </Typography>
           )}
         </DialogContent>

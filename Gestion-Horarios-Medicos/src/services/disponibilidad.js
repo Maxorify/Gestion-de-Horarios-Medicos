@@ -3,13 +3,19 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 
 import { supabase } from "@/services/supabaseClient";
-import { fechaLocalISO, ZONA_HORARIA_CHILE } from "@/utils/fechaLocal";
+import {
+  fechaLocalISO,
+  ZONA_HORARIA_CHILE,
+  toUtcISO,
+  weekRangeUtcISO,
+} from "@/utils/fechaLocal";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
 function mapPgErrorToFriendly(error) {
   const msg = String(error?.message || "");
+  const normalized = msg.toLowerCase();
   if (msg.includes("DISPONIBILIDAD_TIENE_CITAS_ACTIVAS")) {
     const friendly = new Error(
       "No puedes eliminar este bloque porque tiene citas activas. Reprograma o cancela esas citas primero.",
@@ -17,10 +23,15 @@ function mapPgErrorToFriendly(error) {
     friendly.code = "BLOQUE_CON_CITAS_ACTIVAS";
     return friendly;
   }
-  if (msg.includes("ux_citas_unica_por_paciente_activa") || error?.code === "23505") {
-    const friendly = new Error("El paciente ya tiene una cita activa.");
-    friendly.code = "CITA_ACTIVA";
-    return friendly;
+  if (
+    normalized.includes("exclude") ||
+    normalized.includes("exclusion") ||
+    normalized.includes("&&") ||
+    normalized.includes("overlap") ||
+    normalized.includes("ux_disponibilidad_sin_solape") ||
+    normalized.includes("duplicate key value")
+  ) {
+    return new Error("El bloque se solapa con otro existente.");
   }
   return error;
 }
@@ -43,7 +54,52 @@ function normalizarISO(input) {
   if (!input) {
     return input;
   }
-  return fechaLocalISO(input);
+  const date = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(date?.getTime?.())) {
+    return input;
+  }
+  return toUtcISO(date);
+}
+
+async function reactivarDisponibilidadSiExiste({
+  doctor_id,
+  fecha_hora_inicio,
+  fecha_hora_fin,
+  duracion_bloque_minutos,
+}) {
+  const { data: existingRows, error: lookupError } = await supabase
+    .from("disponibilidad")
+    .select("id, deleted_at, estado")
+    .eq("doctor_id", doctor_id)
+    .eq("fecha_hora_inicio", fecha_hora_inicio)
+    .eq("fecha_hora_fin", fecha_hora_fin)
+    .limit(1);
+
+  if (lookupError) {
+    return { error: lookupError };
+  }
+
+  const existing = Array.isArray(existingRows) ? existingRows[0] : existingRows;
+  if (!existing || existing.deleted_at == null) {
+    return {};
+  }
+
+  const { data, error } = await supabase
+    .from("disponibilidad")
+    .update({
+      deleted_at: null,
+      estado: "activo",
+      duracion_bloque_minutos,
+    })
+    .eq("id", existing.id)
+    .select()
+    .single();
+
+  if (error) {
+    return { error };
+  }
+
+  return { data };
 }
 
 /**
@@ -62,16 +118,42 @@ export async function crearDisponibilidad(input) {
     throw new Error("doctor_id, fecha_hora_inicio, fecha_hora_fin y duracion_bloque_minutos son obligatorios.");
   }
 
+  const inicioUtcISO = normalizarISO(fecha_hora_inicio);
+  const finUtcISO = normalizarISO(fecha_hora_fin);
+
   const { data, error } = await supabase
     .from("disponibilidad")
     .insert({
       doctor_id,
-      fecha_hora_inicio: normalizarISO(fecha_hora_inicio),
-      fecha_hora_fin: normalizarISO(fecha_hora_fin),
+      fecha_hora_inicio: inicioUtcISO,
+      fecha_hora_fin: finUtcISO,
       duracion_bloque_minutos,
+      estado: "activo",
     })
     .select()
     .single();
+
+  if (error) {
+    const normalizedMsg = String(error.message || "").toLowerCase();
+    if (
+      normalizedMsg.includes("duplicate key value") ||
+      normalizedMsg.includes("ux_disponibilidad_sin_solape") ||
+      normalizedMsg.includes("exclusion")
+    ) {
+      const { data: revived, error: reviveError } = await reactivarDisponibilidadSiExiste({
+        doctor_id,
+        fecha_hora_inicio: inicioUtcISO,
+        fecha_hora_fin: finUtcISO,
+        duracion_bloque_minutos,
+      });
+      if (reviveError) {
+        handleSupabaseError(reviveError, "No se pudo reactivar la disponibilidad eliminada.");
+      }
+      if (revived) {
+        return revived;
+      }
+    }
+  }
 
   handleSupabaseError(error, "No se pudo crear la disponibilidad.");
   return data;
@@ -90,6 +172,18 @@ export async function listarDisponibilidadPorDoctor(doctorId, fechaInicio, fecha
     throw new Error("El identificador del doctor es requerido.");
   }
 
+  let startFilter = null;
+  let endFilter = null;
+
+  if (fechaInicio instanceof Date && !fechaFin) {
+    const { startUtcISO, endUtcISO } = weekRangeUtcISO(fechaInicio);
+    startFilter = startUtcISO;
+    endFilter = endUtcISO;
+  } else {
+    startFilter = fechaInicio || null;
+    endFilter = fechaFin || null;
+  }
+
   let query = supabase
     .from("disponibilidad")
     .select("*")
@@ -97,12 +191,12 @@ export async function listarDisponibilidadPorDoctor(doctorId, fechaInicio, fecha
     .is("deleted_at", null)
     .order("fecha_hora_inicio", { ascending: true });
 
-  if (fechaInicio) {
-    query = query.gte("fecha_hora_inicio", fechaInicio);
+  if (startFilter) {
+    query = query.gte("fecha_hora_inicio", startFilter);
   }
 
-  if (fechaFin) {
-    query = query.lt("fecha_hora_fin", fechaFin);
+  if (endFilter) {
+    query = query.lt("fecha_hora_fin", endFilter);
   }
 
   const { data, error } = await query;
@@ -134,7 +228,10 @@ export async function eliminarDisponibilidad(id) {
 
   const { error } = await supabase
     .from("disponibilidad")
-    .update({ deleted_at: fechaLocalISO() })
+    .update({
+      deleted_at: fechaLocalISO(),
+      estado: "eliminado",
+    })
     .eq("id", id);
   handleSupabaseError(error, "No se pudo eliminar la disponibilidad.");
 }
