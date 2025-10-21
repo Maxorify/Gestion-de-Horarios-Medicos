@@ -22,10 +22,8 @@ function mapPgErrorToFriendly(error) {
     friendly.code = "BLOQUE_CON_CITAS_ACTIVAS";
     return friendly;
   }
-  if (msg.includes("ux_citas_unica_por_paciente_activa") || error?.code === "23505") {
-    const friendly = new Error("El paciente ya tiene una cita activa.");
-    friendly.code = "CITA_ACTIVA";
-    return friendly;
+  if (msg.includes("exclude") || msg.includes("&&") || msg.includes("overlap")) {
+    return new Error("El bloque se solapa con otro existente.");
   }
   if (msg.includes("exclude") || msg.includes("&&") || msg.includes("overlap")) {
     return new Error("El bloque se solapa con otro existente.");

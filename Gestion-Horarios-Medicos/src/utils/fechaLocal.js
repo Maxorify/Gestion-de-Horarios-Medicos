@@ -36,7 +36,8 @@ export function fechaLocalYYYYMMDD(value) {
  * Ej: 2025-10-20 08:00 CLT -> '2025-10-20T11:00:00.000Z'
  */
 export function toUtcISO(dateLocal) {
-  return new Date(dateLocal.getTime() - dateLocal.getTimezoneOffset() * 60000).toISOString();
+  // Un Date ya conoce su offset; toISOString() produce el UTC correcto para ese instante
+  return new Date(dateLocal).toISOString();
 }
 
 /**
@@ -62,6 +63,7 @@ export function weekRangeUtcISO(weekStartLocalDate) {
   );
   const endLocal = new Date(startLocal);
   endLocal.setDate(endLocal.getDate() + 7);
+  // Sin restas manuales. Simplemente emitimos los UTC de esos midnight locales.
   return { startUtcISO: toUtcISO(startLocal), endUtcISO: toUtcISO(endLocal) };
 }
 
