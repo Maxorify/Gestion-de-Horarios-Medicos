@@ -16,25 +16,17 @@ import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 
 import { listarDoctores } from "@/services/doctores.js";
-import { listarDisponibilidadPorDoctor, rangoSemana } from "@/services/disponibilidad.js";
+import { listarDisponibilidadPorDoctor } from "@/services/disponibilidad.js";
+import { normalizeToMondayLocal } from "@/utils/fechaLocal";
 
 import WeeklyPlanner from "../components/WeeklyPlanner.jsx";
-
-function normalizeToMonday(date) {
-  if (!date) {
-    return null;
-  }
-  const day = date.day();
-  const diff = (day + 6) % 7;
-  return date.startOf("day").subtract(diff, "day");
-}
 
 export default function AsignarHorarios() {
   const [doctores, setDoctores] = useState([]);
   const [doctoresLoading, setDoctoresLoading] = useState(false);
   const [doctoresError, setDoctoresError] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState(null);
-  const [weekStart, setWeekStart] = useState(() => normalizeToMonday(dayjs()));
+  const [weekStart, setWeekStart] = useState(() => normalizeToMondayLocal(new Date()));
   const [reloadError, setReloadError] = useState("");
   const [lastReload, setLastReload] = useState(null);
 
@@ -71,7 +63,7 @@ export default function AsignarHorarios() {
   };
 
   const handleWeekChange = (value) => {
-    setWeekStart(value ? normalizeToMonday(value) : null);
+    setWeekStart(value ? normalizeToMondayLocal(value.toDate()) : null);
   };
 
   const reload = useCallback(async () => {
@@ -80,8 +72,7 @@ export default function AsignarHorarios() {
     }
     setReloadError("");
     try {
-      const [inicioSemana, finSemana] = rangoSemana(weekStart);
-      await listarDisponibilidadPorDoctor(selectedDoctorId, inicioSemana, finSemana);
+      await listarDisponibilidadPorDoctor(selectedDoctorId, weekStart);
       setLastReload(dayjs());
     } catch (error) {
       setReloadError(error?.message || "No se pudo actualizar la disponibilidad.");
@@ -123,7 +114,7 @@ export default function AsignarHorarios() {
             <Grid item xs={12} md={6}>
               <DatePicker
                 label="Semana"
-                value={weekStart}
+                value={weekStart ? dayjs(weekStart) : null}
                 onChange={handleWeekChange}
                 slotProps={{ textField: { fullWidth: true } }}
               />
