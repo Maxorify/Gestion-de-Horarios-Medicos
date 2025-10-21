@@ -12,7 +12,6 @@ import {
 } from "@mui/material";
 import { useContext, useState } from "react";
 import { ColorModeContext, tokens } from "../theme";
-import { supabase } from "@/services/supabaseClient";
 import InputBase from "@mui/material/InputBase";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
@@ -23,7 +22,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { useUser } from "@/hooks/useUser";
 
 
 const Topbar = ({ onThemeToggle }) => {
@@ -36,6 +35,19 @@ const Topbar = ({ onThemeToggle }) => {
   const open = Boolean(anchorEl);
   const navigate = useNavigate();
 
+  const { user, logout: logoutUser } = useUser();
+  const persona = user?.persona ?? null;
+  const displayName = persona
+    ? [persona.nombre, persona.apellido_paterno, persona.apellido_materno]
+        .filter(Boolean)
+        .join(" ")
+    : user?.email ?? "Usuario";
+  const roleLabel = (user?.rol ?? "Usuario").replace(
+    /^./,
+    (letter) => letter.toUpperCase()
+  );
+  const avatarSeed = persona?.rut || user?.email || "usuario";
+
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -44,14 +56,9 @@ const Topbar = ({ onThemeToggle }) => {
     setAnchorEl(null);
   };
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      localStorage.removeItem("isLoggedIn");
-      window.location.href = "/"; // o usa navigate("/")
-    } catch (e) {
-      console.error("Error al cerrar sesión:", e);
-    }
+  const handleLogout = () => {
+    logoutUser();
+    navigate("/login", { replace: true });
   };
   const handleProfile = () => {
     setAnchorEl(null);
@@ -321,7 +328,7 @@ const Topbar = ({ onThemeToggle }) => {
                     : "0 1px 2px rgba(255, 255, 255, 0.8)",
               }}
             >
-              Admin
+              {displayName}
             </Typography>
             <Typography
               variant="caption"
@@ -332,7 +339,7 @@ const Topbar = ({ onThemeToggle }) => {
                 fontWeight: 500,
               }}
             >
-              Administrador
+              {roleLabel}
             </Typography>
           </Box>
 
@@ -348,7 +355,9 @@ const Topbar = ({ onThemeToggle }) => {
             >
               <Avatar
                 sx={avatarStyle}
-                src="https://api.dicebear.com/7.x/notionists/svg?seed=admin"
+                src={`https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(
+                  avatarSeed
+                )}`}
               >
                 <PersonOutlinedIcon sx={{ color: "#000" }} />
               </Avatar>

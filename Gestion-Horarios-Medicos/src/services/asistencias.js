@@ -14,9 +14,27 @@ function handleSupabaseError(error, fallbackMessage) {
 function obtenerMarcaTemporalActual() {
   const iso = fechaLocalISO();
   return {
-    fecha: fechaLocalYYYYMMDD(iso),
+    fecha: fechaLocalYYYYMMDD(),
     hora: iso.slice(11, 19),
+    iso,
   };
+}
+
+export async function yaTieneAsistenciaHoy(doctorId) {
+  if (!doctorId) {
+    throw new Error("El identificador del doctor es obligatorio");
+  }
+  const fecha = fechaLocalYYYYMMDD();
+  const { data, error } = await supabase
+    .from("asistencias")
+    .select("id, doctor_id, fecha_asistencia, hora_llegada")
+    .eq("doctor_id", doctorId)
+    .eq("fecha_asistencia", fecha)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  handleSupabaseError(error, "No se pudo consultar la asistencia registrada");
+  return data ?? null;
 }
 
 /**
@@ -30,6 +48,11 @@ export async function marcarAsistencia(doctorId) {
     throw new Error("El identificador del doctor es requerido para marcar asistencia.");
   }
 
+  const asistenciaExistente = await yaTieneAsistenciaHoy(doctorId);
+  if (asistenciaExistente) {
+    return { ...asistenciaExistente, repetida: true };
+  }
+
   const { fecha, hora } = obtenerMarcaTemporalActual();
 
   const { data, error } = await supabase
@@ -39,20 +62,13 @@ export async function marcarAsistencia(doctorId) {
       fecha_asistencia: fecha,
       hora_llegada: hora,
     })
-    .select()
-    .single();
+    .select("id, doctor_id, fecha_asistencia, hora_llegada")
+    .maybeSingle();
 
   handleSupabaseError(error, "No se pudo registrar la asistencia del doctor.");
   return data;
 }
 
-/**
- * Verifica si un doctor registró asistencia en una fecha específica.
- *
- * @param {number|string} doctorId
- * @param {string} fecha
- * @returns {Promise<boolean>}
- */
 export async function verificarAsistencia(doctorId, fecha) {
   if (!doctorId) {
     throw new Error("El identificador del doctor es requerido para verificar la asistencia.");
@@ -68,6 +84,7 @@ export async function verificarAsistencia(doctorId, fecha) {
     .select("id")
     .eq("doctor_id", doctorId)
     .eq("fecha_asistencia", fechaConsulta)
+    .is("deleted_at", null)
     .maybeSingle();
 
   handleSupabaseError(error, "No se pudo verificar la asistencia del doctor.");

@@ -1,5 +1,6 @@
 import { supabase } from "@/services/supabaseClient";
 import { fechaLocalISO } from "@/utils/fechaLocal";
+import { crearUsuarioDelSistema } from "@/services/usuariosSistema";
 
 // Lista local de especialidades (sin tabla en BD)
 export const SPECIALIDADES = [
@@ -91,17 +92,6 @@ function normalizarDoctor(doctor) {
   };
 }
 
-function mapAuthError(error) {
-  if (!error) return error;
-  const msg = String(error.message || "");
-  if (msg.toLowerCase().includes("registered")) {
-    const friendly = new Error("El correo ya está registrado en Auth.");
-    friendly.code = "AUTH_EMAIL_DUPLICATE";
-    return friendly;
-  }
-  return error;
-}
-
 // Devuelve la lista local (sin consultar BD)
 export async function listarEspecialidadesPrincipales() {
   return SPECIALIDADES.slice();
@@ -160,25 +150,9 @@ export async function crearDoctorConUsuario(payload) {
     throw new Error("Ya existe una persona registrada con ese correo o RUT.");
   }
 
-  const { data: authRes, error: authErr } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { role: "doctor" },
-  });
-  const mappedAuthError = mapAuthError(authErr);
-  if (mappedAuthError) {
-    throw mappedAuthError;
-  }
-
-  const authUser = authRes?.user ?? null;
-  const userId = authUser?.id;
-  if (!userId) {
-    throw new Error("No se pudo crear el usuario de autenticación del doctor.");
-  }
-
   let personaId;
   let doctorId;
+  let usuarioId;
   try {
     const { data: personaRow, error: personaErr } = await supabase
       .from("personas")
@@ -204,26 +178,25 @@ export async function crearDoctorConUsuario(payload) {
     handleSupabaseError(doctorErr, "No se pudo crear el registro del doctor.");
     doctorId = doctorRow?.id ?? null;
 
-    const { data: usuarioRow, error: usuarioErr } = await supabase
-      .from("usuarios")
-      .insert([
-        {
-          id: userId,
-          auth_user_id: userId,
-          persona_id: personaId,
-          rol: "doctor",
-          estado: "activo",
-        },
-      ])
-      .select("id, persona_id, rol, estado")
-      .maybeSingle();
-    handleSupabaseError(usuarioErr, "No se pudo crear el usuario del doctor.");
+    usuarioId = await crearUsuarioDelSistema({
+      personaId,
+      email,
+      rol: "doctor",
+      estado: "activo",
+      passwordPlain: password,
+    });
+
+    const usuarioRow = {
+      id: usuarioId,
+      persona_id: personaId,
+      rol: "doctor",
+      estado: "activo",
+    };
 
     return {
       doctor: mapDoctor(doctorRow),
       persona: personaRow,
       usuario: usuarioRow,
-      authUser,
       passwordTemporal: password,
     };
   } catch (error) {
@@ -239,7 +212,12 @@ export async function crearDoctorConUsuario(payload) {
         .update({ deleted_at: fechaLocalISO() })
         .eq("id", personaId);
     }
-    await supabase.auth.admin.deleteUser(userId).catch(() => {});
+    if (usuarioId) {
+      await supabase
+        .from("usuarios")
+        .update({ deleted_at: fechaLocalISO(), estado: "inactivo" })
+        .eq("id", usuarioId);
+    }
     throw error;
   }
 }

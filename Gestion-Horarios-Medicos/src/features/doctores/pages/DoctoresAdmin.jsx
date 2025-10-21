@@ -18,6 +18,7 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 
 import { listarDoctores } from "@/services/doctores.js";
+import { requireRole } from "@/services/authLocal";
 import NuevoDoctorDialog from "@/features/doctores/components/NuevoDoctorDialog.jsx";
 
 const DEBOUNCE_TIME = 220;
@@ -118,6 +119,8 @@ export default function DoctoresAdmin() {
     setSnackbar((prev) => ({ ...prev, open: false }));
   }, []);
 
+  const canManage = requireRole("administrador", "secretaria");
+
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, display: "flex", flexDirection: "column", gap: 3 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
@@ -129,14 +132,16 @@ export default function DoctoresAdmin() {
             Administra la información y especialidades de los doctores.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddRoundedIcon />}
-          onClick={() => setOpenNuevo(true)}
-          sx={{ borderRadius: 999 }}
-        >
-          Nuevo doctor
-        </Button>
+        {canManage && (
+          <Button
+            variant="contained"
+            startIcon={<AddRoundedIcon />}
+            onClick={() => setOpenNuevo(true)}
+            sx={{ borderRadius: 999 }}
+          >
+            Nuevo doctor
+          </Button>
+        )}
       </Stack>
 
       <Paper

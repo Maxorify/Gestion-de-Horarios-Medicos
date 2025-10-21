@@ -5,6 +5,7 @@ import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
 import { tokens } from "../theme";
+import { useUser } from "@/hooks/useUser";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
@@ -17,14 +18,7 @@ import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 
-const Item = ({
-  title,
-  to,
-  icon,
-  isActive,
-  isCollapsed,
-  colors,
-}) => {
+const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -32,7 +26,6 @@ const Item = ({
     navigate(to);
   };
 
-  // Colores dinámicos
   const isLight = theme.palette.mode === "light";
   const itemColor = isLight ? "#111" : colors.grey[100];
   const activeColor = isLight ? "#4377fe" : colors.blueAccent[400];
@@ -73,11 +66,190 @@ const Sidebar = () => {
   const [isPinned, setIsPinned] = useState(false);
   const { pathname } = useLocation();
   const resolveIsActive = (to, { matchChildren = true } = {}) =>
-    matchChildren
-      ? pathname === to || pathname.startsWith(`${to}/`)
-      : pathname === to;
+    matchChildren ? pathname === to || pathname.startsWith(`${to}/`) : pathname === to;
 
-  // Hover reveal y pin
+  const { user } = useUser();
+  const persona = user?.persona ?? null;
+  const role = (user?.rol ?? "secretaria").toLowerCase();
+  const isAdmin = role === "administrador";
+  const displayName = persona
+    ? [persona.nombre, persona.apellido_paterno, persona.apellido_materno]
+        .filter(Boolean)
+        .join(" ")
+    : user?.email ?? "Usuario";
+  const displayEmail = persona?.email ?? user?.email ?? "";
+  const avatarSeed = persona?.rut || displayEmail || displayName || "usuario";
+
+  const adminMenuGroups = [
+    {
+      heading: null,
+      items: [
+        {
+          title: "Dashboard",
+          to: "/admin",
+          icon: <HomeOutlinedIcon />,
+          matchChildren: false,
+        },
+      ],
+    },
+    {
+      heading: "Gestión Médica",
+      items: [
+        { title: "Doctores", to: "/admin/doctores", icon: <GroupOutlinedIcon /> },
+        {
+          title: "Asignar Horarios",
+          to: "/admin/asignar-horarios",
+          icon: <ScheduleOutlinedIcon />,
+        },
+        {
+          title: "Registro de Asistencia",
+          to: "/admin/asistencias",
+          icon: <FactCheckOutlinedIcon />,
+        },
+      ],
+    },
+    {
+      heading: "Pacientes y citas",
+      items: [
+        {
+          title: "Pacientes",
+          to: "/admin/pacientes",
+          icon: <AssignmentIndOutlinedIcon />,
+        },
+        {
+          title: "Agendar Consulta",
+          to: "/admin/agendar",
+          icon: <CalendarMonthOutlinedIcon />,
+        },
+        {
+          title: "Mis Citas",
+          to: "/admin/mis-citas",
+          icon: <CalendarMonthOutlinedIcon />,
+        },
+      ],
+    },
+    {
+      heading: "Reportes y estadísticas",
+      items: [
+        {
+          title: "Reportes de Asistencia",
+          to: "/admin/reportes-asistencia",
+          icon: <AssessmentOutlinedIcon />,
+        },
+      ],
+    },
+    {
+      heading: "Configuración",
+      items: [
+        {
+          title: "Usuarios del sistema (Próximamente)",
+          to: "/admin/usuarios",
+          icon: <SettingsOutlinedIcon />,
+        },
+        {
+          title: "Ajustes del sistema",
+          to: "/admin/configuracion",
+          icon: <SettingsOutlinedIcon />,
+        },
+        {
+          title: "Soporte y Ayuda",
+          to: "/admin/soporte",
+          icon: <HelpOutlineOutlinedIcon />,
+        },
+      ],
+    },
+  ];
+
+  const secretariaMenuGroups = [
+    {
+      heading: null,
+      items: [
+        {
+          title: "Dashboard",
+          to: "/sec",
+          icon: <HomeOutlinedIcon />,
+          matchChildren: false,
+        },
+      ],
+    },
+    {
+      heading: "Gestión Médica",
+      items: [
+        { title: "Doctores", to: "/sec/doctores", icon: <GroupOutlinedIcon /> },
+        {
+          title: "Asignar Horarios",
+          to: "/sec/asignar-horarios",
+          icon: <ScheduleOutlinedIcon />,
+        },
+        {
+          title: "Marcar asistencia",
+          to: "/sec/asistencias",
+          icon: <FactCheckOutlinedIcon />,
+        },
+      ],
+    },
+    {
+      heading: "Pacientes y citas",
+      items: [
+        {
+          title: "Agendar Consulta",
+          to: "/sec/agendar",
+          icon: <CalendarMonthOutlinedIcon />,
+        },
+        {
+          title: "Mis Citas",
+          to: "/sec/mis-citas",
+          icon: <CalendarMonthOutlinedIcon />,
+        },
+        {
+          title: "Pacientes",
+          to: "/sec/pacientes",
+          icon: <AssignmentIndOutlinedIcon />,
+        },
+      ],
+    },
+    {
+      heading: "Soporte",
+      items: [
+        {
+          title: "Reportes de Asistencia",
+          to: "/sec/reportes-asistencia",
+          icon: <AssessmentOutlinedIcon />,
+        },
+        {
+          title: "Ajustes del sistema",
+          to: "/sec/configuracion",
+          icon: <SettingsOutlinedIcon />,
+        },
+        {
+          title: "Soporte y Ayuda",
+          to: "/sec/soporte",
+          icon: <HelpOutlineOutlinedIcon />,
+        },
+      ],
+    },
+  ];
+
+  const doctorMenuGroups = [
+    {
+      heading: null,
+      items: [
+        {
+          title: "Panel del doctor",
+          to: "/doctor",
+          icon: <HomeOutlinedIcon />,
+          matchChildren: false,
+        },
+      ],
+    },
+  ];
+
+  const menuGroups = isAdmin
+    ? adminMenuGroups
+    : role === "doctor"
+    ? doctorMenuGroups
+    : secretariaMenuGroups;
+
   const handleMouseEnter = () => {
     if (!isPinned) setIsCollapsed(false);
   };
@@ -89,7 +261,6 @@ const Sidebar = () => {
     setIsCollapsed((prev) => (isPinned ? true : false));
   };
 
-  // Colores adaptativos
   const isLight = theme.palette.mode === "light";
   const sidebarBg = isLight ? "#fafafa" : colors.primary[400];
   const textPrimary = isLight ? "#111" : colors.grey[100];
@@ -155,10 +326,8 @@ const Sidebar = () => {
       }}
       className="custom-scrollbar"
     >
-      {/* Sidebar principal */}
       <ProSidebar collapsed={isCollapsed}>
         <Menu iconShape="square">
-          {/* Perfil y pin */}
           {!isCollapsed && (
             <Box
               display="flex"
@@ -172,7 +341,6 @@ const Sidebar = () => {
                 position: "relative",
               }}
             >
-              {/* Pin */}
               <Box
                 sx={{
                   position: "absolute",
@@ -180,9 +348,7 @@ const Sidebar = () => {
                   right: 8,
                 }}
               >
-                <Tooltip
-                  title={isPinned ? "Desfijar sidebar" : "Fijar sidebar"}
-                >
+                <Tooltip title={isPinned ? "Desfijar sidebar" : "Fijar sidebar"}>
                   <IconButton
                     onClick={togglePin}
                     size="small"
@@ -206,7 +372,9 @@ const Sidebar = () => {
                 </Tooltip>
               </Box>
               <img
-                src="https://api.dicebear.com/7.x/notionists/svg?seed=admin"
+                src={`https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(
+                  avatarSeed
+                )}`}
                 alt="avatar"
                 style={{
                   width: 60,
@@ -223,20 +391,21 @@ const Sidebar = () => {
                 color={textPrimary}
                 align="center"
               >
-                Admin
+                {displayName}
               </Typography>
-              <Typography
-                variant="caption"
-                color={textSecondary}
-                align="center"
-                sx={{ fontSize: 12 }}
-              >
-                admin@clinica.com
-              </Typography>
+              {displayEmail && (
+                <Typography
+                  variant="caption"
+                  color={textSecondary}
+                  align="center"
+                  sx={{ fontSize: 12 }}
+                >
+                  {displayEmail}
+                </Typography>
+              )}
             </Box>
           )}
 
-          {/* Menú Items */}
           <Box
             display="flex"
             flexDirection="column"
@@ -251,133 +420,36 @@ const Sidebar = () => {
             }}
             className="custom-scrollbar"
           >
-            <Item
-              title="Dashboard"
-              to="/admin"
-              icon={<HomeOutlinedIcon />}
-              isActive={resolveIsActive("/admin", { matchChildren: false })}
-              isCollapsed={isCollapsed}
-              colors={colors}
-            />
-            {!isCollapsed && (
-              <Typography
-                variant="h6"
-                color={isLight ? "#111" : colors.grey[100]}
-                sx={{
-                  m: "15px 0 5px 20px",
-                  fontSize: "1rem",
-                  fontWeight: "bold",
-                }}
-              >
-                Gestión Médica
-              </Typography>
-            )}
-            <Item
-              title="Doctores"
-              to="/admin/doctores"
-              icon={<GroupOutlinedIcon />}
-              isActive={resolveIsActive("/admin/doctores")}
-              isCollapsed={isCollapsed}
-              colors={colors}
-            />
-            <Item
-              title="Asignar Horarios"
-              to="/admin/asignar-horarios"
-              icon={<ScheduleOutlinedIcon />}
-              isActive={resolveIsActive("/admin/asignar-horarios")}
-              isCollapsed={isCollapsed}
-              colors={colors}
-            />
-            <Item
-              title="Registro de Asistencia"
-              to="/admin/asistencias"
-              icon={<FactCheckOutlinedIcon />}
-              isActive={resolveIsActive("/admin/asistencias")}
-              isCollapsed={isCollapsed}
-              colors={colors}
-            />
-
-            {!isCollapsed && (
-              <Typography
-                variant="h6"
-                color={isLight ? "#111" : colors.grey[100]}
-                sx={{
-                  m: "15px 0 5px 20px",
-                  fontSize: "1rem",
-                  fontWeight: "bold",
-                }}
-              >
-                Pacientes y citas
-              </Typography>
-            )}
-            <Item
-              title="Pacientes"
-              to="/admin/pacientes"
-              icon={<AssignmentIndOutlinedIcon />}
-              isActive={resolveIsActive("/admin/pacientes")}
-              isCollapsed={isCollapsed}
-              colors={colors}
-            />
-            <Item
-              title="Agendar Consulta"
-              to="/admin/agendar"
-              icon={<CalendarMonthOutlinedIcon />}
-              isActive={resolveIsActive("/admin/agendar")}
-              isCollapsed={isCollapsed}
-              colors={colors}
-            />
-
-            {!isCollapsed && (
-              <Typography
-                variant="h6"
-                color={isLight ? "#111" : colors.grey[100]}
-                sx={{
-                  m: "15px 0 5px 20px",
-                  fontSize: "1rem",
-                  fontWeight: "bold",
-                }}
-              >
-                Reportes y estadísticas
-              </Typography>
-            )}
-            <Item
-              title="Reportes de Asistencia"
-              to="/admin/reportes-asistencia"
-              icon={<AssessmentOutlinedIcon />}
-              isActive={resolveIsActive("/admin/reportes-asistencia")}
-              isCollapsed={isCollapsed}
-              colors={colors}
-            />
-
-            {!isCollapsed && (
-              <Typography
-                variant="h6"
-                color={isLight ? "#111" : colors.grey[100]}
-                sx={{
-                  m: "15px 0 5px 20px",
-                  fontSize: "1rem",
-                  fontWeight: "bold",
-                }}
-              >
-                Configuración
-              </Typography>
-            )}
-            <Item
-              title="Ajustes del sistema"
-              to="/admin/configuracion"
-              icon={<SettingsOutlinedIcon />}
-              isActive={resolveIsActive("/admin/configuracion")}
-              isCollapsed={isCollapsed}
-              colors={colors}
-            />
-            <Item
-              title="Soporte y Ayuda"
-              to="/admin/soporte"
-              icon={<HelpOutlineOutlinedIcon />}
-              isActive={resolveIsActive("/admin/soporte")}
-              isCollapsed={isCollapsed}
-              colors={colors}
-            />
+            {menuGroups.map((group, index) => (
+              <Box key={group.heading ?? `group-${index}`} sx={{ width: "100%" }}>
+                {group.heading && !isCollapsed && (
+                  <Typography
+                    variant="h6"
+                    color={isLight ? "#111" : colors.grey[100]}
+                    sx={{
+                      m: "15px 0 5px 20px",
+                      fontSize: "1rem",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {group.heading}
+                  </Typography>
+                )}
+                {group.items.map((item) => (
+                  <Item
+                    key={item.to}
+                    title={item.title}
+                    to={item.to}
+                    icon={item.icon}
+                    isActive={resolveIsActive(item.to, {
+                      matchChildren: item.matchChildren ?? true,
+                    })}
+                    isCollapsed={isCollapsed}
+                    colors={colors}
+                  />
+                ))}
+              </Box>
+            ))}
           </Box>
         </Menu>
       </ProSidebar>

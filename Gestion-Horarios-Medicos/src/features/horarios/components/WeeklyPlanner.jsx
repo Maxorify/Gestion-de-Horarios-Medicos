@@ -27,6 +27,7 @@ import {
   listarDisponibilidadPorDoctor,
   rangoSemana,
 } from "@/services/disponibilidad.js";
+import { fechaLocalISO } from "@/utils/fechaLocal";
 import { humanizeError } from "@/utils/errorMap.js";
 
 dayjs.extend(utc);
@@ -252,8 +253,8 @@ export default function WeeklyPlanner({ doctorId, weekStart, onChange }) {
     try {
       await crearDisponibilidad({
         doctor_id: doctorId,
-        fecha_hora_inicio: inicio.utc().toISOString(),
-        fecha_hora_fin: fin.utc().toISOString(),
+        fecha_hora_inicio: fechaLocalISO(inicio.toDate()),
+        fecha_hora_fin: fechaLocalISO(fin.toDate()),
         duracion_bloque_minutos: duration,
       });
       setDialogOpen(false);
