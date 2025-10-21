@@ -3,7 +3,12 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 
 import { supabase } from "@/services/supabaseClient";
-import { fechaLocalISO, ZONA_HORARIA_CHILE } from "@/utils/fechaLocal";
+import {
+  fechaLocalISO,
+  ZONA_HORARIA_CHILE,
+  toUtcISO,
+  weekRangeUtcISO,
+} from "@/utils/fechaLocal";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -21,6 +26,9 @@ function mapPgErrorToFriendly(error) {
     const friendly = new Error("El paciente ya tiene una cita activa.");
     friendly.code = "CITA_ACTIVA";
     return friendly;
+  }
+  if (msg.includes("exclude") || msg.includes("&&") || msg.includes("overlap")) {
+    return new Error("El bloque se solapa con otro existente.");
   }
   return error;
 }
@@ -43,7 +51,11 @@ function normalizarISO(input) {
   if (!input) {
     return input;
   }
-  return fechaLocalISO(input);
+  const date = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(date?.getTime?.())) {
+    return input;
+  }
+  return toUtcISO(date);
 }
 
 /**
@@ -62,12 +74,15 @@ export async function crearDisponibilidad(input) {
     throw new Error("doctor_id, fecha_hora_inicio, fecha_hora_fin y duracion_bloque_minutos son obligatorios.");
   }
 
+  const inicioUtcISO = normalizarISO(fecha_hora_inicio);
+  const finUtcISO = normalizarISO(fecha_hora_fin);
+
   const { data, error } = await supabase
     .from("disponibilidad")
     .insert({
       doctor_id,
-      fecha_hora_inicio: normalizarISO(fecha_hora_inicio),
-      fecha_hora_fin: normalizarISO(fecha_hora_fin),
+      fecha_hora_inicio: inicioUtcISO,
+      fecha_hora_fin: finUtcISO,
       duracion_bloque_minutos,
     })
     .select()
@@ -90,6 +105,18 @@ export async function listarDisponibilidadPorDoctor(doctorId, fechaInicio, fecha
     throw new Error("El identificador del doctor es requerido.");
   }
 
+  let startFilter = null;
+  let endFilter = null;
+
+  if (fechaInicio instanceof Date && !fechaFin) {
+    const { startUtcISO, endUtcISO } = weekRangeUtcISO(fechaInicio);
+    startFilter = startUtcISO;
+    endFilter = endUtcISO;
+  } else {
+    startFilter = fechaInicio || null;
+    endFilter = fechaFin || null;
+  }
+
   let query = supabase
     .from("disponibilidad")
     .select("*")
@@ -97,12 +124,12 @@ export async function listarDisponibilidadPorDoctor(doctorId, fechaInicio, fecha
     .is("deleted_at", null)
     .order("fecha_hora_inicio", { ascending: true });
 
-  if (fechaInicio) {
-    query = query.gte("fecha_hora_inicio", fechaInicio);
+  if (startFilter) {
+    query = query.gte("fecha_hora_inicio", startFilter);
   }
 
-  if (fechaFin) {
-    query = query.lt("fecha_hora_fin", fechaFin);
+  if (endFilter) {
+    query = query.lt("fecha_hora_fin", endFilter);
   }
 
   const { data, error } = await query;
