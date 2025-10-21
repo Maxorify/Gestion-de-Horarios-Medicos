@@ -126,6 +126,10 @@ export function UserProvider({ children }) {
       setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
         const session = await authLocal.login(email, password);
+        if (session?.pending) {
+          setState({ user: null, loading: false, error: null });
+          return session;
+        }
         return await sincronizarDesdeSesion(session);
       } catch (error) {
         const normalized =

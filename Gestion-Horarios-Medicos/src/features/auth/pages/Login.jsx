@@ -21,6 +21,7 @@ const loginTheme = createTheme({
   },
 });
 
+const MotionDiv = motion.div;
 const DEFAULT_ROLE = "secretaria";
 
 function Login() {
@@ -52,7 +53,14 @@ function Login() {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
+      const result = await login(email, password);
+      if (result?.pending) {
+        navigate("/cambio-password", {
+          state: { usuario_id: result.usuario_id, email: result.email },
+          replace: true,
+        });
+        return;
+      }
       setEmail("");
       setPassword("");
     } catch (error) {
@@ -67,14 +75,14 @@ function Login() {
   };
 
   return (
-    <motion.div
+    <MotionDiv
       className="login-page"
       style={{ backgroundImage: `url(${fondo})` }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <motion.div
+      <MotionDiv
         className="absolute inset-0 bg-cover bg-center z-0"
         style={{ backgroundImage: `url(${fondo})` }}
         initial={{ opacity: 0 }}
@@ -88,7 +96,7 @@ function Login() {
 
       <ThemeProvider theme={loginTheme}>
         <CssBaseline />
-        <motion.div
+        <MotionDiv
           className="login-container"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -143,9 +151,9 @@ function Login() {
               {isSubmitting || userLoading ? "Ingresando..." : "Login"}
             </button>
           </form>
-        </motion.div>
+        </MotionDiv>
       </ThemeProvider>
-    </motion.div>
+    </MotionDiv>
   );
 }
 

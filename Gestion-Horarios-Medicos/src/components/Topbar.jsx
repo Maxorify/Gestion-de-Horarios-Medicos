@@ -23,6 +23,7 @@ import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/hooks/useUser";
+import { logout as logoutLocal } from "@/services/authLocal";
 
 
 const Topbar = ({ onThemeToggle }) => {
@@ -57,6 +58,7 @@ const Topbar = ({ onThemeToggle }) => {
   };
 
   const handleLogout = () => {
+    logoutLocal();
     logoutUser();
     navigate("/login", { replace: true });
   };
