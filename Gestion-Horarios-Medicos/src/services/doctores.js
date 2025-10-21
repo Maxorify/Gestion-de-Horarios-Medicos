@@ -1,6 +1,7 @@
+import bcrypt from "bcryptjs";
 import { supabase } from "@/services/supabaseClient";
 import { fechaLocalISO } from "@/utils/fechaLocal";
-import { crearUsuarioDelSistema } from "@/services/usuariosSistema";
+import { cleanRutValue } from "@/utils/rut";
 
 // Lista local de especialidades (sin tabla en BD)
 export const SPECIALIDADES = [
@@ -57,7 +58,7 @@ function normalizarPersona(persona) {
   const nombre = persona.nombre?.trim();
   const apPat = persona.apellido_paterno?.trim();
   const apMat = persona.apellido_materno?.trim() || null;
-  const rut = persona.rut?.trim();
+  const rut = cleanRutValue(persona.rut);
   const email = persona.email?.trim();
   const tel1 = persona.telefono_principal?.trim() || null;
   const tel2 = persona.telefono_secundario?.trim() || null;
@@ -134,7 +135,8 @@ export async function crearDoctorConUsuario(payload) {
 
   const persona = normalizarPersona(payload.persona);
   const doctor = normalizarDoctor(payload.doctor);
-  const password = payload.credenciales?.password?.trim() || generarPasswordTemporal();
+  const passwordPlain = payload.credenciales?.password?.trim() || generarPasswordTemporal();
+  const passwordHash = await bcrypt.hash(passwordPlain, 10);
   const email = persona.email;
 
   const { data: personaDuplicada, error: personaDupError } = await supabase
@@ -178,26 +180,43 @@ export async function crearDoctorConUsuario(payload) {
     handleSupabaseError(doctorErr, "No se pudo crear el registro del doctor.");
     doctorId = doctorRow?.id ?? null;
 
-    usuarioId = await crearUsuarioDelSistema({
-      personaId,
-      email,
-      rol: "doctor",
-      estado: "activo",
-      passwordPlain: password,
-    });
+    const { data: usuarioRow, error: usuarioErr } = await supabase
+      .from("usuarios")
+      .insert([
+        {
+          persona_id: personaId,
+          rol: "doctor",
+          estado: "pendiente",
+          password_hash: passwordHash,
+          created_at: fechaLocalISO(),
+        },
+      ])
+      .select("id")
+      .maybeSingle();
+    handleSupabaseError(usuarioErr, "No se pudo crear el usuario del doctor.");
+    usuarioId = usuarioRow?.id;
 
-    const usuarioRow = {
-      id: usuarioId,
-      persona_id: personaId,
-      rol: "doctor",
-      estado: "activo",
-    };
+    const { error: eventError } = await supabase.from("event_log").insert([
+      {
+        actor_uuid: payload.actor_uuid ?? null,
+        evento: "crear_doctor_con_usuario",
+        detalle: {
+          persona_id: personaId,
+          doctor_id: doctorId,
+          usuario_id: usuarioId,
+          email,
+          passwordTemporal: passwordPlain,
+        },
+        created_at: fechaLocalISO(),
+      },
+    ]);
+    handleSupabaseError(eventError, "No se pudo registrar el evento de creación del doctor.");
 
     return {
       doctor: mapDoctor(doctorRow),
       persona: personaRow,
-      usuario: usuarioRow,
-      passwordTemporal: password,
+      usuario: { id: usuarioId, persona_id: personaId, rol: "doctor", estado: "pendiente" },
+      passwordTemporal: passwordPlain,
     };
   } catch (error) {
     if (doctorId) {
