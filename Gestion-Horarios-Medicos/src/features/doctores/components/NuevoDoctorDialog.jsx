@@ -31,7 +31,7 @@ const schema = yup.object({
   nombre: yup.string().required("Nombre obligatorio").min(2, "Mínimo 2 caracteres").max(100, "Máximo 100 caracteres"),
   apellido_paterno: yup.string().required("Apellido paterno obligatorio").min(2).max(100),
   apellido_materno: yup.string().nullable(),
-  rut: yup.string().required("RUT obligatorio"),
+  rut: yup.string().required("RUT obligatorio").matches(/^\d+$/, "Solo números"),
   email: yup.string().required("Email obligatorio").email("Email inválido"),
   telefono_principal: yup.string().nullable(),
   telefono_secundario: yup.string().nullable(),
