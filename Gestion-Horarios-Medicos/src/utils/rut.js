@@ -1,22 +1,22 @@
 const cleanRut = (raw = "") => raw.replace(/[^0-9kK]/g, "").toUpperCase();
 
-// formatea 20952457 -> "20.952.457"
-export function formatRutForDisplay(digits) {
-  if (!digits) return "";
-  const d = String(digits).replace(/[^0-9kK]/g, "");
-  if (!d) return "";
+// formatea 20952457 -> "20.952.457" y al agregar un dígito verificador -> "20.952.457-3"
+export function formatRutForDisplay(value) {
+  if (!value) return "";
+  const cleaned = cleanRut(value);
+  if (!cleaned) return "";
 
-  const parts = [];
-  let body = d;
-  while (body.length > 3) {
-    parts.unshift(body.slice(-3));
-    body = body.slice(0, -3);
+  const shouldShowDv = cleaned.length > 8 || /[kK]$/.test(cleaned);
+  const body = shouldShowDv ? cleaned.slice(0, -1) : cleaned;
+  const dv = shouldShowDv ? cleaned.slice(-1) : "";
+
+  const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  if (!dv) {
+    return formattedBody;
   }
-  if (body) {
-    parts.unshift(body);
-  }
-  const formattedBody = parts.join(".");
-  return formattedBody;
+
+  return `${formattedBody}-${dv}`;
 }
 
 export function cleanRutValue(value) {

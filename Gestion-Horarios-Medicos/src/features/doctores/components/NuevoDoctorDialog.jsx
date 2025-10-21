@@ -194,10 +194,10 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
                         required
                         error={!!errors.rut}
                         helperText={errors.rut?.message}
-                        inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 12 }}
+                        inputProps={{ inputMode: "numeric", pattern: "[0-9kK]*", maxLength: 12 }}
                         onChange={(e) => {
-                          const digits = (e.target.value || "").replace(/\D+/g, "");
-                          onChange(digits);
+                          const cleaned = cleanRutValue(e.target.value || "");
+                          onChange(cleaned);
                         }}
                       />
                     );
