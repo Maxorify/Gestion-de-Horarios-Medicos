@@ -25,6 +25,9 @@ function mapPgErrorToFriendly(error) {
   if (msg.includes("exclude") || msg.includes("&&") || msg.includes("overlap")) {
     return new Error("El bloque se solapa con otro existente.");
   }
+  if (msg.includes("exclude") || msg.includes("&&") || msg.includes("overlap")) {
+    return new Error("El bloque se solapa con otro existente.");
+  }
   return error;
 }
 
