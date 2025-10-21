@@ -28,6 +28,7 @@
     "@nivo/line": "^0.99.0",
     "@nivo/pie": "^0.99.0",
     "@supabase/supabase-js": "^2.50.0",
+    "bcryptjs": "^3.0.2",
     "dayjs": "^1.11.18",
     "formik": "^2.4.6",
     "framer-motion": "^12.16.0",

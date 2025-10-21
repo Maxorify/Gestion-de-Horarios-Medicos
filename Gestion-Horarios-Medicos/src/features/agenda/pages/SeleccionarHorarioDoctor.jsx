@@ -34,6 +34,7 @@ import { listarCitasPorDoctor, reservarOCambiar } from "@/services/citas";
 import { tokenize, matchAllTokens, highlightRenderer } from "@/utils/search";
 import { useUser } from "@/hooks/useUser";
 import { humanizeError } from "@/utils/errorMap.js";
+import { fechaLocalISO } from "@/utils/fechaLocal";
 
 dayjs.extend(customParseFormat);
 
@@ -63,7 +64,9 @@ function generarSlotsParaDia(disponibilidades, citas, fechaBase) {
         cita?.fecha_hora_fin_agendada ??
         cita?.fecha_hora_fin ??
         cita?.disponibilidad?.fecha_hora_fin ??
-        (duracionBloque > 0 ? inicio.add(duracionBloque, "minute").toISOString() : null);
+        (duracionBloque > 0
+          ? fechaLocalISO(inicio.add(duracionBloque, "minute").toDate())
+          : null);
 
       const fin = finRaw ? dayjs(finRaw) : null;
       if (!fin || !fin.isValid()) {
@@ -102,10 +105,10 @@ function generarSlotsParaDia(disponibilidades, citas, fechaBase) {
       });
 
       slots.push({
-        id: `${disponibilidad.id}-${currentStart.toISOString()}`,
+        id: `${disponibilidad.id}-${fechaLocalISO(currentStart.toDate())}`,
         disponibilidadId: disponibilidad.id,
-        fechaHoraInicio: currentStart.toISOString(),
-        fechaHoraFin: currentEnd.toISOString(),
+        fechaHoraInicio: fechaLocalISO(currentStart.toDate()),
+        fechaHoraFin: fechaLocalISO(currentEnd.toDate()),
         estado: ocupado ? "ocupado" : "disponible",
       });
 
@@ -274,8 +277,8 @@ export default function SeleccionarHorarioDoctor() {
       try {
         setCargandoDisponibilidad(true);
         setErrorDisponibilidad("");
-        const fechaInicio = today.startOf("day").toISOString();
-        const fechaFin = maxDate.endOf("day").toISOString();
+        const fechaInicio = fechaLocalISO(today.startOf("day").toDate());
+        const fechaFin = fechaLocalISO(maxDate.endOf("day").toDate());
         const data = await listarDisponibilidadPorDoctor(selectedDoctorId, fechaInicio, fechaFin);
         if (!cancel) {
           setDisponibilidades(data ?? []);

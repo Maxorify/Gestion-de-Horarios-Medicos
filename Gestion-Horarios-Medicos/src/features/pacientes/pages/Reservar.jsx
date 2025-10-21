@@ -1,6 +1,8 @@
 // src/pages/Reservar.jsx
 import { useEffect, useState } from "react";
 import { supabase } from "@/services/supabaseClient";
+import { fechaLocalYYYYMMDD } from "@/utils/fechaLocal";
+import * as authLocal from "@/services/authLocal";
 
 export default function Reservar() {
   const [slots, setSlots] = useState([]);
@@ -8,13 +10,14 @@ export default function Reservar() {
   const [booking, setBooking] = useState(false);
 
   // Por ahora usamos el paciente 13 (demo) o el que guardes en localStorage
+  const session = authLocal.getSession();
   const pacienteId = Number(localStorage.getItem("paciente_id") || 13);
-  const email = localStorage.getItem("userEmail") || "paciente@test.com";
+  const email = session?.email || "paciente@test.com";
 
   const loadSlots = async () => {
     setLoading(true);
     const { data, error } = await supabase.rpc("rpc_slots", {
-      p_desde: new Date().toISOString().slice(0, 10),
+      p_desde: fechaLocalYYYYMMDD(),
       p_dias: 7,
       p_doctor_id: null, // o 1 si quieres filtrar por doctor
     });

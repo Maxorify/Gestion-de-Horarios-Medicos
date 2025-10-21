@@ -1,4 +1,3 @@
-// --- ARCHIVO: src/features/auth/pages/Login.jsx ---
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -44,13 +43,6 @@ function Login() {
         ? "/sec"
         : "/doctor";
 
-    try {
-      localStorage.setItem("userEmail", user.email ?? "");
-      localStorage.setItem("userRole", role);
-    } catch (error) {
-      console.warn("No se pudo persistir la información del usuario", error);
-    }
-
     navigate(destination, { replace: true });
   }, [user, userLoading, navigate]);
 
@@ -64,15 +56,14 @@ function Login() {
       setEmail("");
       setPassword("");
     } catch (error) {
-      const message = error instanceof Error && error.message
-        ? error.message
-        : "Error al iniciar sesión";
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Credenciales inválidas o usuario inactivo";
       setFormError(message);
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    setIsSubmitting(false);
   };
 
   return (

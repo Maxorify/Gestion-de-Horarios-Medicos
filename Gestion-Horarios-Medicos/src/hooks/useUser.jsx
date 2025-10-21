@@ -4,323 +4,159 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { supabase } from "@/services/supabaseClient";
-import {
-  loginConEmailYPassword,
-  obtenerPerfilUsuarioPorEmail,
-} from "@/services/auth";
+import * as authLocal from "@/services/authLocal";
 
-const DEFAULT_ROLE = "secretaria";
 const INITIAL_STATE = {
   user: null,
-  perfil: null,
   loading: true,
   error: null,
 };
 
-function clearLocalSession() {
-  try {
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("doctorId");
-    localStorage.removeItem("isLoggedIn");
-  } catch (error) {
-    console.warn("No se pudo limpiar la sesión local", error);
+const PERSONA_COLUMNS = [
+  "id",
+  "nombre",
+  "apellido_paterno",
+  "apellido_materno",
+  "rut",
+  "email",
+  "telefono_principal",
+  "telefono_secundario",
+  "direccion",
+];
+
+async function obtenerPersona(personaId) {
+  if (!personaId) {
+    throw new Error("La sesión no tiene una persona asociada");
   }
+  const { data, error } = await supabase
+    .from("personas")
+    .select(PERSONA_COLUMNS.join(", "))
+    .eq("id", personaId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("La persona asociada no existe o fue eliminada");
+  }
+
+  return data;
 }
 
-function normalizarDato(obj) {
-  if (!obj) return null;
-  if (Array.isArray(obj)) {
-    return obj[0] ?? null;
+async function obtenerDoctorOpcional(personaId) {
+  if (!personaId) return null;
+  const { data, error } = await supabase
+    .from("doctores")
+    .select("id")
+    .eq("persona_id", personaId)
+    .neq("estado", "inactivo")
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
   }
-  return obj;
-}
 
-function mapUserProfile(profile) {
-  if (!profile) return null;
-
-  const persona = profile.personas ?? profile.persona ?? null;
-  const personaId =
-    profile.persona_id ?? persona?.id ?? profile.idPersona ?? null;
-  const doctorInfo = normalizarDato(profile.doctor ?? profile.doctores);
-  const pacienteInfo = normalizarDato(profile.paciente ?? profile.pacientes);
-  const rol = (profile.rol ?? profile.role ?? DEFAULT_ROLE).toLowerCase();
-
-  const nombreCompleto = [
-    persona?.nombre,
-    persona?.apellido_paterno,
-    persona?.apellido_materno,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-
-  return {
-    id: profile.id ?? profile.usuario_id ?? null,
-    idUsuario: profile.id ?? profile.usuario_id ?? null,
-    personaId,
-    idPersona: personaId,
-    persona: persona ?? null,
-    nombre: persona?.nombre ?? null,
-    apellidoPaterno: persona?.apellido_paterno ?? null,
-    apellidoMaterno: persona?.apellido_materno ?? null,
-    nombreCompleto,
-    email: persona?.email ?? profile.email ?? null,
-    rut: persona?.rut ?? profile.rut ?? null,
-    telefono:
-      persona?.telefono_principal ?? profile?.telefono_principal ?? null,
-    telefonoPrincipal: persona?.telefono_principal ?? null,
-    telefonoSecundario: persona?.telefono_secundario ?? null,
-    estado: profile.estado ?? null,
-    rol,
-    role: rol,
-    doctorId: doctorInfo?.id ?? profile.doctor_id ?? null,
-    doctor: doctorInfo ?? null,
-    pacienteId: pacienteInfo?.id ?? profile.paciente_id ?? null,
-    paciente: pacienteInfo ?? null,
-    authUserId: profile.auth_user_id ?? profile.authUserId ?? null,
-  };
+  return data ?? null;
 }
 
 const UserContext = createContext({
   ...INITIAL_STATE,
   login: async () => undefined,
-  logout: async () => undefined,
-  refreshPerfil: async () => undefined,
+  logout: () => undefined,
+  refresh: async () => undefined,
 });
-
-function useIsMounted() {
-  const isMountedRef = useRef(true);
-
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  return isMountedRef;
-}
 
 export function UserProvider({ children }) {
   const [state, setState] = useState(INITIAL_STATE);
-  const isMountedRef = useIsMounted();
 
-  const setSafeState = useCallback(
-    (updater) => {
-      if (!isMountedRef.current) return;
-      setState((prev) =>
-        typeof updater === "function" ? updater(prev) : updater
-      );
-    },
-    [isMountedRef]
-  );
+  const construirUsuario = useCallback(async (sessionPayload) => {
+    if (!sessionPayload) return null;
+    const persona = await obtenerPersona(sessionPayload.persona_id);
+    const doctor = await obtenerDoctorOpcional(sessionPayload.persona_id);
+    return {
+      usuario_id: sessionPayload.usuario_id,
+      persona_id: sessionPayload.persona_id,
+      rol: sessionPayload.rol,
+      email: sessionPayload.email,
+      persona,
+      doctor_id: doctor?.id ?? null,
+      doctor,
+    };
+  }, []);
 
-  const handleProfileSuccess = useCallback(
-    (rawProfile) => {
-      const mappedProfile = mapUserProfile(rawProfile);
-      setSafeState({
-        user: mappedProfile,
-        perfil: mappedProfile,
-        loading: false,
-        error: null,
-      });
-      return mappedProfile;
-    },
-    [setSafeState]
-  );
-
-  const handleProfileError = useCallback(
-    (error) => {
-      const normalizedError =
-        error instanceof Error
-          ? error
-          : new Error("No se pudo recuperar la información del usuario");
-      console.error(
-        "// CODEx: No se pudo sincronizar el perfil activo",
-        normalizedError
-      );
-      clearLocalSession();
-      setSafeState({
-        user: null,
-        perfil: null,
-        loading: false,
-        error: normalizedError,
-      });
-      return normalizedError;
-    },
-    [setSafeState]
-  );
-
-  const fetchPerfilForSessionUser = useCallback(
-    async (sessionUser) => {
-      if (!sessionUser?.email) {
-        clearLocalSession();
-        setSafeState({ user: null, perfil: null, loading: false, error: null });
+  const sincronizarDesdeSesion = useCallback(
+    async (sessionPayload) => {
+      if (!sessionPayload) {
+        setState({ user: null, loading: false, error: null });
         return null;
       }
-
-      setSafeState((prev) => ({ ...prev, loading: true, error: null }));
-      const timeoutId = setTimeout(() => {
-        setSafeState((prev) => ({ ...prev, loading: false }));
-      }, 10000);
-
+      setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
-        const rawProfile = await obtenerPerfilUsuarioPorEmail(
-          sessionUser.email
-        );
-        if (!rawProfile) {
-          throw new Error("Perfil inválido");
-        }
-        return handleProfileSuccess(rawProfile);
+        const user = await construirUsuario(sessionPayload);
+        setState({ user, loading: false, error: null });
+        return user;
       } catch (error) {
-        console.error("Perfil no disponible, cerrando sesión defensiva", error);
-        await supabase.auth.signOut();
-        handleProfileError(error);
+        console.error("No se pudo construir el usuario desde la sesión", error);
+        authLocal.logout();
+        setState({ user: null, loading: false, error: error instanceof Error ? error : new Error("No se pudo obtener la información del usuario") });
         return null;
-      } finally {
-        clearTimeout(timeoutId);
-        setSafeState((prev) => ({ ...prev, loading: false }));
       }
     },
-    [handleProfileError, handleProfileSuccess, setSafeState]
+    [construirUsuario]
   );
 
-  const refreshPerfil = useCallback(async () => {
-    setSafeState((prev) => ({ ...prev, loading: true }));
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      const sessionUser = data?.session?.user ?? null;
-      if (!sessionUser) {
-        clearLocalSession();
-        setSafeState({ user: null, perfil: null, loading: false, error: null });
-        return null;
-      }
-      return await fetchPerfilForSessionUser(sessionUser);
-    } catch (error) {
-      handleProfileError(error);
-      return null;
-    }
-  }, [fetchPerfilForSessionUser, handleProfileError, setSafeState]);
+  const bootstrap = useCallback(async () => {
+    const session = authLocal.getSession();
+    await sincronizarDesdeSesion(session);
+  }, [sincronizarDesdeSesion]);
 
   useEffect(() => {
-    let isProcessing = true;
-
-    const bootstrap = async () => {
-      setSafeState((prev) => ({ ...prev, loading: true, error: null }));
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        const sessionUser = data?.session?.user ?? null;
-        if (!sessionUser) {
-          clearLocalSession();
-          if (isProcessing) {
-            setSafeState({
-              user: null,
-              perfil: null,
-              loading: false,
-              error: null,
-            });
-          }
-          return;
-        }
-        if (isProcessing) {
-          await fetchPerfilForSessionUser(sessionUser);
-        }
-      } catch (error) {
-        if (isProcessing) {
-          handleProfileError(error);
-        }
-      }
-    };
-
     bootstrap();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!isMountedRef.current) return;
-        const sessionUser = session?.user ?? null;
-        if (!sessionUser) {
-          clearLocalSession();
-          setSafeState({
-            user: null,
-            perfil: null,
-            loading: false,
-            error: null,
-          });
-          return;
-        }
-        fetchPerfilForSessionUser(sessionUser);
-      }
-    );
-
-    return () => {
-      isProcessing = false;
-      listener?.subscription?.unsubscribe();
-    };
-  }, [
-    fetchPerfilForSessionUser,
-    handleProfileError,
-    isMountedRef,
-    setSafeState,
-  ]);
+  }, [bootstrap]);
 
   const login = useCallback(
     async (email, password) => {
-      setSafeState((prev) => ({ ...prev, loading: true, error: null }));
+      setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
-        const rawProfile = await loginConEmailYPassword(email, password);
-        return handleProfileSuccess(rawProfile);
+        const session = await authLocal.login(email, password);
+        return await sincronizarDesdeSesion(session);
       } catch (error) {
-        const normalizedError =
+        const normalized =
           error instanceof Error
             ? error
-            : new Error("Error al iniciar sesión, inténtalo nuevamente");
-        setSafeState((prev) => ({
-          ...prev,
-          loading: false,
-          error: normalizedError,
-        }));
-        throw normalizedError;
+            : new Error("No se pudo iniciar sesión, inténtalo nuevamente");
+        setState({ user: null, loading: false, error: normalized });
+        throw normalized;
       }
     },
-    [handleProfileSuccess, setSafeState]
+    [sincronizarDesdeSesion]
   );
 
-  const logout = useCallback(async () => {
-    setSafeState((prev) => ({ ...prev, loading: true }));
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      clearLocalSession();
-      setSafeState({ user: null, perfil: null, loading: false, error: null });
-    } catch (error) {
-      const normalizedError =
-        error instanceof Error
-          ? error
-          : new Error("No se pudo cerrar la sesión actualmente");
-      setSafeState((prev) => ({
-        ...prev,
-        loading: false,
-        error: normalizedError,
-      }));
-      clearLocalSession();
-      throw normalizedError;
-    }
-  }, [setSafeState]);
+  const logout = useCallback(() => {
+    authLocal.logout();
+    setState({ user: null, loading: false, error: null });
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const session = authLocal.getSession();
+    return sincronizarDesdeSesion(session);
+  }, [sincronizarDesdeSesion]);
 
   const value = useMemo(
     () => ({
       ...state,
       login,
       logout,
-      refreshPerfil,
+      refresh,
     }),
-    [login, logout, refreshPerfil, state]
+    [login, logout, refresh, state]
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
