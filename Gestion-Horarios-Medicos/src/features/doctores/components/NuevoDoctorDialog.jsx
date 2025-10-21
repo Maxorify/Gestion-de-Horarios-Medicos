@@ -24,6 +24,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
 import { crearDoctorConUsuario, listarEspecialidadesPrincipales } from "@/services/doctores.js";
+import { getSession } from "@/services/authLocal";
 import { cleanRutValue, formatRutForDisplay } from "@/utils/rut";
 
 const schema = yup.object({
@@ -100,6 +101,9 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
   const onSubmit = async (values) => {
     setSubmitError("");
     try {
+      const session = (typeof getSession === "function" ? getSession() : {}) || {};
+      const actor_uuid = session?.usuario_id ?? null;
+
       const persona = {
         nombre: values.nombre.trim(),
         apellido_paterno: values.apellido_paterno.trim(),
@@ -120,7 +124,7 @@ export default function NuevoDoctorDialog({ open, onClose, onCreated }) {
         credenciales.password = values.password_temporal.trim();
       }
 
-      const resultado = await crearDoctorConUsuario({ persona, doctor, credenciales, actor_uuid: null });
+      const resultado = await crearDoctorConUsuario({ persona, doctor, credenciales, actor_uuid });
       reset(defaultValues);
       onCreated?.(resultado);
     } catch (err) {

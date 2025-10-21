@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { supabase } from "@/services/supabaseClient";
+import { getSession } from "@/services/authLocal";
 import { fechaLocalISO } from "@/utils/fechaLocal";
 import { cleanRutValue } from "@/utils/rut";
 
@@ -138,67 +139,214 @@ export async function crearDoctorConUsuario(payload) {
   const passwordPlain = payload.credenciales?.password?.trim() || generarPasswordTemporal();
   const passwordHash = await bcrypt.hash(passwordPlain, 10);
   const email = persona.email;
-
-  const { data: personaDuplicada, error: personaDupError } = await supabase
-    .from("personas")
-    .select("id")
-    .or(`email.eq.${email},rut.eq.${persona.rut}`)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (personaDupError) {
-    handleSupabaseError(personaDupError, "No se pudo validar duplicados de persona");
-  }
-  if (personaDuplicada) {
-    throw new Error("Ya existe una persona registrada con ese correo o RUT.");
-  }
+  const session = (typeof getSession === "function" ? getSession() : {}) || {};
+  const SYSTEM_UUID = "00000000-0000-0000-0000-000000000001";
+  const actorUuid = payload.actor_uuid ?? session?.usuario_id ?? SYSTEM_UUID;
 
   let personaId;
   let doctorId;
   let usuarioId;
-  try {
-    const { data: personaRow, error: personaErr } = await supabase
-      .from("personas")
-      .insert([persona])
-      .select("id")
-      .maybeSingle();
-    handleSupabaseError(personaErr, "No se pudo crear la persona del doctor.");
-    personaId = personaRow?.id;
-    if (!personaId) throw new Error("La creación de la persona no devolvió un identificador válido.");
+  let doctorRow;
+  let personaCreada = false;
+  let doctorCreado = false;
+  let usuarioCreado = false;
 
-    const { data: doctorRow, error: doctorErr } = await supabase
+  const { data: personaExistente, error: personaFindErr } = await supabase
+    .from("personas")
+    .select("id, deleted_at")
+    .or(`email.eq.${email},rut.eq.${persona.rut}`)
+    .maybeSingle();
+  handleSupabaseError(personaFindErr, "No se pudo validar duplicados de persona");
+
+  const personaPrev = personaExistente ? { id: personaExistente.id, deleted_at: personaExistente.deleted_at } : null;
+
+  let doctorExistente = null;
+  if (personaExistente?.id) {
+    const { data: doctorEncontrado, error: doctorFindErr } = await supabase
       .from("doctores")
-      .insert([
-        {
-          persona_id: personaId,
+      .select("id, deleted_at, estado, especialidad_principal, sub_especialidad")
+      .eq("persona_id", personaExistente.id)
+      .maybeSingle();
+    handleSupabaseError(doctorFindErr, "No se pudo verificar si la persona ya es doctor.");
+    doctorExistente = doctorEncontrado ?? null;
+    if (doctorExistente && !doctorExistente.deleted_at && doctorExistente.estado !== "inactivo") {
+      throw new Error("La persona ya tiene un doctor activo asociado.");
+    }
+  }
+
+  const doctorPrev = doctorExistente
+    ? {
+        id: doctorExistente.id,
+        deleted_at: doctorExistente.deleted_at,
+        estado: doctorExistente.estado,
+        especialidad_principal: doctorExistente.especialidad_principal,
+        sub_especialidad: doctorExistente.sub_especialidad,
+      }
+    : null;
+
+  let usuarioPrev = null;
+
+  try {
+    if (personaExistente?.id) {
+      personaId = personaExistente.id;
+      const { error: personaUpdateErr } = await supabase
+        .from("personas")
+        .update({
+          nombre: persona.nombre,
+          apellido_paterno: persona.apellido_paterno,
+          apellido_materno: persona.apellido_materno,
+          rut: persona.rut,
+          email: persona.email,
+          telefono_principal: persona.telefono_principal,
+          telefono_secundario: persona.telefono_secundario,
+          direccion: persona.direccion,
+          deleted_at: null,
+        })
+        .eq("id", personaId);
+      handleSupabaseError(personaUpdateErr, "No se pudo actualizar la persona existente.");
+    } else {
+      const { data: personaRow, error: personaErr } = await supabase
+        .from("personas")
+        .insert([persona])
+        .select("id")
+        .maybeSingle();
+      handleSupabaseError(personaErr, "No se pudo crear la persona del doctor.");
+      personaId = personaRow?.id;
+      if (!personaId) throw new Error("La creación de la persona no devolvió un identificador válido.");
+      personaCreada = true;
+    }
+
+    if (!personaId) throw new Error("No se obtuvo un identificador de persona válido.");
+
+    if (!doctorExistente && !personaCreada) {
+      const { data: doctorEncontrado, error: doctorFindErr } = await supabase
+        .from("doctores")
+        .select("id, deleted_at, estado, especialidad_principal, sub_especialidad")
+        .eq("persona_id", personaId)
+        .maybeSingle();
+      handleSupabaseError(doctorFindErr, "No se pudo verificar si la persona ya es doctor.");
+      doctorExistente = doctorEncontrado ?? null;
+      if (doctorExistente && !doctorExistente.deleted_at && doctorExistente.estado !== "inactivo") {
+        throw new Error("La persona ya tiene un doctor activo asociado.");
+      }
+    }
+
+    if (doctorExistente?.id) {
+      const { data: doctorRowActualizado, error: doctorUpdateErr } = await supabase
+        .from("doctores")
+        .update({
           especialidad_principal: doctor.especialidad_principal,
           sub_especialidad: doctor.sub_especialidad ?? null,
           estado: "activo",
-        },
-      ])
-      .select(DOCTOR_SELECT)
-      .maybeSingle();
-    handleSupabaseError(doctorErr, "No se pudo crear el registro del doctor.");
-    doctorId = doctorRow?.id ?? null;
+          deleted_at: null,
+        })
+        .eq("id", doctorExistente.id)
+        .select(DOCTOR_SELECT)
+        .maybeSingle();
+      handleSupabaseError(doctorUpdateErr, "No se pudo reactivar el doctor existente.");
+      if (doctorRowActualizado) {
+        doctorRow = doctorRowActualizado;
+      } else {
+        const { data: doctorRowRefetch, error: doctorRefetchErr } = await supabase
+          .from("doctores")
+          .select(DOCTOR_SELECT)
+          .eq("id", doctorExistente.id)
+          .maybeSingle();
+        handleSupabaseError(doctorRefetchErr, "No se pudo obtener la información actualizada del doctor.");
+        doctorRow = doctorRowRefetch;
+      }
+      doctorId = doctorExistente.id;
+    } else {
+      const { data: doctorRowCreado, error: doctorErr } = await supabase
+        .from("doctores")
+        .insert([
+          {
+            persona_id: personaId,
+            especialidad_principal: doctor.especialidad_principal,
+            sub_especialidad: doctor.sub_especialidad ?? null,
+            estado: "activo",
+          },
+        ])
+        .select(DOCTOR_SELECT)
+        .maybeSingle();
+      handleSupabaseError(doctorErr, "No se pudo crear el registro del doctor.");
+      if (doctorRowCreado) {
+        doctorRow = doctorRowCreado;
+      } else if (doctorId) {
+        const { data: doctorRowRefetch, error: doctorRefetchErr } = await supabase
+          .from("doctores")
+          .select(DOCTOR_SELECT)
+          .eq("id", doctorId)
+          .maybeSingle();
+        handleSupabaseError(doctorRefetchErr, "No se pudo obtener el doctor recién creado.");
+        doctorRow = doctorRowRefetch;
+      } else {
+        const { data: doctorRowRefetch, error: doctorRefetchErr } = await supabase
+          .from("doctores")
+          .select(DOCTOR_SELECT)
+          .eq("persona_id", personaId)
+          .order("id", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        handleSupabaseError(doctorRefetchErr, "No se pudo obtener el doctor recién creado.");
+        doctorRow = doctorRowRefetch;
+        doctorId = doctorRowRefetch?.id ?? doctorId;
+      }
+      doctorId = doctorRowCreado?.id ?? doctorRow?.id ?? doctorId ?? null;
+      doctorCreado = true;
+    }
 
-    const { data: usuarioRow, error: usuarioErr } = await supabase
+    const { data: usuarioExistente, error: usuarioFindErr } = await supabase
       .from("usuarios")
-      .insert([
-        {
-          persona_id: personaId,
+      .select("id, deleted_at, estado, password_hash, rol")
+      .eq("persona_id", personaId)
+      .maybeSingle();
+    handleSupabaseError(usuarioFindErr, "No se pudo validar duplicados de usuario.");
+
+    if (usuarioExistente?.id) {
+      usuarioPrev = {
+        id: usuarioExistente.id,
+        deleted_at: usuarioExistente.deleted_at,
+        estado: usuarioExistente.estado,
+        password_hash: usuarioExistente.password_hash,
+        rol: usuarioExistente.rol,
+      };
+
+      const { data: usuarioRowActualizado, error: usuarioUpdateErr } = await supabase
+        .from("usuarios")
+        .update({
           rol: "doctor",
           estado: "pendiente",
           password_hash: passwordHash,
-          created_at: fechaLocalISO(),
-        },
-      ])
-      .select("id")
-      .maybeSingle();
-    handleSupabaseError(usuarioErr, "No se pudo crear el usuario del doctor.");
-    usuarioId = usuarioRow?.id;
+          deleted_at: null,
+        })
+        .eq("id", usuarioExistente.id)
+        .select("id")
+        .maybeSingle();
+      handleSupabaseError(usuarioUpdateErr, "No se pudo actualizar el usuario del doctor.");
+      usuarioId = usuarioRowActualizado?.id ?? usuarioExistente.id;
+    } else {
+      const { data: usuarioRowCreado, error: usuarioErr } = await supabase
+        .from("usuarios")
+        .insert([
+          {
+            persona_id: personaId,
+            rol: "doctor",
+            estado: "pendiente",
+            password_hash: passwordHash,
+            created_at: fechaLocalISO(),
+          },
+        ])
+        .select("id")
+        .maybeSingle();
+      handleSupabaseError(usuarioErr, "No se pudo crear el usuario del doctor.");
+      usuarioId = usuarioRowCreado?.id;
+      usuarioCreado = true;
+    }
 
     const { error: eventError } = await supabase.from("event_log").insert([
       {
-        actor_uuid: payload.actor_uuid ?? null,
+        actor_uuid: actorUuid,
         evento: "crear_doctor_con_usuario",
         detalle: {
           persona_id: personaId,
@@ -214,28 +362,56 @@ export async function crearDoctorConUsuario(payload) {
 
     return {
       doctor: mapDoctor(doctorRow),
-      persona: personaRow,
+      persona: { id: personaId },
       usuario: { id: usuarioId, persona_id: personaId, rol: "doctor", estado: "pendiente" },
       passwordTemporal: passwordPlain,
     };
   } catch (error) {
-    if (doctorId) {
+    if (doctorCreado && doctorId) {
       await supabase
         .from("doctores")
-        .update({ deleted_at: fechaLocalISO() })
+        .update({ deleted_at: fechaLocalISO(), estado: "inactivo" })
         .eq("id", doctorId);
     }
-    if (personaId) {
+    if (!doctorCreado && doctorPrev?.id) {
+      await supabase
+        .from("doctores")
+        .update({
+          especialidad_principal: doctorPrev.especialidad_principal,
+          sub_especialidad: doctorPrev.sub_especialidad,
+          estado: doctorPrev.estado ?? "inactivo",
+          deleted_at: doctorPrev.deleted_at ?? null,
+        })
+        .eq("id", doctorPrev.id);
+    }
+    if (personaCreada && personaId) {
       await supabase
         .from("personas")
         .update({ deleted_at: fechaLocalISO() })
         .eq("id", personaId);
     }
-    if (usuarioId) {
+    if (!personaCreada && personaPrev?.id) {
+      await supabase
+        .from("personas")
+        .update({ deleted_at: personaPrev.deleted_at ?? null })
+        .eq("id", personaPrev.id);
+    }
+    if (usuarioCreado && usuarioId) {
       await supabase
         .from("usuarios")
         .update({ deleted_at: fechaLocalISO(), estado: "inactivo" })
         .eq("id", usuarioId);
+    }
+    if (!usuarioCreado && usuarioPrev?.id) {
+      await supabase
+        .from("usuarios")
+        .update({
+          deleted_at: usuarioPrev.deleted_at ?? null,
+          estado: usuarioPrev.estado ?? "inactivo",
+          password_hash: usuarioPrev.password_hash ?? null,
+          rol: usuarioPrev.rol ?? "doctor",
+        })
+        .eq("id", usuarioPrev.id);
     }
     throw error;
   }
