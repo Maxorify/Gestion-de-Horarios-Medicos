@@ -3,7 +3,7 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 
 import { supabase } from "@/services/supabaseClient";
-import { fechaLocalISO, ZONA_HORARIA_CHILE } from "@/utils/fechaLocal";
+import { fechaLocalISO, toUtcISO, ZONA_HORARIA_CHILE } from "@/utils/fechaLocal";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -74,8 +74,8 @@ function buildDayRange(fecha) {
   const start = base.startOf("day");
   const end = start.add(1, "day");
   return {
-    start: start.format("YYYY-MM-DDTHH:mm:ss.SSS"),
-    end: end.format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    start: toUtcISO(start.toDate()),
+    end: toUtcISO(end.toDate()),
   };
 }
 
@@ -152,14 +152,28 @@ export async function crearCita(input) {
  * Lista las citas de un doctor para un día específico.
  *
  * @param {number|string} doctorId
- * @param {string} fecha
+ * @param {string | { startUtcISO: string, endUtcISO: string }} fechaOIntervalo
  * @returns {Promise<Array<Record<string, any>>>}
  */
-export async function listarCitasPorDoctor(doctorId, fecha) {
+export async function listarCitasPorDoctor(doctorId, fechaOIntervalo) {
   if (!doctorId) {
     throw new Error("El identificador del doctor es requerido.");
   }
-  const { start, end } = buildDayRange(fecha);
+  let start = null;
+  let end = null;
+
+  if (fechaOIntervalo && typeof fechaOIntervalo === "object" && !Array.isArray(fechaOIntervalo)) {
+    start = fechaOIntervalo.startUtcISO ?? null;
+    end = fechaOIntervalo.endUtcISO ?? null;
+  } else {
+    const range = buildDayRange(fechaOIntervalo);
+    start = range.start;
+    end = range.end;
+  }
+
+  if (!start || !end) {
+    throw new Error("Se requiere un rango de fechas válido para listar las citas.");
+  }
 
   const { data, error } = await supabase
     .from("citas")
