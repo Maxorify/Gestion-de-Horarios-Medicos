@@ -3,12 +3,7 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 
 import { supabase } from "@/services/supabaseClient";
-import {
-  fechaLocalISO,
-  ZONA_HORARIA_CHILE,
-  toUtcISO,
-  weekRangeUtcISO,
-} from "@/utils/fechaLocal";
+import { ZONA_HORARIA_CHILE, toUtcISO, weekRangeUtcISO } from "@/utils/fechaLocal";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -229,8 +224,8 @@ export async function eliminarDisponibilidad(id) {
   const { error } = await supabase
     .from("disponibilidad")
     .update({
-      deleted_at: fechaLocalISO(),
-      estado: "eliminado",
+      deleted_at: new Date().toISOString(),
+      estado: "pausado",
     })
     .eq("id", id);
   handleSupabaseError(error, "No se pudo eliminar la disponibilidad.");
