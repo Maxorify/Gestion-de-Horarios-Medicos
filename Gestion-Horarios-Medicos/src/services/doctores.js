@@ -1,8 +1,9 @@
 import bcrypt from "bcryptjs";
 import { supabase } from "@/services/supabaseClient";
-import { getSession } from "@/services/authLocal";
 import { fechaLocalISO } from "@/utils/fechaLocal";
 import { cleanRutValue } from "@/utils/rut";
+
+const SALT_ROUNDS = 10;
 
 // Lista local de especialidades (sin tabla en BD)
 export const SPECIALIDADES = [
@@ -139,7 +140,8 @@ export async function crearDoctorConUsuario(payload) {
     ...normalizarDoctor(payload.doctor),
     numero_licencia: payload.doctor?.numero_licencia?.trim?.() || null,
   };
-  const passwordPlain = payload.credenciales?.password?.trim() || generarPasswordTemporal();
+  const passwordTemporal = payload.credenciales?.password?.trim() || generarPasswordTemporal();
+  const passwordHash = await bcrypt.hash(passwordTemporal, SALT_ROUNDS);
 
   const { data, error } = await supabase.rpc("crear_doctor_y_usuario", {
     p_nombre: persona.nombre,
@@ -151,17 +153,26 @@ export async function crearDoctorConUsuario(payload) {
     p_rut: persona.rut ?? null,
     p_sub_especialidad: doctor.sub_especialidad ?? null,
     p_numero_licencia: doctor.numero_licencia ?? null,
-    p_password_plain: passwordPlain ?? null,
-    p_actor_uuid: null,
+    p_password_hash: passwordHash,
+    p_actor_uuid: payload.actor_uuid ?? null,
   });
 
   handleSupabaseError(error, "No se pudo crear el doctor.");
 
+  const resultado = data ?? null;
+  const personaId =
+    resultado?.persona_id ?? resultado?.persona?.id ?? resultado?.doctor?.persona_id ?? null;
+  const usuarioId =
+    resultado?.usuario_id ?? resultado?.usuario_id_legacy ?? resultado?.usuario?.id ?? null;
+
   return {
-    doctor: data?.doctor ?? null,
-    persona: { id: data?.persona_id },
-    usuario: { id: data?.usuario_id_legacy },
-    passwordTemporal: passwordPlain ?? null,
+    ...(resultado ?? {}),
+    doctor: resultado?.doctor ?? null,
+    persona:
+      resultado?.persona ?? (personaId ? { id: personaId } : null),
+    usuario:
+      resultado?.usuario ?? (usuarioId ? { id: usuarioId } : null),
+    passwordTemporal,
   };
 }
 
