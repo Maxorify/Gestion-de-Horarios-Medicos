@@ -135,286 +135,34 @@ export async function crearDoctorConUsuario(payload) {
   }
 
   const persona = normalizarPersona(payload.persona);
-  const doctor = normalizarDoctor(payload.doctor);
+  const doctor = {
+    ...normalizarDoctor(payload.doctor),
+    numero_licencia: payload.doctor?.numero_licencia?.trim?.() || null,
+  };
   const passwordPlain = payload.credenciales?.password?.trim() || generarPasswordTemporal();
-  const passwordHash = await bcrypt.hash(passwordPlain, 10);
-  const email = persona.email;
-  const session = (typeof getSession === "function" ? getSession() : {}) || {};
-  const SYSTEM_UUID = "00000000-0000-0000-0000-000000000001";
-  const actorUuid = payload.actor_uuid ?? session?.usuario_id ?? SYSTEM_UUID;
 
-  let personaId;
-  let doctorId;
-  let usuarioId;
-  let doctorRow;
-  let personaCreada = false;
-  let doctorCreado = false;
-  let usuarioCreado = false;
+  const { data, error } = await supabase.rpc("crear_doctor_y_usuario", {
+    p_nombre: persona.nombre,
+    p_apellido_paterno: persona.apellido_paterno,
+    p_email: persona.email,
+    p_especialidad_principal: doctor.especialidad_principal,
+    p_apellido_materno: persona.apellido_materno ?? null,
+    p_telefono: persona.telefono_principal ?? null,
+    p_rut: persona.rut ?? null,
+    p_sub_especialidad: doctor.sub_especialidad ?? null,
+    p_numero_licencia: doctor.numero_licencia ?? null,
+    p_password_plain: passwordPlain ?? null,
+    p_actor_uuid: null,
+  });
 
-  const { data: personaExistente, error: personaFindErr } = await supabase
-    .from("personas")
-    .select("id, deleted_at")
-    .or(`email.eq.${email},rut.eq.${persona.rut}`)
-    .maybeSingle();
-  handleSupabaseError(personaFindErr, "No se pudo validar duplicados de persona");
+  handleSupabaseError(error, "No se pudo crear el doctor.");
 
-  const personaPrev = personaExistente ? { id: personaExistente.id, deleted_at: personaExistente.deleted_at } : null;
-
-  let doctorExistente = null;
-  if (personaExistente?.id) {
-    const { data: doctorEncontrado, error: doctorFindErr } = await supabase
-      .from("doctores")
-      .select("id, deleted_at, estado, especialidad_principal, sub_especialidad")
-      .eq("persona_id", personaExistente.id)
-      .maybeSingle();
-    handleSupabaseError(doctorFindErr, "No se pudo verificar si la persona ya es doctor.");
-    doctorExistente = doctorEncontrado ?? null;
-    if (doctorExistente && !doctorExistente.deleted_at && doctorExistente.estado !== "inactivo") {
-      throw new Error("La persona ya tiene un doctor activo asociado.");
-    }
-  }
-
-  const doctorPrev = doctorExistente
-    ? {
-        id: doctorExistente.id,
-        deleted_at: doctorExistente.deleted_at,
-        estado: doctorExistente.estado,
-        especialidad_principal: doctorExistente.especialidad_principal,
-        sub_especialidad: doctorExistente.sub_especialidad,
-      }
-    : null;
-
-  let usuarioPrev = null;
-
-  try {
-    if (personaExistente?.id) {
-      personaId = personaExistente.id;
-      const { error: personaUpdateErr } = await supabase
-        .from("personas")
-        .update({
-          nombre: persona.nombre,
-          apellido_paterno: persona.apellido_paterno,
-          apellido_materno: persona.apellido_materno,
-          rut: persona.rut,
-          email: persona.email,
-          telefono_principal: persona.telefono_principal,
-          telefono_secundario: persona.telefono_secundario,
-          direccion: persona.direccion,
-          deleted_at: null,
-        })
-        .eq("id", personaId);
-      handleSupabaseError(personaUpdateErr, "No se pudo actualizar la persona existente.");
-    } else {
-      const { data: personaRow, error: personaErr } = await supabase
-        .from("personas")
-        .insert([persona])
-        .select("id")
-        .maybeSingle();
-      handleSupabaseError(personaErr, "No se pudo crear la persona del doctor.");
-      personaId = personaRow?.id;
-      if (!personaId) throw new Error("La creación de la persona no devolvió un identificador válido.");
-      personaCreada = true;
-    }
-
-    if (!personaId) throw new Error("No se obtuvo un identificador de persona válido.");
-
-    if (!doctorExistente && !personaCreada) {
-      const { data: doctorEncontrado, error: doctorFindErr } = await supabase
-        .from("doctores")
-        .select("id, deleted_at, estado, especialidad_principal, sub_especialidad")
-        .eq("persona_id", personaId)
-        .maybeSingle();
-      handleSupabaseError(doctorFindErr, "No se pudo verificar si la persona ya es doctor.");
-      doctorExistente = doctorEncontrado ?? null;
-      if (doctorExistente && !doctorExistente.deleted_at && doctorExistente.estado !== "inactivo") {
-        throw new Error("La persona ya tiene un doctor activo asociado.");
-      }
-    }
-
-    if (doctorExistente?.id) {
-      const { data: doctorRowActualizado, error: doctorUpdateErr } = await supabase
-        .from("doctores")
-        .update({
-          especialidad_principal: doctor.especialidad_principal,
-          sub_especialidad: doctor.sub_especialidad ?? null,
-          estado: "activo",
-          deleted_at: null,
-        })
-        .eq("id", doctorExistente.id)
-        .select(DOCTOR_SELECT)
-        .maybeSingle();
-      handleSupabaseError(doctorUpdateErr, "No se pudo reactivar el doctor existente.");
-      if (doctorRowActualizado) {
-        doctorRow = doctorRowActualizado;
-      } else {
-        const { data: doctorRowRefetch, error: doctorRefetchErr } = await supabase
-          .from("doctores")
-          .select(DOCTOR_SELECT)
-          .eq("id", doctorExistente.id)
-          .maybeSingle();
-        handleSupabaseError(doctorRefetchErr, "No se pudo obtener la información actualizada del doctor.");
-        doctorRow = doctorRowRefetch;
-      }
-      doctorId = doctorExistente.id;
-    } else {
-      const { data: doctorRowCreado, error: doctorErr } = await supabase
-        .from("doctores")
-        .insert([
-          {
-            persona_id: personaId,
-            especialidad_principal: doctor.especialidad_principal,
-            sub_especialidad: doctor.sub_especialidad ?? null,
-            estado: "activo",
-          },
-        ])
-        .select(DOCTOR_SELECT)
-        .maybeSingle();
-      handleSupabaseError(doctorErr, "No se pudo crear el registro del doctor.");
-      if (doctorRowCreado) {
-        doctorRow = doctorRowCreado;
-      } else if (doctorId) {
-        const { data: doctorRowRefetch, error: doctorRefetchErr } = await supabase
-          .from("doctores")
-          .select(DOCTOR_SELECT)
-          .eq("id", doctorId)
-          .maybeSingle();
-        handleSupabaseError(doctorRefetchErr, "No se pudo obtener el doctor recién creado.");
-        doctorRow = doctorRowRefetch;
-      } else {
-        const { data: doctorRowRefetch, error: doctorRefetchErr } = await supabase
-          .from("doctores")
-          .select(DOCTOR_SELECT)
-          .eq("persona_id", personaId)
-          .order("id", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        handleSupabaseError(doctorRefetchErr, "No se pudo obtener el doctor recién creado.");
-        doctorRow = doctorRowRefetch;
-        doctorId = doctorRowRefetch?.id ?? doctorId;
-      }
-      doctorId = doctorRowCreado?.id ?? doctorRow?.id ?? doctorId ?? null;
-      doctorCreado = true;
-    }
-
-    const { data: usuarioExistente, error: usuarioFindErr } = await supabase
-      .from("usuarios")
-      .select("id, deleted_at, estado, password_hash, rol")
-      .eq("persona_id", personaId)
-      .maybeSingle();
-    handleSupabaseError(usuarioFindErr, "No se pudo validar duplicados de usuario.");
-
-    if (usuarioExistente?.id) {
-      usuarioPrev = {
-        id: usuarioExistente.id,
-        deleted_at: usuarioExistente.deleted_at,
-        estado: usuarioExistente.estado,
-        password_hash: usuarioExistente.password_hash,
-        rol: usuarioExistente.rol,
-      };
-
-      const { data: usuarioRowActualizado, error: usuarioUpdateErr } = await supabase
-        .from("usuarios")
-        .update({
-          rol: "doctor",
-          estado: "pendiente",
-          password_hash: passwordHash,
-          deleted_at: null,
-        })
-        .eq("id", usuarioExistente.id)
-        .select("id")
-        .maybeSingle();
-      handleSupabaseError(usuarioUpdateErr, "No se pudo actualizar el usuario del doctor.");
-      usuarioId = usuarioRowActualizado?.id ?? usuarioExistente.id;
-    } else {
-      const { data: usuarioRowCreado, error: usuarioErr } = await supabase
-        .from("usuarios")
-        .insert([
-          {
-            persona_id: personaId,
-            rol: "doctor",
-            estado: "pendiente",
-            password_hash: passwordHash,
-            created_at: fechaLocalISO(),
-          },
-        ])
-        .select("id")
-        .maybeSingle();
-      handleSupabaseError(usuarioErr, "No se pudo crear el usuario del doctor.");
-      usuarioId = usuarioRowCreado?.id;
-      usuarioCreado = true;
-    }
-
-    const { error: eventError } = await supabase.from("event_log").insert([
-      {
-        actor_uuid: actorUuid,
-        evento: "crear_doctor_con_usuario",
-        detalle: {
-          persona_id: personaId,
-          doctor_id: doctorId,
-          usuario_id: usuarioId,
-          email,
-          passwordTemporal: passwordPlain,
-        },
-        created_at: fechaLocalISO(),
-      },
-    ]);
-    handleSupabaseError(eventError, "No se pudo registrar el evento de creación del doctor.");
-
-    return {
-      doctor: mapDoctor(doctorRow),
-      persona: { id: personaId },
-      usuario: { id: usuarioId, persona_id: personaId, rol: "doctor", estado: "pendiente" },
-      passwordTemporal: passwordPlain,
-    };
-  } catch (error) {
-    if (doctorCreado && doctorId) {
-      await supabase
-        .from("doctores")
-        .update({ deleted_at: fechaLocalISO(), estado: "inactivo" })
-        .eq("id", doctorId);
-    }
-    if (!doctorCreado && doctorPrev?.id) {
-      await supabase
-        .from("doctores")
-        .update({
-          especialidad_principal: doctorPrev.especialidad_principal,
-          sub_especialidad: doctorPrev.sub_especialidad,
-          estado: doctorPrev.estado ?? "inactivo",
-          deleted_at: doctorPrev.deleted_at ?? null,
-        })
-        .eq("id", doctorPrev.id);
-    }
-    if (personaCreada && personaId) {
-      await supabase
-        .from("personas")
-        .update({ deleted_at: fechaLocalISO() })
-        .eq("id", personaId);
-    }
-    if (!personaCreada && personaPrev?.id) {
-      await supabase
-        .from("personas")
-        .update({ deleted_at: personaPrev.deleted_at ?? null })
-        .eq("id", personaPrev.id);
-    }
-    if (usuarioCreado && usuarioId) {
-      await supabase
-        .from("usuarios")
-        .update({ deleted_at: fechaLocalISO(), estado: "inactivo" })
-        .eq("id", usuarioId);
-    }
-    if (!usuarioCreado && usuarioPrev?.id) {
-      await supabase
-        .from("usuarios")
-        .update({
-          deleted_at: usuarioPrev.deleted_at ?? null,
-          estado: usuarioPrev.estado ?? "inactivo",
-          password_hash: usuarioPrev.password_hash ?? null,
-          rol: usuarioPrev.rol ?? "doctor",
-        })
-        .eq("id", usuarioPrev.id);
-    }
-    throw error;
-  }
+  return {
+    doctor: data?.doctor ?? null,
+    persona: { id: data?.persona_id },
+    usuario: { id: data?.usuario_id_legacy },
+    passwordTemporal: passwordPlain ?? null,
+  };
 }
 
 export async function actualizarDoctor(doctorId, input = {}) {
