@@ -2,8 +2,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 
-const TIMEZONE = "America/Santiago";
-export const ZONA_HORARIA_CHILE = TIMEZONE;
+export const ZONA_HORARIA_CHILE = "America/Santiago";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -23,12 +22,12 @@ function toDayjs(value) {
 
 export function fechaLocalISO(value) {
   const base = toDayjs(value);
-  return base.tz(TIMEZONE).format("YYYY-MM-DDTHH:mm:ss.SSS");
+  return base.tz(ZONA_HORARIA_CHILE).format("YYYY-MM-DDTHH:mm:ss.SSS");
 }
 
 export function fechaLocalYYYYMMDD(value) {
   const base = toDayjs(value);
-  return base.tz(TIMEZONE).format("YYYY-MM-DD");
+  return base.tz(ZONA_HORARIA_CHILE).format("YYYY-MM-DD");
 }
 
 /**

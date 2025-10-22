@@ -27,6 +27,8 @@ import { motion } from "framer-motion";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { useLocation, useNavigate } from "react-router-dom";
 import { listarDoctores } from "@/services/doctores";
 import { listarDisponibilidadPorDoctor } from "@/services/disponibilidad";
@@ -34,9 +36,11 @@ import { listarCitasPorDoctor, reservarOCambiar } from "@/services/citas";
 import { tokenize, matchAllTokens, highlightRenderer } from "@/utils/search";
 import { useUser } from "@/hooks/useUser";
 import { humanizeError } from "@/utils/errorMap.js";
-import { fechaLocalISO } from "@/utils/fechaLocal";
+import { fechaLocalISO, toUtcISO, ZONA_HORARIA_CHILE } from "@/utils/fechaLocal";
 
 dayjs.extend(customParseFormat);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const panelVariants = {
   hidden: { opacity: 0, y: 14 },
@@ -45,7 +49,10 @@ const panelVariants = {
 
 function generarSlotsParaDia(disponibilidades, citas, fechaBase) {
   if (!fechaBase?.isValid?.()) return [];
-  const inicioDia = fechaBase.startOf("day");
+  const fechaReferencia = fechaBase.tz
+    ? fechaBase.tz(ZONA_HORARIA_CHILE)
+    : dayjs(fechaBase).tz(ZONA_HORARIA_CHILE);
+  const inicioDia = fechaReferencia.startOf("day");
   const finDia = inicioDia.add(1, "day");
 
   const citasNormalizadas = (Array.isArray(citas) ? citas : [])
@@ -56,7 +63,7 @@ function generarSlotsParaDia(disponibilidades, citas, fechaBase) {
         cita?.disponibilidad?.fecha_hora_inicio ??
         null;
       if (!inicioRaw) return null;
-      const inicio = dayjs(inicioRaw);
+      const inicio = dayjs(inicioRaw).tz(ZONA_HORARIA_CHILE);
       if (!inicio.isValid()) return null;
 
       const duracionBloque = Number(cita?.disponibilidad?.duracion_bloque_minutos) || 0;
@@ -68,7 +75,7 @@ function generarSlotsParaDia(disponibilidades, citas, fechaBase) {
           ? fechaLocalISO(inicio.add(duracionBloque, "minute").toDate())
           : null);
 
-      const fin = finRaw ? dayjs(finRaw) : null;
+      const fin = finRaw ? dayjs(finRaw).tz(ZONA_HORARIA_CHILE) : null;
       if (!fin || !fin.isValid()) {
         if (duracionBloque > 0) {
           return { inicio, fin: inicio.add(duracionBloque, "minute") };
@@ -82,8 +89,8 @@ function generarSlotsParaDia(disponibilidades, citas, fechaBase) {
 
   const slots = [];
   (Array.isArray(disponibilidades) ? disponibilidades : []).forEach((disponibilidad) => {
-    const inicioDisponibilidad = dayjs(disponibilidad?.fecha_hora_inicio);
-    const finDisponibilidad = dayjs(disponibilidad?.fecha_hora_fin);
+    const inicioDisponibilidad = dayjs(disponibilidad?.fecha_hora_inicio).tz(ZONA_HORARIA_CHILE);
+    const finDisponibilidad = dayjs(disponibilidad?.fecha_hora_fin).tz(ZONA_HORARIA_CHILE);
     const duracion = Number(disponibilidad?.duracion_bloque_minutos) || 0;
 
     if (!inicioDisponibilidad.isValid() || !finDisponibilidad.isValid() || duracion <= 0) {
@@ -116,7 +123,11 @@ function generarSlotsParaDia(disponibilidades, citas, fechaBase) {
     }
   });
 
-  return slots.sort((a, b) => dayjs(a.fechaHoraInicio).valueOf() - dayjs(b.fechaHoraInicio).valueOf());
+  return slots.sort(
+    (a, b) =>
+      dayjs(a.fechaHoraInicio).tz(ZONA_HORARIA_CHILE).valueOf() -
+      dayjs(b.fechaHoraInicio).tz(ZONA_HORARIA_CHILE).valueOf(),
+  );
 }
 
 function buildDoctorSearchString(doctor) {
@@ -174,9 +185,11 @@ export default function SeleccionarHorarioDoctor() {
     [doctores, selectedDoctorId],
   );
 
-  const today = useMemo(() => dayjs().startOf("day"), []);
+  const today = useMemo(() => dayjs().tz(ZONA_HORARIA_CHILE).startOf("day"), []);
   const maxDate = useMemo(() => today.add(13, "day"), [today]);
-  const [fechaSeleccionada, setFechaSeleccionada] = useState(() => dayjs().startOf("day"));
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(() =>
+    dayjs().tz(ZONA_HORARIA_CHILE).startOf("day"),
+  );
 
   const [disponibilidades, setDisponibilidades] = useState([]);
   const [citasDelDia, setCitasDelDia] = useState([]);
@@ -277,8 +290,10 @@ export default function SeleccionarHorarioDoctor() {
       try {
         setCargandoDisponibilidad(true);
         setErrorDisponibilidad("");
-        const fechaInicio = fechaLocalISO(today.startOf("day").toDate());
-        const fechaFin = fechaLocalISO(maxDate.endOf("day").toDate());
+        const fechaInicioLocal = today.startOf("day");
+        const fechaFinLocal = maxDate.endOf("day");
+        const fechaInicio = toUtcISO(fechaInicioLocal.toDate());
+        const fechaFin = toUtcISO(fechaFinLocal.toDate());
         const data = await listarDisponibilidadPorDoctor(selectedDoctorId, fechaInicio, fechaFin);
         if (!cancel) {
           setDisponibilidades(data ?? []);
@@ -317,8 +332,12 @@ export default function SeleccionarHorarioDoctor() {
       try {
         setCargandoCitas(true);
         setErrorCitas("");
-        const fecha = fechaSeleccionada.startOf("day").format("YYYY-MM-DD");
-        const data = await listarCitasPorDoctor(selectedDoctorId, fecha);
+        const startLocal = fechaSeleccionada.startOf("day");
+        const endLocal = fechaSeleccionada.endOf("day");
+        const data = await listarCitasPorDoctor(selectedDoctorId, {
+          startUtcISO: toUtcISO(startLocal.toDate()),
+          endUtcISO: toUtcISO(endLocal.toDate()),
+        });
         if (!cancel) {
           setCitasDelDia(data ?? []);
         }
@@ -447,17 +466,17 @@ export default function SeleccionarHorarioDoctor() {
 
   const reprogramacionSlot = reprogramacionPendiente?.slot || null;
   const reprogramacionInicio = reprogramacionSlot
-    ? dayjs(reprogramacionSlot.fechaHoraInicio).format("DD/MM HH:mm")
+    ? dayjs(reprogramacionSlot.fechaHoraInicio).tz(ZONA_HORARIA_CHILE).format("DD/MM HH:mm")
     : "";
   const reprogramacionFin = reprogramacionSlot
-    ? dayjs(reprogramacionSlot.fechaHoraFin).format("HH:mm")
+    ? dayjs(reprogramacionSlot.fechaHoraFin).tz(ZONA_HORARIA_CHILE).format("HH:mm")
     : "";
   const citaActiva = reprogramacionPendiente?.cita || null;
   const citaActivaInicio = citaActiva
-    ? dayjs(citaActiva.fecha_hora_inicio_agendada).format("DD/MM HH:mm")
+    ? dayjs(citaActiva.fecha_hora_inicio_agendada).tz(ZONA_HORARIA_CHILE).format("DD/MM HH:mm")
     : "";
   const citaActivaFin = citaActiva
-    ? dayjs(citaActiva.fecha_hora_fin_agendada).format("HH:mm")
+    ? dayjs(citaActiva.fecha_hora_fin_agendada).tz(ZONA_HORARIA_CHILE).format("HH:mm")
     : "";
 
   const selectedDoctorNombre = getDoctorNombre(selectedDoctor?.persona);
@@ -665,7 +684,12 @@ export default function SeleccionarHorarioDoctor() {
                       <DateCalendar
                         value={fechaSeleccionada}
                         onChange={(value) => {
-                          if (value) setFechaSeleccionada(value.startOf("day"));
+                          if (value) {
+                            const normalizada = value.tz
+                              ? value.tz(ZONA_HORARIA_CHILE)
+                              : dayjs(value).tz(ZONA_HORARIA_CHILE);
+                            setFechaSeleccionada(normalizada.startOf("day"));
+                          }
                         }}
                         minDate={today}
                         maxDate={maxDate}
@@ -710,8 +734,10 @@ export default function SeleccionarHorarioDoctor() {
                           }}
                         >
                           {slotsDelDia.map((slot) => {
-                            const inicio = dayjs(slot.fechaHoraInicio).format("HH:mm");
-                            const fin = dayjs(slot.fechaHoraFin).format("HH:mm");
+                            const inicio = dayjs(slot.fechaHoraInicio).tz(ZONA_HORARIA_CHILE);
+                            const fin = dayjs(slot.fechaHoraFin).tz(ZONA_HORARIA_CHILE);
+                            const inicioTexto = inicio.format("HH:mm");
+                            const finTexto = fin.format("HH:mm");
                             const isSelected = selectedSlotId === slot.id;
                             const isOcupado = slot.estado === "ocupado";
                             return (
@@ -738,7 +764,7 @@ export default function SeleccionarHorarioDoctor() {
                                   opacity: isOcupado ? 0.6 : 1,
                                 }}
                               >
-                                {inicio} – {fin}
+                                {inicioTexto} – {finTexto}
                               </Button>
                             );
                           })}
