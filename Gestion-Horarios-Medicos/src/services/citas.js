@@ -336,6 +336,14 @@ export async function listarCitasPorDoctor(
 // --------------------------
 // NUEVO: helper para RPC segura
 // --------------------------
+const reservarRpcNames = [
+  "reservar_o_cambiar_cita",
+  "reservar_o_cambiar",
+  "citas_reservar_ocambiar",
+];
+let reservarRpcMode = "unknown"; // "rpc" | "local" | "unknown"
+let reservarRpcPreferred = null;
+
 async function safeRpc(fnName, args) {
   const { data, error } = await supabase.rpc(fnName, args);
   if (!error) return { data };
@@ -489,19 +497,33 @@ export async function reservarOCambiar({
     _reprogramar: reprogramarSiExiste,
   };
 
-  const rpcNames = ["reservar_o_cambiar_cita", "reservar_o_cambiar", "citas_reservar_ocambiar"];
-  for (const name of rpcNames) {
-    try {
-      const { data, missing } = await safeRpc(name, rpcArgs);
-      if (!missing && data) {
-        // RPC existente y exitosa
-        return data;
+  if (reservarRpcMode !== "local") {
+    const candidates =
+      reservarRpcMode === "rpc" && reservarRpcPreferred
+        ? [reservarRpcPreferred]
+        : reservarRpcNames;
+
+    for (const name of candidates) {
+      try {
+        const { data, missing } = await safeRpc(name, rpcArgs);
+        if (!missing && data) {
+          reservarRpcMode = "rpc";
+          reservarRpcPreferred = name;
+          // RPC existente y exitosa
+          return data;
+        }
+        if (missing) {
+          continue; // probar siguiente
+        }
+      } catch (e) {
+        // Error real de RPC => propagar
+        throw e;
       }
-      // missing => probar siguiente
-    } catch (e) {
-      // Error real de RPC => propagar
-      throw e;
     }
+
+    // Si llegamos aquí es porque ninguna RPC respondió; usar fallback en adelante
+    reservarRpcMode = "local";
+    reservarRpcPreferred = null;
   }
 
   // 2) Fallback local: validaciones + insert/update directo en public.citas
