@@ -368,3 +368,41 @@ export async function reservarOCambiar({
 
   return reservarCita({ paciente_id, doctor_id, disponibilidad_id, inicioISO, finISO });
 }
+
+export async function confirmarCitaSimple({ citaId, usuarioIdLegacy, monto = 0, metodo = null, obs = null }) {
+  if (!citaId || !usuarioIdLegacy) {
+    throw new Error("citaId y usuarioIdLegacy son obligatorios");
+  }
+
+  const { data, error } = await supabase.rpc("confirmar_cita_simple", {
+    _cita_id: citaId,
+    _usuario_id_legacy: usuarioIdLegacy,
+    _monto: monto,
+    _metodo: metodo,
+    _obs: obs,
+  });
+
+  handleSupabaseError(error, "No se pudo confirmar la cita.");
+
+  return Array.isArray(data) && data.length > 0 ? data[0] : null;
+}
+
+export async function listarCitasDoctorConfirmadas({ doctorId, desdeISO = null, hastaISO = null }) {
+  if (!doctorId) {
+    throw new Error("doctorId es obligatorio");
+  }
+
+  const args = { _doctor_id: doctorId };
+  if (desdeISO) {
+    args._desde = desdeISO;
+  }
+  if (hastaISO) {
+    args._hasta = hastaISO;
+  }
+
+  const { data, error } = await supabase.rpc("listar_citas_doctor_confirmadas", args);
+
+  handleSupabaseError(error, "No se pudieron obtener las citas confirmadas del doctor.");
+
+  return Array.isArray(data) ? data : [];
+}
