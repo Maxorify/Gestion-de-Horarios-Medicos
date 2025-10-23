@@ -18,6 +18,7 @@ import { useState } from "react";
 import { registrarPacienteRPC } from "@/services/pacientes";
 import { useUser } from "@/hooks/useUser";
 import { cleanRutValue, formatRut, isValidRut } from "@/utils/rut";
+import { tokens } from "@/theme";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -28,6 +29,8 @@ dayjs.extend(timezone);
 
 export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
   const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+  const pinBlue = colors.blueAccent[500];
   const { user } = useUser();
 
   const [formData, setFormData] = useState({

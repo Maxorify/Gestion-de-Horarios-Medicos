@@ -31,6 +31,7 @@ const Topbar = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const colorMode = useContext(ColorModeContext);
+  const isDark = theme.palette.mode === "dark";
   const transparentWhite = (opacity) => alpha(theme.palette.common.white, opacity);
   const transparentBlack = (opacity) => alpha(theme.palette.common.black, opacity);
 
@@ -73,7 +74,7 @@ const Topbar = () => {
 
   // Función para manejar el cambio de tema
   const handleThemeToggle = () => {
-    toggleColorMode();
+    colorMode.toggleColorMode();
   };
 
   // Estilos dinámicos mejorados
