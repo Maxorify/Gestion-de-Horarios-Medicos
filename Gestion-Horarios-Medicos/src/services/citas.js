@@ -3,7 +3,7 @@ import { supabase } from "@/services/supabaseClient";
 
 /**
  * Lista citas para el panel de secretaría (check-in/anular/confirmar).
- * Usa la RPC listar_citas_para_checkin en BD.
+ * Usa la RPC listar_citas_para_checkin.
  */
 export async function listarCitasParaCheckin({
   desdeISO,
@@ -69,4 +69,22 @@ export async function confirmarCitaSimple({
   });
   if (error) throw error;
   return data?.[0] ?? null;
+}
+
+/**
+ * Lista citas confirmadas para el panel del doctor.
+ * Usa la RPC listar_citas_doctor_confirmadas.
+ */
+export async function listarCitasDoctorConfirmadas({
+  doctorId,
+  desdeISO = null,
+  hastaISO = null,
+}) {
+  if (!doctorId) throw new Error("doctorId es obligatorio");
+  const args = { _doctor_id: doctorId };
+  if (desdeISO) args._desde = desdeISO;
+  if (hastaISO) args._hasta = hastaISO;
+  const { data, error } = await supabase.rpc("listar_citas_doctor_confirmadas", args);
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
 }
