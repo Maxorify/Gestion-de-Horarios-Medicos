@@ -12,6 +12,7 @@ import SecretariaPanel from "@/features/auth/pages/SecretariaPanel.jsx";
 import AgendarConsulta from "@/features/pacientes/pages/AgendarConsulta.jsx";
 import MisCitas from "@/features/pacientes/pages/MisCitas.jsx";
 import SeleccionarHorarioDoctor from "@/features/agenda/pages/SeleccionarHorarioDoctor.jsx";
+import CheckInPacientes from "@/features/agenda/pages/CheckInPacientes.jsx";
 import DoctoresAdmin from "@/features/doctores/pages/DoctoresAdmin.jsx";
 import AsignarHorarios from "@/features/horarios/pages/AsignarHorarios.jsx";
 import MarcarAsistencia from "@/features/asistencias/pages/MarcarAsistencia.jsx";
@@ -75,6 +76,18 @@ export const router = createBrowserRouter(
         </RequireRole>
       ),
       children: secretariaChildren,
+    },
+    {
+      path: "/secretaria",
+      element: (
+        <RequireRole roles={["secretaria", "administrador"]}>
+          <SecretariaLayout />
+        </RequireRole>
+      ),
+      children: [
+        { index: true, element: <Navigate to="/secretaria/checkin" replace /> },
+        { path: "checkin", element: <CheckInPacientes /> },
+      ],
     },
     {
       path: "/doctor",
