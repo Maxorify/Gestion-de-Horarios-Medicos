@@ -1,5 +1,15 @@
 @reference "./index.css";
 
+/*
+  Sistema de tokens de color
+  --------------------------
+  Las variables CSS prefijadas con --color-, --surface- y --shadow-
+  representan los mismos valores definidos en src/theme.js mediante
+  la función `tokens(mode)`. El ColorModeContext establece el atributo
+  `data-theme` sobre <body> y, con ello, se activan los bloques de
+  variables por modo definidos a continuación.
+*/
+
 /* ========================================
    RESET Y CONFIGURACIÓN BASE
    ======================================== */
@@ -22,47 +32,92 @@ body {
 }
 html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.45,0.94); }
 
-:root {
-  color-scheme: light;
-  --color-bg-app:#f5f7fb;
-  --color-bg-surface:#ffffff;
-  --color-bg-subtle:#edf1f8;
-  --color-text-primary:#141414;
-  --color-text-secondary:#4f566b;
-  --color-border:#d0d5dd;
-  --color-shadow:rgba(15,23,42,0.08);
-  --color-accent:#2b8dff;
-  --color-accent-soft:#e0ecff;
-  --color-accent-contrast:#ffffff;
-  --color-success:#1edc84;
-  --scrollbar-track:#edf1f8;
-  --scrollbar-thumb:#c5ccda;
-  --scrollbar-thumb-hover:#9aa3b9;
-  --scrollbar-thumb-active:var(--color-accent);
+/* ========================================
+   SISTEMA DE TEMAS: VARIABLES
+   ======================================== */
+[data-theme="dark"] {
+  /* Tokens base */
+  --surface-primary:#141b2d; /* tokens.primary[500] */
+  --surface-secondary:#1F2A40; /* tokens.primary[400] */
+  --color-text-strong:#e0e0e0; /* tokens.grey[100] */
+  --color-text-subtle:#a3a3a3; /* tokens.grey[300] */
+  --color-border-soft:#3d3d3d; /* tokens.grey[700] */
+  --color-accent-primary:#6870fa; /* tokens.blueAccent[500] */
+  --color-accent-primary-contrast:#ffffff;
+  --color-alert-strong:#db4f4a; /* tokens.redAccent[500] */
+  --shadow-elevated:rgba(0,0,0,0.3);
+  --shadow-soft:rgba(0,0,0,0.2);
+
+  /* Utilidades */
+  --scrollbar-track:#1F2A40;
+  --scrollbar-thumb:#525252;
+  --scrollbar-thumb-hover:#666666;
+  --scrollbar-thumb-active:#3da58a;
+  --scrollbar-bg:#141b2d;
+  --slot-badge-bg:#1e5245; /* tokens.greenAccent[800] */
+  --slot-badge-border:#3da58a; /* tokens.greenAccent[600] */
+  --slot-badge-text:#dbf5ee; /* tokens.greenAccent[900] */
+  --slot-badge-delete-bg:#141b2d;
 }
 
 [data-theme="light"] {
-  color-scheme: light;
+  /* Tokens base */
+  --surface-primary:#fcfcfc;
+  --surface-secondary:#f2f0f0; /* tokens.primary[400] en modo claro */
+  --color-text-strong:#141414; /* tokens.grey[100] en modo claro */
+  --color-text-subtle:#525252; /* tokens.grey[400] en modo claro */
+  --color-border-soft:#e0e0e0;
+  --color-accent-primary:#6870fa; /* tokens.blueAccent[500] */
+  --color-accent-primary-contrast:#ffffff;
+  --color-alert-strong:#db4f4a; /* tokens.redAccent[500] */
+  --shadow-elevated:rgba(0,0,0,0.1);
+  --shadow-soft:rgba(0,0,0,0.08);
+
+  /* Utilidades */
+  --scrollbar-track:#f2f0f0;
+  --scrollbar-thumb:#a3a3a3;
+  --scrollbar-thumb-hover:#858585;
+  --scrollbar-thumb-active:#4cceac;
+  --scrollbar-bg:#fcfcfc;
+  --slot-badge-bg:#e6f2ff;
+  --slot-badge-border:#bfdfff;
+  --slot-badge-text:#0a4baf;
+  --slot-badge-delete-bg:#ffffff;
 }
 
-[data-theme="dark"] {
-  color-scheme: dark;
-  --color-bg-app:#0b1017;
-  --color-bg-surface:#1b2232;
-  --color-bg-subtle:#242c3d;
-  --color-text-primary:#f4f7fb;
-  --color-text-secondary:#b1b9cb;
-  --color-border:#2c3239;
-  --color-shadow:rgba(3,7,18,0.65);
-  --color-accent:#329bff;
-  --color-accent-soft:rgba(50,155,255,0.18);
-  --color-accent-contrast:#0b1017;
-  --color-success:#1edc84;
-  --scrollbar-track:#161c29;
-  --scrollbar-thumb:#2c3239;
-  --scrollbar-thumb-hover:#3d4658;
-  --scrollbar-thumb-active:#1edc84;
+/* ========================================
+   SISTEMA DE TEMAS: COMPONENTES
+   ======================================== */
+[data-theme="dark"] .pro-sidebar .pro-sidebar-inner {
+  background-color: var(--surface-secondary) !important;
 }
+
+[data-theme="light"] .pro-sidebar .pro-sidebar-inner {
+  background-color: var(--surface-secondary) !important;
+}
+
+[data-theme] .slot-badge {
+  background: var(--slot-badge-bg);
+  border: 1px solid var(--slot-badge-border);
+  color: var(--slot-badge-text);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  z-index: 2;
+}
+
+[data-theme] .slot-badge .delete-icon {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--slot-badge-delete-bg);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px var(--shadow-soft);
+}
+
+/* ========================================
+   SISTEMA DE TEMAS: UTILIDADES
+   ======================================== */
 
 /* Transiciones específicas */
 .pro-sidebar, .pro-sidebar-inner, .pro-menu-item { transition: all 0.3s cubic-bezier(0.4,0,0.2,1) !important; }
@@ -155,7 +210,7 @@ html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.4
 @media (prefers-contrast: high) {
   [data-theme="dark"] {
     --scrollbar-thumb:#ffffff;
-    --scrollbar-thumb-hover:#d1d5db;
+    --scrollbar-thumb-hover:#cccccc;
   }
   [data-theme="light"] {
     --scrollbar-thumb:#000000;
@@ -223,21 +278,3 @@ html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.4
 }
 
 /* Planificador semanal */
-.slot-badge {
-  background: var(--color-accent-soft);
-  border: 1px solid var(--color-accent);
-  color: var(--color-accent);
-  border-radius: 8px;
-  padding: 4px 8px;
-  font-size: 12px;
-  z-index: 2; /* que quede por encima de las celdas */
-}
-
-.slot-badge .delete-icon {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-}

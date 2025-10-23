@@ -221,6 +221,17 @@ export const useMode = () => {
     document.documentElement.setAttribute("data-theme", mode);
   }, [mode]);
 
+  useEffect(() => {
+    const target = document.body || document.documentElement;
+    if (target) {
+      target.setAttribute("data-theme", mode);
+      return () => {
+        target.removeAttribute("data-theme");
+      };
+    }
+    return undefined;
+  }, [mode]);
+
   const colorMode = useMemo(
     () => ({
       mode,

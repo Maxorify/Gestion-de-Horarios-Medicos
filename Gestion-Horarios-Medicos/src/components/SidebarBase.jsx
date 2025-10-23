@@ -9,7 +9,7 @@ import { tokens } from "../theme";
 import { useUser } from "@/hooks/useUser";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
-import { alpha as muiAlpha } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 
 const Item = ({ title, to, icon, isActive, isCollapsed }) => {
   const theme = useTheme();
@@ -19,13 +19,15 @@ const Item = ({ title, to, icon, isActive, isCollapsed }) => {
     if (to) navigate(to);
   };
 
-  const isDark = theme.palette.mode === "dark";
-  const accent = theme.palette.primary.main;
-  const textPrimary = theme.palette.text.primary;
-  const textSecondary = theme.palette.text.secondary;
-  const hoverBg = muiAlpha(accent, isDark ? 0.2 : 0.12);
-  const activeBg = muiAlpha(accent, isDark ? 0.28 : 0.18);
-  const currentColor = isActive ? accent : textPrimary;
+  const isLight = theme.palette.mode === "light";
+  const baseText = theme.palette.text.primary;
+  const activeColor = isLight ? colors.blueAccent[500] : colors.blueAccent[400];
+  const hoverBackground = alpha(
+    isLight ? baseText : theme.palette.common.white,
+    0.06
+  );
+  const hoverColor = isLight ? baseText : colors.blueAccent[300];
+  const currentColor = isActive ? activeColor : baseText;
 
   return (
     <MenuItem
@@ -42,8 +44,8 @@ const Item = ({ title, to, icon, isActive, isCollapsed }) => {
       icon={icon}
       sx={{
         "&:hover": {
-          backgroundColor: `${hoverBg} !important`,
-          color: `${textPrimary} !important`,
+          backgroundColor: hoverBackground,
+          color: hoverColor,
           borderRadius: "18px",
         },
         "&.active": {
@@ -62,8 +64,9 @@ const Item = ({ title, to, icon, isActive, isCollapsed }) => {
 
 export function SidebarBase({ menuGroups = [] }) {
   const theme = useTheme();
-  const mode = theme.palette.mode;
-  const colors = tokens(mode);
+  const colors = tokens(theme.palette.mode);
+  const transparentBlack = (opacity) => alpha(theme.palette.common.black, opacity);
+  const transparentWhite = (opacity) => alpha(theme.palette.common.white, opacity);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isPinned, setIsPinned] = useState(false);
   const { pathname } = useLocation();
@@ -97,27 +100,22 @@ export function SidebarBase({ menuGroups = [] }) {
   };
 
   const togglePin = () => {
-    setIsPinned((pinned) => !pinned);
-    setIsCollapsed((prev) => (isPinned ? true : false));
+    setIsPinned((pinned) => {
+      const nextPinned = !pinned;
+      setIsCollapsed(nextPinned ? false : true);
+      return nextPinned;
+    });
   };
 
-  const isDark = mode === "dark";
-  const sidebarBg = theme.palette.background.paper;
+  const isLight = theme.palette.mode === "light";
+  const sidebarBg = isLight
+    ? theme.palette.background.paper ?? theme.palette.background.default
+    : colors.primary[400];
   const textPrimary = theme.palette.text.primary;
   const textSecondary = theme.palette.text.secondary;
   const borderColor = theme.palette.divider;
-  const hoverBg = muiAlpha(theme.palette.primary.main, isDark ? 0.18 : 0.1);
-  const activeColor = theme.palette.primary.main;
-  const activeBg = muiAlpha(activeColor, isDark ? 0.25 : 0.18);
-  const shadow = isDark
-    ? "2px 0 14px rgba(3,7,18,0.45)"
-    : "2px 0 14px rgba(15,23,42,0.08)";
-  const pinActiveColor = theme.palette.primary.main;
-  const pinHoverBg = muiAlpha(pinActiveColor, isDark ? 0.24 : 0.12);
-  const avatarBg = isDark ? colors.blueAccent[700] : colors.blueAccent[100];
-  const groupHeadingColor = isDark
-    ? colors.grey[100]
-    : theme.palette.text.primary;
+  const accentMain = colors.blueAccent[500];
+  const accentMuted = colors.blueAccent[300];
 
   return (
     <Box
@@ -128,13 +126,15 @@ export function SidebarBase({ menuGroups = [] }) {
         "& .pro-sidebar-inner": {
           background: `${sidebarBg} !important`,
           scrollbarWidth: "thin",
-          scrollbarColor: `${theme.palette.divider} ${sidebarBg}`,
+          scrollbarColor: `var(--scrollbar-thumb) ${sidebarBg}`,
           "&::-webkit-scrollbar": { width: "6px" },
           "&::-webkit-scrollbar-thumb": {
             background: "var(--scrollbar-thumb)",
             borderRadius: "3px",
           },
-          boxShadow: shadow,
+          boxShadow: isLight
+            ? `2px 0 8px ${transparentBlack(0.07)}`
+            : `2px 0 10px ${transparentBlack(0.25)}`,
           transition: "all 0.3s ease",
         },
         "& .pro-icon-wrapper": {
@@ -147,17 +147,21 @@ export function SidebarBase({ menuGroups = [] }) {
           transition: "all 0.3s ease !important",
         },
         "& .pro-inner-item:hover": {
-          backgroundColor: `${hoverBg} !important`,
-          color: `${textPrimary} !important`,
+          backgroundColor: `${
+            isLight ? alpha(textPrimary, 0.06) : transparentWhite(0.06)
+          } !important`,
+          color: `${(isLight ? textPrimary : accentMuted)} !important`,
           borderRadius: "18px",
         },
         "& .pro-menu-item.active": {
-          color: `${activeColor} !important`,
-          backgroundColor: `${activeBg} !important`,
+          color: `${accentMain} !important`,
+          backgroundColor: isLight
+            ? `${alpha(textPrimary, 0.09)} !important`
+            : `${alpha(colors.blueAccent[900], 0.25)} !important`,
           borderRadius: "18px",
         },
         "& .pro-menu-item.active .pro-icon-wrapper": {
-          color: `${activeColor} !important`,
+          color: `${accentMain} !important`,
         },
       }}
       className="custom-scrollbar"
@@ -189,10 +193,12 @@ export function SidebarBase({ menuGroups = [] }) {
                     onClick={togglePin}
                     size="small"
                     sx={{
-                      color: isPinned ? pinActiveColor : textSecondary,
+                      color: isPinned ? accentMain : textSecondary,
                       "&:hover": {
-                        color: pinActiveColor,
-                        backgroundColor: pinHoverBg,
+                        color: accentMain,
+                        backgroundColor: isLight
+                          ? transparentBlack(0.04)
+                          : transparentWhite(0.1),
                       },
                       transition: "all 0.2s ease",
                     }}
@@ -215,7 +221,7 @@ export function SidebarBase({ menuGroups = [] }) {
                   height: 60,
                   borderRadius: "50%",
                   marginBottom: 8,
-                  background: avatarBg,
+                  background: isLight ? alpha(accentMain, 0.25) : colors.blueAccent[600],
                   border: `2px solid ${borderColor}`,
                 }}
               />
@@ -259,7 +265,7 @@ export function SidebarBase({ menuGroups = [] }) {
                 {group.heading && !isCollapsed && (
                   <Typography
                     variant="h6"
-                    color={groupHeadingColor}
+                    color={isLight ? textPrimary : colors.grey[100]}
                     sx={{
                       m: "15px 0 5px 20px",
                       fontSize: "1rem",
