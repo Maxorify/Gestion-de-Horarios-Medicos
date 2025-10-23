@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import { Box, Button, MenuItem, TextField, Typography, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+
 import { confirmarCitaSimple } from "@/services/citas";
 import { useUser } from "@/hooks/useUser";
+import { tokens } from "@/theme";
 
 const METODOS_PAGO = [
   { value: "efectivo", label: "Efectivo" },
@@ -19,6 +23,17 @@ export default function SecretariaPanel() {
   const [obs, setObs] = useState("");
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+  const isDark = theme.palette.mode === "dark";
+  const surface = isDark ? colors.primary[600] : colors.primary[100];
+  const borderColor = isDark ? colors.primary[700] : colors.grey[300];
+  const textPrimary = isDark ? colors.grey[100] : colors.grey[900];
+  const textSecondary = isDark ? colors.grey[300] : colors.grey[600];
+  const shadow = isDark
+    ? `0 18px 45px ${alpha(colors.primary[900], 0.55)}`
+    : `0 16px 32px ${alpha(colors.grey[900], 0.1)}`;
+  const focusBorder = isDark ? colors.blueAccent[500] : colors.blueAccent[600];
 
   const handleConfirmarPago = async (event) => {
     event.preventDefault();
@@ -56,110 +71,157 @@ export default function SecretariaPanel() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">Panel de Secretaría</h2>
-        <p>
-          Accede a las herramientas principales para gestionar citas y asistir a
-          los doctores.
-        </p>
-        <div>
-          <Link
-            to="/secretaria/check-in"
-            className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Marcar asistencia por RUT
-          </Link>
-        </div>
-      </div>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Typography variant="h4" sx={{ color: textPrimary }}>
+          Panel de Secretaría
+        </Typography>
+        <Typography variant="body1" sx={{ color: textSecondary }}>
+          Accede a las herramientas principales para gestionar citas y asistir a los doctores.
+        </Typography>
+        <Button
+          component={Link}
+          to="/secretaria/check-in"
+          variant="contained"
+          sx={{
+            alignSelf: { xs: "stretch", sm: "flex-start" },
+            backgroundColor: colors.blueAccent[600],
+            "&:hover": {
+              backgroundColor: colors.blueAccent[500],
+            },
+          }}
+        >
+          Marcar asistencia por RUT
+        </Button>
+      </Box>
 
-      <form
+      <Box
+        component="form"
         onSubmit={handleConfirmarPago}
-        className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm space-y-4"
+        sx={{
+          backgroundColor: surface,
+          border: `1px solid ${borderColor}`,
+          borderRadius: 3,
+          p: { xs: 3, md: 4 },
+          display: "flex",
+          flexDirection: "column",
+          gap: 3,
+          boxShadow: shadow,
+        }}
       >
-        <div>
-          <h3 className="text-lg font-semibold">Confirmar pago de cita</h3>
-          <p className="text-sm text-gray-600">
+        <Box>
+          <Typography variant="h5" sx={{ color: textPrimary, mb: 0.5 }}>
+            Confirmar pago de cita
+          </Typography>
+          <Typography variant="body2" sx={{ color: textSecondary }}>
             Para la demo, ingresa el ID de la cita y confirma el pago registrado.
-          </p>
-        </div>
+          </Typography>
+        </Box>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">ID de la cita</span>
-            <input
-              type="number"
-              min="1"
-              value={citaId}
-              onChange={(event) => setCitaId(event.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="Ej: 12345"
-              required
-            />
-          </label>
+        <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
+          <TextField
+            label="ID de la cita"
+            type="number"
+            required
+            value={citaId}
+            onChange={(event) => setCitaId(event.target.value)}
+            inputProps={{ min: 1 }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                "& fieldset": { borderColor },
+                "&:hover fieldset": { borderColor: focusBorder },
+                "&.Mui-focused fieldset": { borderColor: focusBorder },
+              },
+            }}
+          />
+          <TextField
+            label="Monto"
+            type="number"
+            value={monto}
+            onChange={(event) => setMonto(event.target.value)}
+            inputProps={{ min: 0, step: 1 }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                "& fieldset": { borderColor },
+                "&:hover fieldset": { borderColor: focusBorder },
+                "&.Mui-focused fieldset": { borderColor: focusBorder },
+              },
+            }}
+          />
+          <TextField
+            label="Método de pago"
+            select
+            value={metodo}
+            onChange={(event) => setMetodo(event.target.value)}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                "& fieldset": { borderColor },
+                "&:hover fieldset": { borderColor: focusBorder },
+                "&.Mui-focused fieldset": { borderColor: focusBorder },
+              },
+            }}
+          >
+            <MenuItem value="">Sin especificar</MenuItem>
+            {METODOS_PAGO.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Observaciones (opcional)"
+            multiline
+            rows={3}
+            value={obs}
+            onChange={(event) => setObs(event.target.value)}
+            sx={{
+              gridColumn: { md: "1 / -1" },
+              "& .MuiOutlinedInput-root": {
+                "& fieldset": { borderColor },
+                "&:hover fieldset": { borderColor: focusBorder },
+                "&.Mui-focused fieldset": { borderColor: focusBorder },
+              },
+            }}
+          />
+        </Box>
 
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Monto</span>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={monto}
-              onChange={(event) => setMonto(event.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="0"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Método de pago</span>
-            <select
-              value={metodo}
-              onChange={(event) => setMetodo(event.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">Sin especificar</option>
-              {METODOS_PAGO.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1 text-sm md:col-span-2">
-            <span className="font-medium">Observaciones (opcional)</span>
-            <textarea
-              value={obs}
-              onChange={(event) => setObs(event.target.value)}
-              rows={3}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="Notas internas"
-            />
-          </label>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2, alignItems: { sm: "center" } }}>
+          <Button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70"
+            variant="contained"
+            sx={{
+              minWidth: 180,
+              backgroundColor: colors.greenAccent[500],
+              color: colors.primary[900],
+              fontWeight: 600,
+              "&:hover": {
+                backgroundColor: colors.greenAccent[400],
+              },
+              "&.Mui-disabled": {
+                backgroundColor: alpha(colors.greenAccent[500], 0.4),
+                color: alpha(colors.primary[900], 0.6),
+              },
+            }}
           >
             {loading ? "Confirmando..." : "Confirmar pago"}
-          </button>
+          </Button>
           {feedback && (
-            <span
-              className={
-                feedback.type === "success"
-                  ? "text-sm font-medium text-green-600"
-                  : "text-sm font-medium text-red-600"
-              }
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 600,
+                color:
+                  feedback.type === "success"
+                    ? colors.greenAccent[400]
+                    : colors.redAccent[400],
+              }}
             >
               {feedback.message}
-            </span>
+            </Typography>
           )}
-        </div>
-      </form>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }

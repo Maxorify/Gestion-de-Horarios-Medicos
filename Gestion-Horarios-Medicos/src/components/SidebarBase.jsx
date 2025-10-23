@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { useLocation, useNavigate } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
 
@@ -10,7 +11,7 @@ import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import { alpha } from "@mui/material/styles";
 
-const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
+const Item = ({ title, to, icon, isActive, isCollapsed }) => {
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -34,7 +35,7 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
       style={{
         color: currentColor,
         transition: "color 0.3s ease",
-        fontWeight: isActive ? "bold" : "normal",
+        fontWeight: isActive ? "600" : "500",
         borderRadius: "18px",
         margin: isCollapsed ? "8px 0" : "3px 0",
         padding: isCollapsed ? "2px 0" : "0",
@@ -46,6 +47,13 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
           backgroundColor: hoverBackground,
           color: hoverColor,
           borderRadius: "18px",
+        },
+        "&.active": {
+          backgroundColor: `${activeBg} !important`,
+          color: `${accent} !important`,
+        },
+        "& .pro-item-content": {
+          color: textSecondary,
         },
       }}
     >
@@ -277,7 +285,6 @@ export function SidebarBase({ menuGroups = [] }) {
                       matchChildren: item.matchChildren ?? true,
                     }) : false}
                     isCollapsed={isCollapsed}
-                    colors={colors}
                   />
                 ))}
               </Box>

@@ -27,7 +27,7 @@ import { useUser } from "@/hooks/useUser";
 import { logout as logoutLocal } from "@/services/authLocal";
 
 
-const Topbar = ({ onThemeToggle }) => {
+const Topbar = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const colorMode = useContext(ColorModeContext);
@@ -73,11 +73,7 @@ const Topbar = ({ onThemeToggle }) => {
 
   // Función para manejar el cambio de tema
   const handleThemeToggle = () => {
-    if (onThemeToggle) {
-      onThemeToggle(); // Llama la función que viene como prop
-    } else {
-      colorMode.toggleColorMode(); // Fallback al método original
-    }
+    toggleColorMode();
   };
 
   // Estilos dinámicos mejorados
@@ -87,16 +83,16 @@ const Topbar = ({ onThemeToggle }) => {
     alignItems: "center",
     padding: "12px 24px",
     background:
-      theme.palette.mode === "dark"
+      isDark
         ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
         : transparentWhite(0.95),
     backdropFilter: "blur(15px)",
     borderBottom:
-      theme.palette.mode === "dark"
+      isDark
         ? `1px solid ${colors.grey[700]}`
         : `1px solid ${transparentBlack(0.08)}`,
     boxShadow:
-      theme.palette.mode === "dark"
+      isDark
         ? `
         0 4px 20px ${transparentBlack(0.4)},
         0 1px 0 ${transparentWhite(0.05)} inset,
@@ -143,7 +139,7 @@ const Topbar = ({ onThemeToggle }) => {
     maxWidth: "400px",
     transition: "all 0.3s ease",
     boxShadow:
-      theme.palette.mode === "dark"
+      isDark
         ? `
         inset 0 2px 4px ${transparentBlack(0.3)},
         0 1px 0 ${transparentWhite(0.05)}
@@ -177,7 +173,7 @@ const Topbar = ({ onThemeToggle }) => {
         ? `1px solid ${transparentWhite(0.08)}`
         : `1px solid ${transparentBlack(0.06)}`,
     boxShadow:
-      theme.palette.mode === "dark"
+      isDark
         ? `
         0 2px 8px ${transparentBlack(0.2)},
         inset 0 1px 0 ${transparentWhite(0.1)}
@@ -226,7 +222,7 @@ const Topbar = ({ onThemeToggle }) => {
         <SearchIcon
           sx={{
             color:
-              theme.palette.mode === "dark"
+              isDark
                 ? colors.grey[300]
                 : colors.grey[600],
             marginRight: "8px",
@@ -258,7 +254,7 @@ const Topbar = ({ onThemeToggle }) => {
         {/* Botón de tema */}
         <Tooltip
           title={`Cambiar a modo ${
-            theme.palette.mode === "dark" ? "claro" : "oscuro"
+            isDark ? "claro" : "oscuro"
           }`}
         >
           <IconButton onClick={handleThemeToggle} sx={iconButtonStyle}>
@@ -401,11 +397,11 @@ const Topbar = ({ onThemeToggle }) => {
                   : theme.palette.common.white,
               borderRadius: "16px",
               border:
-                theme.palette.mode === "dark"
+                isDark
                   ? `1px solid ${colors.grey[600]}`
                   : `1px solid ${transparentBlack(0.08)}`,
               boxShadow:
-                theme.palette.mode === "dark"
+                isDark
                   ? `
               0 20px 40px ${transparentBlack(0.5)},
               0 10px 20px ${transparentBlack(0.3)},
@@ -446,7 +442,7 @@ const Topbar = ({ onThemeToggle }) => {
           <Divider
             sx={{
               borderColor:
-                theme.palette.mode === "dark"
+                isDark
                   ? colors.grey[600]
                   : colors.grey[300],
               margin: "8px 16px",
