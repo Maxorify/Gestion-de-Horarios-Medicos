@@ -82,6 +82,7 @@ export function UserProvider({ children }) {
     const doctor = await obtenerDoctorOpcional(sessionPayload.persona_id);
     return {
       usuario_id: sessionPayload.usuario_id,
+      usuario_id_legacy: sessionPayload.usuario_id_legacy ?? null,
       persona_id: sessionPayload.persona_id,
       rol: sessionPayload.rol,
       email: sessionPayload.email,

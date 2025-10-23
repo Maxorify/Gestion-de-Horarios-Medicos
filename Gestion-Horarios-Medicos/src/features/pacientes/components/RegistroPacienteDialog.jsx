@@ -143,8 +143,10 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
 
   const handleSubmit = async () => {
     if (submitting || !isFormValid) return;
-    if (!user?.usuario_id) {
-      alert("No hay sesión local válida. Inicia sesión nuevamente.");
+    if (!user?.usuario_id_legacy) {
+      alert(
+        "No hay sesión local válida (falta usuario_id_legacy). Inicia sesión nuevamente.",
+      );
       return;
     }
 
@@ -188,7 +190,7 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
         persona: personaPayload,
         paciente: pacientePayload,
         idemKey,
-        usuarioIdLegacy: user.usuario_id,
+        usuarioIdLegacy: user.usuario_id_legacy,
       });
 
       onSuccess?.(nuevoPacienteId);
