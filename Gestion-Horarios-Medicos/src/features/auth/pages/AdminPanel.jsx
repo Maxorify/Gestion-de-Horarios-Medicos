@@ -1,5 +1,5 @@
 // src/features/auth/pages/AdminPanel.jsx
-import { useTheme } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
 export default function AdminPanel() {
@@ -14,7 +14,7 @@ export default function AdminPanel() {
   const mutedText = theme.palette.text.secondary;
 
   return (
-    <div
+    <Box
       style={{
         padding: "2rem",
         color: theme.palette.text.primary,
@@ -25,7 +25,7 @@ export default function AdminPanel() {
       <Typography variant="h3" component="h1" sx={{ mb: 2 }}>
         Bienvenido Admin
       </Typography>
-      <Typography variant="body1" sx={{ lineHeight: 1.7, color: textSecondary }}>
+      <Typography variant="body1" sx={{ lineHeight: 1.7, color: mutedText }}>
         Este es tu panel principal. Desde aquí vas a poder revisar doctores,
         asignar horarios, generar reportes y gestionar todo el sistema de la
         clínica.
@@ -39,7 +39,7 @@ export default function AdminPanel() {
           gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
         }}
       >
-        <div
+        <Box
           style={{
             backgroundColor: surface,
             padding: "1.5rem",
@@ -67,9 +67,9 @@ export default function AdminPanel() {
           <p>Usuarios activos: 1,234</p>
           <p>Sesiones hoy: 567</p>
           <p>Rendimiento: 98.5%</p>
-        </div>
+        </Box>
 
-        <div
+        <Box
           style={{
             backgroundColor: surface,
             padding: "1.5rem",
@@ -97,8 +97,8 @@ export default function AdminPanel() {
           <p style={{ color: mutedText }}>
             Podés configurar doctores, horarios y reportes desde el menú.
           </p>
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }
