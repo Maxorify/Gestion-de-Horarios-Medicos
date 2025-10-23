@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { useLocation, useNavigate } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
 
@@ -18,8 +19,8 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
   };
 
   const isLight = theme.palette.mode === "light";
-  const itemColor = isLight ? "#111" : colors.grey[100];
-  const activeColor = isLight ? "#4377fe" : colors.blueAccent[400];
+  const itemColor = isLight ? colors.grey[700] : colors.grey[100];
+  const activeColor = isLight ? colors.blueAccent[600] : colors.blueAccent[300];
   const currentColor = isActive ? activeColor : itemColor;
 
   return (
@@ -38,9 +39,9 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
       sx={{
         "&:hover": {
           backgroundColor: isLight
-            ? "rgba(100,100,100,0.06)"
-            : "rgba(255,255,255,0.06)",
-          color: isLight ? "#111" : colors.blueAccent[300],
+            ? alpha(colors.blueAccent[100], 0.35)
+            : alpha(colors.primary[400], 0.38),
+          color: isLight ? colors.grey[900] : colors.blueAccent[200],
           borderRadius: "18px",
         },
       }}
@@ -91,16 +92,21 @@ export function SidebarBase({ menuGroups = [] }) {
   };
 
   const isLight = theme.palette.mode === "light";
-  const sidebarBg = isLight ? "#fafafa" : colors.primary[400];
-  const textPrimary = isLight ? "#111" : colors.grey[100];
-  const textSecondary = isLight ? "#222" : colors.grey[300];
-  const borderColor = isLight ? "#ddd" : colors.grey[700];
+  const sidebarBg = isLight ? colors.primary[100] : colors.primary[600];
+  const textPrimary = isLight ? colors.grey[900] : colors.grey[100];
+  const textSecondary = isLight ? colors.grey[700] : colors.grey[300];
+  const activeColor = isLight ? colors.blueAccent[600] : colors.blueAccent[300];
+  const borderColor = isLight ? colors.grey[300] : colors.primary[700];
 
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty(
       "--scrollbar-thumb",
-      isLight ? "#ccc" : colors.grey[600]
+      isLight ? colors.grey[400] : colors.primary[400]
+    );
+    root.style.setProperty(
+      "--scrollbar-track",
+      isLight ? colors.primary[100] : colors.primary[800]
     );
   }, [theme.palette.mode, colors, isLight]);
 
@@ -113,15 +119,15 @@ export function SidebarBase({ menuGroups = [] }) {
         "& .pro-sidebar-inner": {
           background: `${sidebarBg} !important`,
           scrollbarWidth: "thin",
-          scrollbarColor: `#ccc ${sidebarBg}`,
+          scrollbarColor: `${isLight ? colors.grey[400] : colors.primary[400]} ${sidebarBg}`,
           "&::-webkit-scrollbar": { width: "6px" },
           "&::-webkit-scrollbar-thumb": {
             background: "var(--scrollbar-thumb)",
             borderRadius: "3px",
           },
           boxShadow: isLight
-            ? "2px 0 8px rgba(0,0,0,0.07)"
-            : "2px 0 10px rgba(0,0,0,0.25)",
+            ? `2px 0 8px ${alpha(colors.grey[900], 0.08)}`
+            : `2px 0 12px ${alpha(colors.primary[900], 0.65)}`,
           transition: "all 0.3s ease",
         },
         "& .pro-icon-wrapper": {
@@ -135,22 +141,22 @@ export function SidebarBase({ menuGroups = [] }) {
         },
         "& .pro-inner-item:hover": {
           backgroundColor: isLight
-            ? "rgba(100,100,100,0.06) !important"
-            : "rgba(255,255,255,0.06) !important",
+            ? `${alpha(colors.blueAccent[100], 0.4)} !important`
+            : `${alpha(colors.primary[400], 0.45)} !important`,
           color: isLight
-            ? "#111 !important"
-            : colors.blueAccent[300] + " !important",
+            ? `${colors.grey[900]} !important`
+            : `${colors.blueAccent[200]} !important`,
           borderRadius: "18px",
         },
         "& .pro-menu-item.active": {
-          color: "#4377fe !important",
+          color: `${activeColor} !important`,
           backgroundColor: isLight
-            ? "rgba(50,50,50,0.09) !important"
-            : colors.blueAccent[900] + "40 !important",
+            ? `${alpha(colors.blueAccent[200], 0.45)} !important`
+            : `${alpha(colors.blueAccent[700], 0.55)} !important`,
           borderRadius: "18px",
         },
         "& .pro-menu-item.active .pro-icon-wrapper": {
-          color: "#4377fe !important",
+          color: `${activeColor} !important`,
         },
       }}
       className="custom-scrollbar"
@@ -182,12 +188,12 @@ export function SidebarBase({ menuGroups = [] }) {
                     onClick={togglePin}
                     size="small"
                     sx={{
-                      color: isPinned ? "#4377fe" : textSecondary,
+                      color: isPinned ? activeColor : textSecondary,
                       "&:hover": {
-                        color: "#4377fe",
+                        color: activeColor,
                         backgroundColor: isLight
-                          ? "rgba(0,0,0,0.04)"
-                          : "rgba(255,255,255,0.10)",
+                          ? alpha(colors.blueAccent[100], 0.45)
+                          : alpha(colors.primary[400], 0.5),
                       },
                       transition: "all 0.2s ease",
                     }}
@@ -210,7 +216,7 @@ export function SidebarBase({ menuGroups = [] }) {
                   height: 60,
                   borderRadius: "50%",
                   marginBottom: 8,
-                  background: isLight ? "#c7d8ff" : colors.blueAccent[600],
+                  background: isLight ? colors.blueAccent[100] : colors.blueAccent[700],
                   border: `2px solid ${borderColor}`,
                 }}
               />
@@ -253,8 +259,8 @@ export function SidebarBase({ menuGroups = [] }) {
               <Box key={group.heading ?? `group-${index}`} sx={{ width: "100%" }}>
                 {group.heading && !isCollapsed && (
                   <Typography
-                    variant="h6"
-                    color={isLight ? "#111" : colors.grey[100]}
+                  variant="h6"
+                    color={isLight ? colors.grey[800] : colors.grey[100]}
                     sx={{
                       m: "15px 0 5px 20px",
                       fontSize: "1rem",
