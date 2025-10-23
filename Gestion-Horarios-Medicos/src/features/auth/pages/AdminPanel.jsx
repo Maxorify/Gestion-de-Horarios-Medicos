@@ -13,6 +13,15 @@ export default function AdminPanel() {
   const accent = theme.palette.primary.main;
   const mutedText = theme.palette.text.secondary;
 
+  const isDark = theme.palette.mode === "dark";
+  const textPrimary = isDark ? colors.grey[100] : colors.grey[900];
+  const textSecondary = isDark ? colors.grey[300] : colors.grey[600];
+  const surface = isDark ? colors.primary[600] : colors.primary[100];
+  const surfaceBorder = isDark ? colors.primary[700] : colors.grey[300];
+  const shadowColor = isDark
+    ? alpha(colors.primary[900], 0.55)
+    : alpha(colors.grey[900], 0.08);
+
   return (
     <div
       style={{
@@ -22,21 +31,21 @@ export default function AdminPanel() {
         backgroundColor: theme.palette.background.default,
       }}
     >
-      <h1 style={{ fontSize: "2rem", marginBottom: "1rem" }}>
+      <Typography variant="h3" component="h1" sx={{ mb: 2 }}>
         Bienvenido Admin
-      </h1>
-      <p style={{ lineHeight: 1.6 }}>
+      </Typography>
+      <Typography variant="body1" sx={{ lineHeight: 1.7, color: textSecondary }}>
         Este es tu panel principal. Desde aquí vas a poder revisar doctores,
         asignar horarios, generar reportes y gestionar todo el sistema de la
         clínica.
-      </p>
+      </Typography>
 
-      <div
-        style={{
-          marginTop: "2rem",
+      <Box
+        sx={{
+          mt: 4,
           display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+          gap: 2,
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
         }}
       >
         <div
