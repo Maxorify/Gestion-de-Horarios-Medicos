@@ -1,11 +1,17 @@
 // src/features/auth/pages/AdminPanel.jsx
-import { Box, Typography, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { tokens } from "@/theme";
 
 export default function AdminPanel() {
   const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
+  const isDark = theme.palette.mode === "dark";
+  const surface = theme.palette.background.paper;
+  const borderColor = theme.palette.divider;
+  const subtleShadow = isDark
+    ? "0 12px 32px rgba(5, 8, 13, 0.45)"
+    : "0 12px 32px rgba(15, 23, 42, 0.12)";
+  const accent = theme.palette.primary.main;
+  const mutedText = theme.palette.text.secondary;
 
   const isDark = theme.palette.mode === "dark";
   const textPrimary = isDark ? colors.grey[100] : colors.grey[900];
@@ -17,11 +23,12 @@ export default function AdminPanel() {
     : alpha(colors.grey[900], 0.08);
 
   return (
-    <Box
-      sx={{
-        px: { xs: 2, md: 4 },
-        py: { xs: 2, md: 3 },
-        color: textPrimary,
+    <div
+      style={{
+        padding: "2rem",
+        color: theme.palette.text.primary,
+        transition: "color 0.3s ease",
+        backgroundColor: theme.palette.background.default,
       }}
     >
       <Typography variant="h3" component="h1" sx={{ mb: 2 }}>
@@ -41,42 +48,66 @@ export default function AdminPanel() {
           gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
         }}
       >
-        {[{
-          title: "Resumen",
-          items: [
-            "Usuarios activos: 1,234",
-            "Sesiones hoy: 567",
-            "Rendimiento: 98.5%",
-          ],
-        },
-        {
-          title: "Acciones rápidas",
-          items: [
-            "Podés configurar doctores, horarios y reportes desde el menú.",
-          ],
-        }].map((card) => (
-          <Box
-            key={card.title}
-            sx={{
-              backgroundColor: surface,
-              border: `1px solid ${surfaceBorder}`,
-              borderRadius: 3,
-              p: 3,
-              boxShadow: `0 18px 45px ${shadowColor}`,
-              backdropFilter: isDark ? "blur(6px)" : "none",
+        <div
+          style={{
+            backgroundColor: surface,
+            padding: "1.5rem",
+            borderRadius: "12px",
+            border: `1px solid ${borderColor}`,
+            boxShadow: subtleShadow,
+            color: theme.palette.text.primary,
+            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+            backdropFilter: "blur(4px)",
+            outline: `1px solid ${alpha(borderColor, 0.35)}`,
+            outlineOffset: -1,
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: `linear-gradient(135deg, ${alpha(accent, 0.12)} 0%, transparent 65%)`,
+              pointerEvents: "none",
             }}
-          >
-            <Typography variant="h5" sx={{ mb: 1.5 }}>
-              {card.title}
-            </Typography>
-            {card.items.map((item) => (
-              <Typography key={item} variant="body2" sx={{ color: textSecondary }}>
-                {item}
-              </Typography>
-            ))}
-          </Box>
-        ))}
-      </Box>
-    </Box>
+          />
+          <h3>Resumen</h3>
+          <p>Usuarios activos: 1,234</p>
+          <p>Sesiones hoy: 567</p>
+          <p>Rendimiento: 98.5%</p>
+        </div>
+
+        <div
+          style={{
+            backgroundColor: surface,
+            padding: "1.5rem",
+            borderRadius: "12px",
+            border: `1px solid ${borderColor}`,
+            boxShadow: subtleShadow,
+            color: theme.palette.text.primary,
+            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+            backdropFilter: "blur(4px)",
+            outline: `1px solid ${alpha(borderColor, 0.35)}`,
+            outlineOffset: -1,
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: `linear-gradient(135deg, ${alpha(accent, 0.1)} 0%, transparent 70%)`,
+              pointerEvents: "none",
+            }}
+          />
+          <h3>Acciones rápidas</h3>
+          <p style={{ color: mutedText }}>
+            Podés configurar doctores, horarios y reportes desde el menú.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

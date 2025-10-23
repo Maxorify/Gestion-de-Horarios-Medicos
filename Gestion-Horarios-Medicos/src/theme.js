@@ -1,6 +1,6 @@
 import { ThemeProvider, CssBaseline } from "@mui/material";
 
-import { createContext, useState, useMemo } from "react";
+import { createContext, useState, useMemo, useEffect } from "react";
 import { createTheme } from "@mui/material/styles";
 
 // color design tokens export
@@ -8,59 +8,59 @@ export const tokens = (mode) => ({
   ...(mode === "dark"
     ? {
         grey: {
-          100: "#f7f8fb",
-          200: "#e1e4ee",
-          300: "#c9cee0",
-          400: "#b0b7d1",
-          500: "#969fbe",
-          600: "#7681a1",
-          700: "#586384",
-          800: "#3b4665",
-          900: "#1e2946",
+          100: "#f4f7fb",
+          200: "#e6eaf3",
+          300: "#d8ddea",
+          400: "#b1b9cb",
+          500: "#8b95ab",
+          600: "#657083",
+          700: "#454d5c",
+          800: "#2c3239",
+          900: "#191d22",
         },
         primary: {
-          100: "#dbe3ff",
-          200: "#b4c5f1",
-          300: "#8ca7e3",
-          400: "#435882",
-          500: "#161f36",
-          600: "#121a2d",
-          700: "#0d1423",
-          800: "#090e19",
-          900: "#05080f",
+          100: "#d4d8e3",
+          200: "#a9b1c7",
+          300: "#7e8aab",
+          400: "#54618b",
+          500: "#1b2232",
+          600: "#161c29",
+          700: "#101620",
+          800: "#0b1017",
+          900: "#05080d",
         },
         greenAccent: {
-          100: "#d6f6eb",
-          200: "#aeeed7",
-          300: "#85e6c4",
-          400: "#59deae",
-          500: "#2dd699",
-          600: "#22ab78",
-          700: "#197f57",
-          800: "#10543a",
-          900: "#08291d",
+          100: "#d2f9e7",
+          200: "#a5f2ce",
+          300: "#79ebb6",
+          400: "#4ce39d",
+          500: "#1edc84",
+          600: "#17b069",
+          700: "#11834e",
+          800: "#0a5733",
+          900: "#042b19",
         },
         redAccent: {
-          100: "#fddedc",
-          200: "#fbb1ad",
-          300: "#f9837e",
-          400: "#f65552",
-          500: "#f32823",
-          600: "#c21f1c",
-          700: "#911715",
-          800: "#610f0e",
-          900: "#300807",
+          100: "#ffe0e0",
+          200: "#ffb3b3",
+          300: "#ff8585",
+          400: "#ff5757",
+          500: "#ff2a2a",
+          600: "#cc2020",
+          700: "#991818",
+          800: "#661010",
+          900: "#330808",
         },
         blueAccent: {
-          100: "#dbe6ff",
-          200: "#afcbff",
-          300: "#83afff",
-          400: "#5794ff",
-          500: "#2b78ff",
-          600: "#205dcc",
-          700: "#164299",
-          800: "#0d2f66",
-          900: "#061a33",
+          100: "#d6ecff",
+          200: "#add8ff",
+          300: "#84c4ff",
+          400: "#5bb0ff",
+          500: "#329bff",
+          600: "#2578cc",
+          700: "#1a58a0",
+          800: "#103a73",
+          900: "#091f47",
         },
       }
     : {
@@ -132,10 +132,10 @@ export const themeSettings = (mode) => {
         ? {
             // palette values for dark mode
             primary: {
-              main: colors.primary[500],
+              main: colors.blueAccent[400],
             },
             secondary: {
-              main: colors.greenAccent[500],
+              main: colors.greenAccent[400],
             },
             neutral: {
               dark: colors.grey[700],
@@ -143,7 +143,13 @@ export const themeSettings = (mode) => {
               light: colors.grey[100],
             },
             background: {
-              default: colors.primary[500],
+              default: colors.primary[600],
+              paper: colors.primary[500],
+            },
+            divider: colors.primary[400],
+            text: {
+              primary: colors.grey[100],
+              secondary: colors.grey[400],
             },
           }
         : {
@@ -161,6 +167,12 @@ export const themeSettings = (mode) => {
             },
             background: {
               default: "#fcfcfc",
+              paper: "#ffffff",
+            },
+            divider: colors.grey[300],
+            text: {
+              primary: colors.grey[100],
+              secondary: colors.grey[600],
             },
           }),
     },
@@ -197,18 +209,26 @@ export const themeSettings = (mode) => {
 
 // context for color mode
 export const ColorModeContext = createContext({
+  mode: "light",
   toggleColorMode: () => {},
+  setMode: () => {},
 });
 
 export const useMode = () => {
-  const [mode, setMode] = useState("dark");
+  const [mode, setMode] = useState("light");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", mode);
+  }, [mode]);
 
   const colorMode = useMemo(
     () => ({
+      mode,
+      setMode,
       toggleColorMode: () =>
         setMode((prev) => (prev === "light" ? "dark" : "light")),
     }),
-    []
+    [mode]
   );
 
   const theme = useMemo(() => createTheme(themeSettings(mode)), [mode]);
