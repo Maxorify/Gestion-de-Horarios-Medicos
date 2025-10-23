@@ -13,6 +13,7 @@ import AgendarConsulta from "@/features/pacientes/pages/AgendarConsulta.jsx";
 import MisCitas from "@/features/pacientes/pages/MisCitas.jsx";
 import SeleccionarHorarioDoctor from "@/features/agenda/pages/SeleccionarHorarioDoctor.jsx";
 import CheckInPacientes from "@/features/agenda/pages/CheckInPacientes.jsx";
+import CajaPagos from "@/features/secretaria/pages/CajaPagos.jsx";
 import DoctoresAdmin from "@/features/doctores/pages/DoctoresAdmin.jsx";
 import AsignarHorarios from "@/features/horarios/pages/AsignarHorarios.jsx";
 import MarcarAsistencia from "@/features/asistencias/pages/MarcarAsistencia.jsx";
@@ -44,6 +45,7 @@ const secretariaChildren = [
   { index: true, element: <SecretariaPanel /> },
   { path: "check-in", element: <CheckInPacientes /> },
   { path: "agendar", element: <AgendarConsulta /> },
+  { path: "caja", element: <CajaPagos /> },
   { path: "asistencias", element: <MarcarAsistencia /> },
   { path: "mis-citas", element: <MisCitas /> },
   { path: "*", element: <Navigate to="/secretaria" replace /> },
