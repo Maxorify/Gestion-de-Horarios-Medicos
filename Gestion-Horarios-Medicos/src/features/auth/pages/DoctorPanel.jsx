@@ -16,39 +16,65 @@ function DoctorDashboardContent() {
   useEffect(() => {
     let cancel = false;
 
-    const cargarCitas = async () => {
+    (async () => {
       if (!user?.doctor_id) {
-        setCitas([]);
+        if (!cancel) {
+          setCitas([]);
+          setLoading(false);
+        }
         return;
       }
 
       setLoading(true);
       setError(null);
 
+      const desdeISO = new Date("2000-01-01T00:00:00.000Z").toISOString();
+      const hastaISO = new Date("2100-01-01T00:00:00.000Z").toISOString();
+
       try {
-        const desde = dayjs().subtract(1, "day").toISOString();
-        const hasta = dayjs().add(7, "day").toISOString();
-        const rows = await listarCitasDoctorConfirmadas({
+        const data = await listarCitasDoctorConfirmadas({
           doctorId: user.doctor_id,
-          desdeISO: desde,
-          hastaISO: hasta,
+          desdeISO,
+          hastaISO,
         });
 
         if (!cancel) {
+          const rows = (Array.isArray(data) ? data : []).map((row) => ({
+            ...row,
+            cita_id: row.cita_id ?? row.id ?? row.citaId ?? row.citaID ?? null,
+            paciente_nombre:
+              row.paciente_nombre ??
+              row.nombre_paciente ??
+              row.pacienteNombre ??
+              row.nombre ??
+              "Paciente sin nombre",
+            fecha_hora_inicio_agendada:
+              row.fecha_hora_inicio_agendada ??
+              row.fecha_inicio ??
+              row.inicio ??
+              row.fechaHoraInicio ??
+              null,
+            fecha_hora_fin_agendada:
+              row.fecha_hora_fin_agendada ??
+              row.fecha_fin ??
+              row.fin ??
+              row.fechaHoraFin ??
+              null,
+            paciente_rut: row.paciente_rut ?? row.rut ?? row.pacienteRut ?? null,
+          }));
           setCitas(rows);
         }
-      } catch (err) {
+      } catch (e) {
         if (!cancel) {
-          setError(err?.message ?? "No se pudieron cargar las citas confirmadas.");
+          console.error("Error listando confirmadas:", e);
+          setError(e?.message ?? "No se pudieron cargar las citas confirmadas.");
         }
       } finally {
         if (!cancel) {
           setLoading(false);
         }
       }
-    };
-
-    cargarCitas();
+    })();
 
     return () => {
       cancel = true;
