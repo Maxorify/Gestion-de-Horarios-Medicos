@@ -21,6 +21,7 @@ import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
+import { alpha } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/hooks/useUser";
 import { logout as logoutLocal } from "@/services/authLocal";
@@ -30,6 +31,8 @@ const Topbar = ({ onThemeToggle }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const colorMode = useContext(ColorModeContext);
+  const transparentWhite = (opacity) => alpha(theme.palette.common.white, opacity);
+  const transparentBlack = (opacity) => alpha(theme.palette.common.black, opacity);
 
   // Menú desplegable
   const [anchorEl, setAnchorEl] = useState(null);
@@ -86,30 +89,28 @@ const Topbar = ({ onThemeToggle }) => {
     background:
       theme.palette.mode === "dark"
         ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
-        : "rgba(255, 255, 255, 0.95)",
+        : transparentWhite(0.95),
     backdropFilter: "blur(15px)",
     borderBottom:
       theme.palette.mode === "dark"
         ? `1px solid ${colors.grey[700]}`
-        : `1px solid rgba(0, 0, 0, 0.08)`,
-    // Efecto de sombra difuminada elegante
+        : `1px solid ${transparentBlack(0.08)}`,
     boxShadow:
       theme.palette.mode === "dark"
         ? `
-        0 4px 20px rgba(0, 0, 0, 0.4),
-        0 1px 0 rgba(255, 255, 255, 0.05) inset,
-        0 -1px 0 rgba(0, 0, 0, 0.2) inset
+        0 4px 20px ${transparentBlack(0.4)},
+        0 1px 0 ${transparentWhite(0.05)} inset,
+        0 -1px 0 ${transparentBlack(0.2)} inset
       `
         : `
-        0 4px 20px rgba(0, 0, 0, 0.08),
-        0 1px 0 rgba(255, 255, 255, 0.8) inset,
-        0 -1px 0 rgba(0, 0, 0, 0.05) inset
+        0 4px 20px ${transparentBlack(0.08)},
+        0 1px 0 ${transparentWhite(0.8)} inset,
+        0 -1px 0 ${transparentBlack(0.05)} inset
       `,
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     minHeight: "64px",
     position: "relative",
     zIndex: 1000,
-    // Efecto de difuminado en el borde inferior
     "&::after": {
       content: '""',
       position: "absolute",
@@ -119,8 +120,8 @@ const Topbar = ({ onThemeToggle }) => {
       height: "20px",
       background:
         theme.palette.mode === "dark"
-          ? `linear-gradient(to bottom, rgba(0, 0, 0, 0.1), transparent)`
-          : `linear-gradient(to bottom, rgba(0, 0, 0, 0.02), transparent)`,
+          ? `linear-gradient(to bottom, ${transparentBlack(0.1)}, transparent)`
+          : `linear-gradient(to bottom, ${transparentBlack(0.02)}, transparent)`,
       pointerEvents: "none",
     },
   };
@@ -130,13 +131,13 @@ const Topbar = ({ onThemeToggle }) => {
     alignItems: "center",
     backgroundColor:
       theme.palette.mode === "dark"
-        ? "rgba(255, 255, 255, 0.08)"
-        : "rgba(255, 255, 255, 0.9)",
+        ? transparentWhite(0.08)
+        : transparentWhite(0.9),
     borderRadius: "28px",
     border:
       theme.palette.mode === "dark"
-        ? `1px solid rgba(255, 255, 255, 0.1)`
-        : `1px solid rgba(0, 0, 0, 0.08)`,
+        ? `1px solid ${transparentWhite(0.1)}`
+        : `1px solid ${transparentBlack(0.08)}`,
     padding: "4px 16px",
     minWidth: "300px",
     maxWidth: "400px",
@@ -144,18 +145,18 @@ const Topbar = ({ onThemeToggle }) => {
     boxShadow:
       theme.palette.mode === "dark"
         ? `
-        inset 0 2px 4px rgba(0, 0, 0, 0.3),
-        0 1px 0 rgba(255, 255, 255, 0.05)
+        inset 0 2px 4px ${transparentBlack(0.3)},
+        0 1px 0 ${transparentWhite(0.05)}
       `
         : `
-        inset 0 2px 4px rgba(0, 0, 0, 0.05),
-        0 1px 0 rgba(255, 255, 255, 0.8)
+        inset 0 2px 4px ${transparentBlack(0.05)},
+        0 1px 0 ${transparentWhite(0.8)}
       `,
     "&:focus-within": {
       borderColor: colors.blueAccent[500],
       boxShadow: `
-        0 0 0 2px ${colors.blueAccent[500]}20,
-        inset 0 2px 4px rgba(0, 0, 0, 0.1)
+        0 0 0 2px ${alpha(colors.blueAccent[500], 0.125)},
+        inset 0 2px 4px ${transparentBlack(0.1)}
       `,
       transform: "translateY(-1px)",
     },
@@ -164,8 +165,8 @@ const Topbar = ({ onThemeToggle }) => {
   const iconButtonStyle = {
     backgroundColor:
       theme.palette.mode === "dark"
-        ? "rgba(255, 255, 255, 0.05)"
-        : "rgba(0, 0, 0, 0.04)",
+        ? transparentWhite(0.05)
+        : transparentBlack(0.04),
     color: theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[700],
     margin: "0 4px",
     width: "44px",
@@ -173,25 +174,25 @@ const Topbar = ({ onThemeToggle }) => {
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     border:
       theme.palette.mode === "dark"
-        ? "1px solid rgba(255, 255, 255, 0.08)"
-        : "1px solid rgba(0, 0, 0, 0.06)",
+        ? `1px solid ${transparentWhite(0.08)}`
+        : `1px solid ${transparentBlack(0.06)}`,
     boxShadow:
       theme.palette.mode === "dark"
         ? `
-        0 2px 8px rgba(0, 0, 0, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1)
+        0 2px 8px ${transparentBlack(0.2)},
+        inset 0 1px 0 ${transparentWhite(0.1)}
       `
         : `
-        0 2px 8px rgba(0, 0, 0, 0.05),
-        inset 0 1px 0 rgba(255, 255, 255, 0.8)
+        0 2px 8px ${transparentBlack(0.05)},
+        inset 0 1px 0 ${transparentWhite(0.8)}
       `,
     "&:hover": {
       backgroundColor: colors.blueAccent[500],
-      color: "#ffffff",
+      color: theme.palette.common.white,
       transform: "translateY(-2px)",
       boxShadow: `
-        0 8px 25px ${colors.blueAccent[500]}40,
-        0 4px 12px ${colors.blueAccent[500]}30
+        0 8px 25px ${alpha(colors.blueAccent[500], 0.25)},
+        0 4px 12px ${alpha(colors.blueAccent[500], 0.18)}
       `,
       borderColor: colors.blueAccent[400],
     },
@@ -202,17 +203,19 @@ const Topbar = ({ onThemeToggle }) => {
     width: "40px",
     height: "40px",
     border: `2px solid ${
-      theme.palette.mode === "dark" ? colors.grey[600] : "rgba(0, 0, 0, 0.1)"
+      theme.palette.mode === "dark"
+        ? colors.grey[600]
+        : transparentBlack(0.1)
     }`,
     transition: "all 0.3s ease",
     boxShadow:
       theme.palette.mode === "dark"
-        ? "0 4px 12px rgba(0, 0, 0, 0.3)"
-        : "0 4px 12px rgba(0, 0, 0, 0.1)",
+        ? `0 4px 12px ${transparentBlack(0.3)}`
+        : `0 4px 12px ${transparentBlack(0.1)}`,
     "&:hover": {
       transform: "scale(1.05)",
       borderColor: colors.blueAccent[400],
-      boxShadow: `0 6px 20px ${colors.blueAccent[500]}40`,
+      boxShadow: `0 6px 20px ${alpha(colors.blueAccent[500], 0.25)}`,
     },
   };
 
@@ -233,11 +236,16 @@ const Topbar = ({ onThemeToggle }) => {
           sx={{
             ml: 1,
             flex: 1,
-            color: theme.palette.mode === "dark" ? colors.grey[100] : "#000000",
+            color:
+              theme.palette.mode === "dark"
+                ? colors.grey[100]
+                : theme.palette.text.primary,
             fontWeight: 500,
             "& ::placeholder": {
               color:
-                theme.palette.mode === "dark" ? colors.grey[400] : "#666666",
+                theme.palette.mode === "dark"
+                  ? colors.grey[400]
+                  : colors.grey[500],
               opacity: 1,
             },
           }}
@@ -255,9 +263,9 @@ const Topbar = ({ onThemeToggle }) => {
         >
           <IconButton onClick={handleThemeToggle} sx={iconButtonStyle}>
             {theme.palette.mode === "dark" ? (
-              <LightModeOutlinedIcon sx={{ color: "#000" }} />
+              <LightModeOutlinedIcon sx={{ color: theme.palette.common.black }} />
             ) : (
-              <DarkModeOutlinedIcon sx={{ color: "#000" }} />
+              <DarkModeOutlinedIcon sx={{ color: theme.palette.common.black }} />
             )}
           </IconButton>
         </Tooltip>
@@ -271,13 +279,13 @@ const Topbar = ({ onThemeToggle }) => {
               sx={{
                 "& .MuiBadge-badge": {
                   backgroundColor: colors.redAccent[500],
-                  color: "white",
+                  color: theme.palette.common.white,
                   fontSize: "0.75rem",
-                  boxShadow: "0 2px 8px rgba(244, 67, 54, 0.4)",
+                  boxShadow: `0 2px 8px ${alpha(colors.redAccent[500], 0.4)}`,
                 },
               }}
             >
-              <NotificationsOutlinedIcon sx={{ color: "#000" }} />
+              <NotificationsOutlinedIcon sx={{ color: theme.palette.common.black }} />
             </Badge>
           </IconButton>
         </Tooltip>
@@ -285,28 +293,28 @@ const Topbar = ({ onThemeToggle }) => {
         {/* Configuración */}
         <Tooltip title="Configuración">
           <IconButton sx={iconButtonStyle}>
-            <SettingsOutlinedIcon sx={{ color: "#000" }} />
+            <SettingsOutlinedIcon sx={{ color: theme.palette.common.black }} />
           </IconButton>
         </Tooltip>
 
         {/* Separador visual */}
-        <Divider
-          orientation="vertical"
-          flexItem
-          sx={{
-            mx: 2,
-            borderColor:
-              theme.palette.mode === "dark"
-                ? "rgba(255, 255, 255, 0.15)"
-                : "rgba(0, 0, 0, 0.1)",
-            height: "32px",
-            alignSelf: "center",
-            boxShadow:
-              theme.palette.mode === "dark"
-                ? "1px 0 0 rgba(255, 255, 255, 0.05)"
-                : "1px 0 0 rgba(255, 255, 255, 0.5)",
-          }}
-        />
+          <Divider
+            orientation="vertical"
+            flexItem
+            sx={{
+              mx: 2,
+              borderColor:
+                theme.palette.mode === "dark"
+                  ? transparentWhite(0.15)
+                  : transparentBlack(0.1),
+              height: "32px",
+              alignSelf: "center",
+              boxShadow:
+                theme.palette.mode === "dark"
+                  ? `1px 0 0 ${transparentWhite(0.05)}`
+                  : `1px 0 0 ${transparentWhite(0.5)}`,
+            }}
+          />
 
         {/* Perfil de usuario */}
         <Box display="flex" alignItems="center">
@@ -321,13 +329,15 @@ const Topbar = ({ onThemeToggle }) => {
               variant="subtitle2"
               sx={{
                 color:
-                  theme.palette.mode === "dark" ? colors.grey[100] : "#000000",
+                  theme.palette.mode === "dark"
+                    ? colors.grey[100]
+                    : theme.palette.text.primary,
                 fontWeight: 600,
                 lineHeight: 1.2,
                 textShadow:
                   theme.palette.mode === "dark"
-                    ? "0 1px 2px rgba(0, 0, 0, 0.3)"
-                    : "0 1px 2px rgba(255, 255, 255, 0.8)",
+                    ? `0 1px 2px ${transparentBlack(0.3)}`
+                    : `0 1px 2px ${transparentWhite(0.8)}`,
               }}
             >
               {displayName}
@@ -336,7 +346,9 @@ const Topbar = ({ onThemeToggle }) => {
               variant="caption"
               sx={{
                 color:
-                  theme.palette.mode === "dark" ? colors.grey[300] : "#666666",
+                  theme.palette.mode === "dark"
+                    ? colors.grey[300]
+                    : colors.grey[500],
                 fontSize: "0.75rem",
                 fontWeight: 500,
               }}
@@ -361,7 +373,7 @@ const Topbar = ({ onThemeToggle }) => {
                   avatarSeed
                 )}`}
               >
-                <PersonOutlinedIcon sx={{ color: "#000" }} />
+                <PersonOutlinedIcon sx={{ color: theme.palette.common.black }} />
               </Avatar>
             </IconButton>
           </Tooltip>
@@ -384,29 +396,33 @@ const Topbar = ({ onThemeToggle }) => {
             sx: {
               mt: 1,
               backgroundColor:
-                theme.palette.mode === "dark" ? colors.primary[400] : "#ffffff",
+                theme.palette.mode === "dark"
+                  ? colors.primary[400]
+                  : theme.palette.common.white,
               borderRadius: "16px",
               border:
                 theme.palette.mode === "dark"
                   ? `1px solid ${colors.grey[600]}`
-                  : `1px solid rgba(0, 0, 0, 0.08)`,
+                  : `1px solid ${transparentBlack(0.08)}`,
               boxShadow:
                 theme.palette.mode === "dark"
                   ? `
-              0 20px 40px rgba(0, 0, 0, 0.5),
-              0 10px 20px rgba(0, 0, 0, 0.3),
-              inset 0 1px 0 rgba(255, 255, 255, 0.1)
+              0 20px 40px ${transparentBlack(0.5)},
+              0 10px 20px ${transparentBlack(0.3)},
+              inset 0 1px 0 ${transparentWhite(0.1)}
             `
                   : `
-              0 20px 40px rgba(0, 0, 0, 0.15),
-              0 10px 20px rgba(0, 0, 0, 0.08),
-              inset 0 1px 0 rgba(255, 255, 255, 0.8)
+              0 20px 40px ${transparentBlack(0.15)},
+              0 10px 20px ${transparentBlack(0.08)},
+              inset 0 1px 0 ${transparentWhite(0.8)}
             `,
               minWidth: "200px",
               backdropFilter: "blur(20px)",
               "& .MuiMenuItem-root": {
                 color:
-                  theme.palette.mode === "dark" ? colors.grey[100] : "#000000",
+                  theme.palette.mode === "dark"
+                    ? colors.grey[100]
+                    : theme.palette.text.primary,
                 padding: "12px 20px",
                 borderRadius: "12px",
                 margin: "4px 8px",
@@ -414,7 +430,7 @@ const Topbar = ({ onThemeToggle }) => {
                 fontWeight: 500,
                 "&:hover": {
                   backgroundColor: colors.blueAccent[500],
-                  color: "#ffffff",
+                  color: theme.palette.common.white,
                   transform: "translateX(4px)",
                 },
               },
@@ -422,7 +438,9 @@ const Topbar = ({ onThemeToggle }) => {
           }}
         >
           <MenuItem onClick={handleProfile}>
-            <AccountCircleOutlinedIcon sx={{ color: "#000", mr: 2 }} />
+            <AccountCircleOutlinedIcon
+              sx={{ color: theme.palette.common.black, mr: 2 }}
+            />
             Mi Perfil
           </MenuItem>
           <Divider
@@ -435,7 +453,7 @@ const Topbar = ({ onThemeToggle }) => {
             }}
           />
           <MenuItem onClick={handleLogout}>
-            <LogoutOutlinedIcon sx={{ color: "#000", mr: 2 }} />
+            <LogoutOutlinedIcon sx={{ color: theme.palette.common.black, mr: 2 }} />
             Cerrar Sesión
           </MenuItem>
         </Menu>

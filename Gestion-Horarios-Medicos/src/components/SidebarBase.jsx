@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -8,6 +8,7 @@ import { tokens } from "../theme";
 import { useUser } from "@/hooks/useUser";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
+import { alpha } from "@mui/material/styles";
 
 const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
   const theme = useTheme();
@@ -18,9 +19,14 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
   };
 
   const isLight = theme.palette.mode === "light";
-  const itemColor = isLight ? "#111" : colors.grey[100];
-  const activeColor = isLight ? "#4377fe" : colors.blueAccent[400];
-  const currentColor = isActive ? activeColor : itemColor;
+  const baseText = theme.palette.text.primary;
+  const activeColor = isLight ? colors.blueAccent[500] : colors.blueAccent[400];
+  const hoverBackground = alpha(
+    isLight ? baseText : theme.palette.common.white,
+    0.06
+  );
+  const hoverColor = isLight ? baseText : colors.blueAccent[300];
+  const currentColor = isActive ? activeColor : baseText;
 
   return (
     <MenuItem
@@ -37,10 +43,8 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
       icon={icon}
       sx={{
         "&:hover": {
-          backgroundColor: isLight
-            ? "rgba(100,100,100,0.06)"
-            : "rgba(255,255,255,0.06)",
-          color: isLight ? "#111" : colors.blueAccent[300],
+          backgroundColor: hoverBackground,
+          color: hoverColor,
           borderRadius: "18px",
         },
       }}
@@ -53,6 +57,8 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
 export function SidebarBase({ menuGroups = [] }) {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const transparentBlack = (opacity) => alpha(theme.palette.common.black, opacity);
+  const transparentWhite = (opacity) => alpha(theme.palette.common.white, opacity);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isPinned, setIsPinned] = useState(false);
   const { pathname } = useLocation();
@@ -86,23 +92,22 @@ export function SidebarBase({ menuGroups = [] }) {
   };
 
   const togglePin = () => {
-    setIsPinned((pinned) => !pinned);
-    setIsCollapsed((prev) => (isPinned ? true : false));
+    setIsPinned((pinned) => {
+      const nextPinned = !pinned;
+      setIsCollapsed(nextPinned ? false : true);
+      return nextPinned;
+    });
   };
 
   const isLight = theme.palette.mode === "light";
-  const sidebarBg = isLight ? "#fafafa" : colors.primary[400];
-  const textPrimary = isLight ? "#111" : colors.grey[100];
-  const textSecondary = isLight ? "#222" : colors.grey[300];
-  const borderColor = isLight ? "#ddd" : colors.grey[700];
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty(
-      "--scrollbar-thumb",
-      isLight ? "#ccc" : colors.grey[600]
-    );
-  }, [theme.palette.mode, colors, isLight]);
+  const sidebarBg = isLight
+    ? theme.palette.background.paper ?? theme.palette.background.default
+    : colors.primary[400];
+  const textPrimary = theme.palette.text.primary;
+  const textSecondary = theme.palette.text.secondary;
+  const borderColor = theme.palette.divider;
+  const accentMain = colors.blueAccent[500];
+  const accentMuted = colors.blueAccent[300];
 
   return (
     <Box
@@ -113,15 +118,15 @@ export function SidebarBase({ menuGroups = [] }) {
         "& .pro-sidebar-inner": {
           background: `${sidebarBg} !important`,
           scrollbarWidth: "thin",
-          scrollbarColor: `#ccc ${sidebarBg}`,
+          scrollbarColor: `var(--scrollbar-thumb) ${sidebarBg}`,
           "&::-webkit-scrollbar": { width: "6px" },
           "&::-webkit-scrollbar-thumb": {
             background: "var(--scrollbar-thumb)",
             borderRadius: "3px",
           },
           boxShadow: isLight
-            ? "2px 0 8px rgba(0,0,0,0.07)"
-            : "2px 0 10px rgba(0,0,0,0.25)",
+            ? `2px 0 8px ${transparentBlack(0.07)}`
+            : `2px 0 10px ${transparentBlack(0.25)}`,
           transition: "all 0.3s ease",
         },
         "& .pro-icon-wrapper": {
@@ -134,23 +139,21 @@ export function SidebarBase({ menuGroups = [] }) {
           transition: "all 0.3s ease !important",
         },
         "& .pro-inner-item:hover": {
-          backgroundColor: isLight
-            ? "rgba(100,100,100,0.06) !important"
-            : "rgba(255,255,255,0.06) !important",
-          color: isLight
-            ? "#111 !important"
-            : colors.blueAccent[300] + " !important",
+          backgroundColor: `${
+            isLight ? alpha(textPrimary, 0.06) : transparentWhite(0.06)
+          } !important`,
+          color: `${(isLight ? textPrimary : accentMuted)} !important`,
           borderRadius: "18px",
         },
         "& .pro-menu-item.active": {
-          color: "#4377fe !important",
+          color: `${accentMain} !important`,
           backgroundColor: isLight
-            ? "rgba(50,50,50,0.09) !important"
-            : colors.blueAccent[900] + "40 !important",
+            ? `${alpha(textPrimary, 0.09)} !important`
+            : `${alpha(colors.blueAccent[900], 0.25)} !important`,
           borderRadius: "18px",
         },
         "& .pro-menu-item.active .pro-icon-wrapper": {
-          color: "#4377fe !important",
+          color: `${accentMain} !important`,
         },
       }}
       className="custom-scrollbar"
@@ -182,12 +185,12 @@ export function SidebarBase({ menuGroups = [] }) {
                     onClick={togglePin}
                     size="small"
                     sx={{
-                      color: isPinned ? "#4377fe" : textSecondary,
+                      color: isPinned ? accentMain : textSecondary,
                       "&:hover": {
-                        color: "#4377fe",
+                        color: accentMain,
                         backgroundColor: isLight
-                          ? "rgba(0,0,0,0.04)"
-                          : "rgba(255,255,255,0.10)",
+                          ? transparentBlack(0.04)
+                          : transparentWhite(0.1),
                       },
                       transition: "all 0.2s ease",
                     }}
@@ -210,7 +213,7 @@ export function SidebarBase({ menuGroups = [] }) {
                   height: 60,
                   borderRadius: "50%",
                   marginBottom: 8,
-                  background: isLight ? "#c7d8ff" : colors.blueAccent[600],
+                  background: isLight ? alpha(accentMain, 0.25) : colors.blueAccent[600],
                   border: `2px solid ${borderColor}`,
                 }}
               />
@@ -254,7 +257,7 @@ export function SidebarBase({ menuGroups = [] }) {
                 {group.heading && !isCollapsed && (
                   <Typography
                     variant="h6"
-                    color={isLight ? "#111" : colors.grey[100]}
+                    color={isLight ? textPrimary : colors.grey[100]}
                     sx={{
                       m: "15px 0 5px 20px",
                       fontSize: "1rem",

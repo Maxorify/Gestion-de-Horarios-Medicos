@@ -1,6 +1,6 @@
 import { ThemeProvider, CssBaseline } from "@mui/material";
 
-import { createContext, useState, useMemo } from "react";
+import { createContext, useState, useMemo, useEffect } from "react";
 import { createTheme } from "@mui/material/styles";
 
 // color design tokens export
@@ -202,6 +202,17 @@ export const ColorModeContext = createContext({
 
 export const useMode = () => {
   const [mode, setMode] = useState("dark");
+
+  useEffect(() => {
+    const target = document.body || document.documentElement;
+    if (target) {
+      target.setAttribute("data-theme", mode);
+      return () => {
+        target.removeAttribute("data-theme");
+      };
+    }
+    return undefined;
+  }, [mode]);
 
   const colorMode = useMemo(
     () => ({
