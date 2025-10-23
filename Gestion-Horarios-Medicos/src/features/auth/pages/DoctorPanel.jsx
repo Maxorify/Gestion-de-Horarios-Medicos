@@ -1,10 +1,13 @@
+import { Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 
+import Sidebar from "@/components/Sidebar";
+import Topbar from "@/components/Topbar";
 import { useUser } from "@/hooks/useUser";
 import { listarCitasDoctorConfirmadas } from "@/services/citas";
 
-export default function DoctorPanel() {
+function DoctorDashboardContent() {
   const { user } = useUser();
   const [citas, setCitas] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -75,6 +78,23 @@ export default function DoctorPanel() {
           )}
         </ul>
       )}
+    </div>
+  );
+}
+
+export default function DoctorPanel() {
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <div style={{ position: "sticky", top: 0, zIndex: 1000 }}>
+          <Topbar />
+        </div>
+        <main className="p-4 flex-1 overflow-auto space-y-6">
+          <DoctorDashboardContent />
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
