@@ -15,6 +15,7 @@ import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { useState } from "react";
 import { registrarPacienteRPC } from "@/services/pacientes";
+import { useUser } from "@/hooks/useUser";
 import { cleanRutValue, formatRut, isValidRut } from "@/utils/rut";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -26,6 +27,7 @@ dayjs.extend(timezone);
 
 export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
   const theme = useTheme();
+  const { user } = useUser();
 
   const [formData, setFormData] = useState({
     nombres: "",
@@ -141,6 +143,10 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
 
   const handleSubmit = async () => {
     if (submitting || !isFormValid) return;
+    if (!user?.usuario_id) {
+      alert("No hay sesión local válida. Inicia sesión nuevamente.");
+      return;
+    }
 
     const nombres = formData.nombres.trim();
     const apellidos = formData.apellidos.trim();
@@ -182,6 +188,7 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
         persona: personaPayload,
         paciente: pacientePayload,
         idemKey,
+        usuarioIdLegacy: user.usuario_id,
       });
 
       onSuccess?.(nuevoPacienteId);

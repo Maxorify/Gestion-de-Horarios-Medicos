@@ -72,13 +72,21 @@ export async function listarPacientes() {
  * Requiere: persona.rut y persona.email (la BD valida).
  * Devuelve: paciente_id (number).
  */
-export async function registrarPacienteRPC({ persona, paciente, idemKey }) {
+export async function registrarPacienteRPC({ persona, paciente, idemKey = null, usuarioIdLegacy }) {
+  if (!usuarioIdLegacy) {
+    throw new Error("usuarioIdLegacy requerido para registrar paciente");
+  }
   const { data, error } = await supabase.rpc("registrar_paciente", {
     _persona: persona,
     _paciente: paciente,
-    _idempotency_key: idemKey ?? null,
+    _usuario_id_legacy: usuarioIdLegacy,
+    _idempotency_key: idemKey,
   });
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
+  // La RPC suele devolver el id del paciente, o un JSON.
+  // Mantén el contrato que ya usa la app:
   return data;
 }
 
