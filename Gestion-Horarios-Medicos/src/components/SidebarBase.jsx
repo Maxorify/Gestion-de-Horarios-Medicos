@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { useLocation, useNavigate } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
 

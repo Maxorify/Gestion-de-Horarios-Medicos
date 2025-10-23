@@ -6,12 +6,25 @@ import { SidebarDoctor } from "@/components/SidebarDoctor";
 import Topbar from "@/components/Topbar";
 import { useUser } from "@/hooks/useUser";
 import { listarCitasDoctorConfirmadas } from "@/services/citas";
+import { Box, Typography, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import { tokens } from "@/theme";
 
 function DoctorDashboardContent() {
   const { user } = useUser();
   const [citas, setCitas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+  const isDark = theme.palette.mode === "dark";
+  const surface = isDark ? colors.primary[600] : colors.primary[100];
+  const borderColor = isDark ? colors.primary[700] : colors.grey[300];
+  const headingColor = isDark ? colors.grey[100] : colors.grey[900];
+  const textMuted = isDark ? colors.grey[300] : colors.grey[600];
+  const shadow = isDark
+    ? `0 12px 30px ${alpha(colors.primary[900], 0.55)}`
+    : `0 12px 28px ${alpha(colors.grey[900], 0.08)}`;
 
   useEffect(() => {
     let cancel = false;
@@ -82,45 +95,78 @@ function DoctorDashboardContent() {
   }, [user?.doctor_id]);
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">Citas confirmadas</h2>
-      {loading && <p className="text-sm text-gray-600">Cargando citas...</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Typography variant="h4" sx={{ color: headingColor }}>
+        Citas confirmadas
+      </Typography>
+      {loading && (
+        <Typography variant="body2" sx={{ color: textMuted }}>
+          Cargando citas...
+        </Typography>
+      )}
+      {error && (
+        <Typography variant="body2" color="error">
+          {error}
+        </Typography>
+      )}
       {!loading && !error && (
-        <ul className="space-y-2">
+        <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, display: "flex", flexDirection: "column", gap: 1.5 }}>
           {citas.length === 0 ? (
-            <li className="text-sm text-gray-600">No hay citas confirmadas en el rango seleccionado.</li>
+            <Typography component="li" variant="body2" sx={{ color: textMuted }}>
+              No hay citas confirmadas en el rango seleccionado.
+            </Typography>
           ) : (
             citas.map((cita) => (
-              <li key={cita.cita_id} className="rounded-md border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <p className="font-medium text-gray-900">{cita.paciente_nombre || "Paciente sin nombre"}</p>
-                <p className="text-sm text-gray-600">
+              <Box
+                key={cita.cita_id ?? `${cita.paciente_nombre}-${cita.fecha_hora_inicio_agendada}`}
+                component="li"
+                sx={{
+                  backgroundColor: surface,
+                  border: `1px solid ${borderColor}`,
+                  borderRadius: 2,
+                  px: 3,
+                  py: 2.5,
+                  boxShadow: shadow,
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ color: headingColor, fontWeight: 600 }}>
+                  {cita.paciente_nombre || "Paciente sin nombre"}
+                </Typography>
+                <Typography variant="body2" sx={{ color: textMuted }}>
                   {dayjs(cita.fecha_hora_inicio_agendada).format("DD/MM/YYYY HH:mm")} - {" "}
                   {dayjs(cita.fecha_hora_fin_agendada).format("HH:mm")}
-                </p>
-                {cita.paciente_rut && <p className="text-sm text-gray-500">RUT: {cita.paciente_rut}</p>}
-              </li>
+                </Typography>
+                {cita.paciente_rut && (
+                  <Typography variant="body2" sx={{ color: textMuted }}>
+                    RUT: {cita.paciente_rut}
+                  </Typography>
+                )}
+              </Box>
             ))
           )}
-        </ul>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
 export default function DoctorPanel() {
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+  const layoutBg = theme.palette.mode === "dark" ? colors.primary[700] : colors.primary[50] ?? "#f5f8ff";
+
   return (
-    <div className="min-h-screen flex">
+    <Box sx={{ minHeight: "100vh", display: "flex", backgroundColor: layoutBg }}>
       <SidebarDoctor />
-      <div className="flex-1 flex flex-col min-w-0">
-        <div style={{ position: "sticky", top: 0, zIndex: 1000 }}>
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <Box sx={{ position: "sticky", top: 0, zIndex: 1000 }}>
           <Topbar />
-        </div>
-        <main className="p-4 flex-1 overflow-auto space-y-6">
+        </Box>
+        <Box component="main" sx={{ p: { xs: 2, md: 4 }, flex: 1, overflow: "auto", display: "flex", flexDirection: "column", gap: 3 }}>
           <DoctorDashboardContent />
           <Outlet />
-        </main>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }
