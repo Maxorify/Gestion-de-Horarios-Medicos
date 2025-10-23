@@ -1,20 +1,11 @@
-// SidebarAdmin.jsx
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
+
 import { tokens } from "../theme";
 import { useUser } from "@/hooks/useUser";
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
-import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
-import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
-import AssignmentIndOutlinedIcon from "@mui/icons-material/AssignmentIndOutlined";
-import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
-import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 
@@ -23,7 +14,7 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
   const navigate = useNavigate();
 
   const handleClick = () => {
-    navigate(to);
+    if (to) navigate(to);
   };
 
   const isLight = theme.palette.mode === "light";
@@ -59,215 +50,43 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
   );
 };
 
-const Sidebar = () => {
+export function SidebarBase({ menuGroups = [] }) {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isPinned, setIsPinned] = useState(false);
   const { pathname } = useLocation();
+
   const resolveIsActive = (to, { matchChildren = true } = {}) =>
     matchChildren ? pathname === to || pathname.startsWith(`${to}/`) : pathname === to;
 
   const { user } = useUser();
   const persona = user?.persona ?? null;
-  const role = (user?.rol ?? "secretaria").toLowerCase();
-  const isAdmin = role === "administrador";
-  const displayName = persona
-    ? [persona.nombre, persona.apellido_paterno, persona.apellido_materno]
-        .filter(Boolean)
-        .join(" ")
-    : user?.email ?? "Usuario";
-  const displayEmail = persona?.email ?? user?.email ?? "";
-  const avatarSeed = persona?.rut || displayEmail || displayName || "usuario";
 
-  const adminMenuGroups = [
-    {
-      heading: null,
-      items: [
-        {
-          title: "Dashboard",
-          to: "/admin",
-          icon: <HomeOutlinedIcon />,
-          matchChildren: false,
-        },
-      ],
-    },
-    {
-      heading: "Gestión Médica",
-      items: [
-        { title: "Doctores", to: "/admin/doctores", icon: <GroupOutlinedIcon /> },
-        {
-          title: "Asignar Horarios",
-          to: "/admin/asignar-horarios",
-          icon: <ScheduleOutlinedIcon />,
-        },
-        {
-          title: "Registro de Asistencia",
-          to: "/admin/asistencias",
-          icon: <FactCheckOutlinedIcon />,
-        },
-      ],
-    },
-    {
-      heading: "Pacientes y citas",
-      items: [
-        {
-          title: "Pacientes",
-          to: "/admin/pacientes",
-          icon: <AssignmentIndOutlinedIcon />,
-        },
-        {
-          title: "Agendar Consulta",
-          to: "/admin/agendar",
-          icon: <CalendarMonthOutlinedIcon />,
-        },
-        {
-          title: "Mis Citas",
-          to: "/admin/mis-citas",
-          icon: <CalendarMonthOutlinedIcon />,
-        },
-        {
-          title: "Check-in",
-          to: "/secretaria/checkin",
-          icon: <FactCheckOutlinedIcon />,
-        },
-      ],
-    },
-    {
-      heading: "Reportes y estadísticas",
-      items: [
-        {
-          title: "Reportes de Asistencia",
-          to: "/admin/reportes-asistencia",
-          icon: <AssessmentOutlinedIcon />,
-        },
-      ],
-    },
-    {
-      heading: "Configuración",
-      items: [
-        {
-          title: "Usuarios del sistema (Próximamente)",
-          to: "/admin/usuarios",
-          icon: <SettingsOutlinedIcon />,
-        },
-        {
-          title: "Ajustes del sistema",
-          to: "/admin/configuracion",
-          icon: <SettingsOutlinedIcon />,
-        },
-        {
-          title: "Soporte y Ayuda",
-          to: "/admin/soporte",
-          icon: <HelpOutlineOutlinedIcon />,
-        },
-      ],
-    },
-  ];
+  const profile = useMemo(() => {
+    const displayName = persona
+      ? [persona.nombre, persona.apellido_paterno, persona.apellido_materno]
+          .filter(Boolean)
+          .join(" ")
+      : user?.email ?? "Usuario";
 
-  const secretariaMenuGroups = [
-    {
-      heading: null,
-      items: [
-        {
-          title: "Dashboard",
-          to: "/sec",
-          icon: <HomeOutlinedIcon />,
-          matchChildren: false,
-        },
-      ],
-    },
-    {
-      heading: "Gestión Médica",
-      items: [
-        { title: "Doctores", to: "/sec/doctores", icon: <GroupOutlinedIcon /> },
-        {
-          title: "Asignar Horarios",
-          to: "/sec/asignar-horarios",
-          icon: <ScheduleOutlinedIcon />,
-        },
-        {
-          title: "Marcar asistencia",
-          to: "/sec/asistencias",
-          icon: <FactCheckOutlinedIcon />,
-        },
-      ],
-    },
-    {
-      heading: "Pacientes y citas",
-      items: [
-        {
-          title: "Agendar Consulta",
-          to: "/sec/agendar",
-          icon: <CalendarMonthOutlinedIcon />,
-        },
-        {
-          title: "Mis Citas",
-          to: "/sec/mis-citas",
-          icon: <CalendarMonthOutlinedIcon />,
-        },
-        {
-          title: "Pacientes",
-          to: "/sec/pacientes",
-          icon: <AssignmentIndOutlinedIcon />,
-        },
-        {
-          title: "Check-in",
-          to: "/secretaria/checkin",
-          icon: <FactCheckOutlinedIcon />,
-        },
-      ],
-    },
-    {
-      heading: "Soporte",
-      items: [
-        {
-          title: "Reportes de Asistencia",
-          to: "/sec/reportes-asistencia",
-          icon: <AssessmentOutlinedIcon />,
-        },
-        {
-          title: "Ajustes del sistema",
-          to: "/sec/configuracion",
-          icon: <SettingsOutlinedIcon />,
-        },
-        {
-          title: "Soporte y Ayuda",
-          to: "/sec/soporte",
-          icon: <HelpOutlineOutlinedIcon />,
-        },
-      ],
-    },
-  ];
+    const displayEmail = persona?.email ?? user?.email ?? "";
 
-  const doctorMenuGroups = [
-    {
-      heading: null,
-      items: [
-        {
-          title: "Panel del doctor",
-          to: "/doctor",
-          icon: <HomeOutlinedIcon />,
-          matchChildren: false,
-        },
-      ],
-    },
-  ];
+    const avatarSeed = persona?.rut || displayEmail || displayName || "usuario";
 
-  const menuGroups = isAdmin
-    ? adminMenuGroups
-    : role === "doctor"
-    ? doctorMenuGroups
-    : secretariaMenuGroups;
+    return { displayName, displayEmail, avatarSeed };
+  }, [persona, user?.email]);
 
   const handleMouseEnter = () => {
     if (!isPinned) setIsCollapsed(false);
   };
+
   const handleMouseLeave = () => {
     if (!isPinned) setIsCollapsed(true);
   };
+
   const togglePin = () => {
-    setIsPinned((p) => !p);
+    setIsPinned((pinned) => !pinned);
     setIsCollapsed((prev) => (isPinned ? true : false));
   };
 
@@ -383,7 +202,7 @@ const Sidebar = () => {
               </Box>
               <img
                 src={`https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(
-                  avatarSeed
+                  profile.avatarSeed
                 )}`}
                 alt="avatar"
                 style={{
@@ -401,16 +220,16 @@ const Sidebar = () => {
                 color={textPrimary}
                 align="center"
               >
-                {displayName}
+                {profile.displayName}
               </Typography>
-              {displayEmail && (
+              {profile.displayEmail && (
                 <Typography
                   variant="caption"
                   color={textSecondary}
                   align="center"
                   sx={{ fontSize: 12 }}
                 >
-                  {displayEmail}
+                  {profile.displayEmail}
                 </Typography>
               )}
             </Box>
@@ -447,13 +266,13 @@ const Sidebar = () => {
                 )}
                 {group.items.map((item) => (
                   <Item
-                    key={item.to}
+                    key={item.to ?? item.title}
                     title={item.title}
                     to={item.to}
                     icon={item.icon}
-                    isActive={resolveIsActive(item.to, {
+                    isActive={item.to ? resolveIsActive(item.to, {
                       matchChildren: item.matchChildren ?? true,
-                    })}
+                    }) : false}
                     isCollapsed={isCollapsed}
                     colors={colors}
                   />
@@ -465,6 +284,6 @@ const Sidebar = () => {
       </ProSidebar>
     </Box>
   );
-};
+}
 
-export default Sidebar;
+export default SidebarBase;

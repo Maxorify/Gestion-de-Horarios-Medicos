@@ -2,7 +2,7 @@ import { Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 
-import Sidebar from "@/components/Sidebar";
+import { SidebarDoctor } from "@/components/SidebarDoctor";
 import Topbar from "@/components/Topbar";
 import { useUser } from "@/hooks/useUser";
 import { listarCitasDoctorConfirmadas } from "@/services/citas";
@@ -111,7 +111,7 @@ function DoctorDashboardContent() {
 export default function DoctorPanel() {
   return (
     <div className="min-h-screen flex">
-      <Sidebar />
+      <SidebarDoctor />
       <div className="flex-1 flex flex-col min-w-0">
         <div style={{ position: "sticky", top: 0, zIndex: 1000 }}>
           <Topbar />

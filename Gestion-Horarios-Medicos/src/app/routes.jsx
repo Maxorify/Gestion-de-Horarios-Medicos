@@ -42,16 +42,11 @@ const adminChildren = [
 
 const secretariaChildren = [
   { index: true, element: <SecretariaPanel /> },
-  { path: "doctores", element: <DoctorPanel /> },
-  { path: "asignar-horarios", element: <div>Asignar Horarios (placeholder)</div> },
-  { path: "asistencias", element: <MarcarAsistencia /> },
+  { path: "check-in", element: <CheckInPacientes /> },
   { path: "agendar", element: <AgendarConsulta /> },
+  { path: "asistencias", element: <MarcarAsistencia /> },
   { path: "mis-citas", element: <MisCitas /> },
-  { path: "reportes-asistencia", element: <div>Reportes de Asistencia (placeholder)</div> },
-  { path: "configuracion", element: <div>Ajustes del sistema (placeholder)</div> },
-  { path: "soporte", element: <div>Soporte y Ayuda (placeholder)</div> },
-  { path: "pacientes", element: <div>Pacientes (placeholder)</div> },
-  { path: "*", element: <Navigate to="/sec" replace /> },
+  { path: "*", element: <Navigate to="/secretaria" replace /> },
 ];
 
 export const router = createBrowserRouter(
@@ -69,25 +64,13 @@ export const router = createBrowserRouter(
       children: adminChildren,
     },
     {
-      path: "/sec",
-      element: (
-        <RequireRole roles={["secretaria"]}>
-          <SecretariaLayout />
-        </RequireRole>
-      ),
-      children: secretariaChildren,
-    },
-    {
       path: "/secretaria",
       element: (
         <RequireRole roles={["secretaria", "administrador"]}>
           <SecretariaLayout />
         </RequireRole>
       ),
-      children: [
-        { index: true, element: <Navigate to="/secretaria/checkin" replace /> },
-        { path: "checkin", element: <CheckInPacientes /> },
-      ],
+      children: secretariaChildren,
     },
     {
       path: "/doctor",

@@ -41,7 +41,7 @@ function Login() {
       role === "administrador"
         ? "/admin"
         : role === "secretaria"
-        ? "/sec"
+        ? "/secretaria"
         : "/doctor";
 
     navigate(destination, { replace: true });

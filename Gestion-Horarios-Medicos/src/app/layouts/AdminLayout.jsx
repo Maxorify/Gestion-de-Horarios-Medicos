@@ -1,6 +1,6 @@
 // src/app/layouts/AdminLayout.jsx
 import { Outlet } from "react-router-dom";
-import Sidebar from "@/components/Sidebar";
+import { SidebarAdmin } from "@/components/SidebarAdmin";
 import Topbar from "@/components/Topbar";
 
 // Cambia a true si tu <Sidebar /> es position: fixed
@@ -25,7 +25,7 @@ export default function AdminLayout() {
       {/* Sidebar a la izquierda */}
       {SIDEBAR_IS_FIXED ? (
         <>
-          <Sidebar />
+          <SidebarAdmin />
           <div style={contentWrapperStyle}>
             <div style={{ position: "sticky", top: 0, zIndex: 1000 }}>
               <Topbar />
@@ -37,7 +37,7 @@ export default function AdminLayout() {
         </>
       ) : (
         <div style={contentWrapperStyle}>
-          <Sidebar />
+          <SidebarAdmin />
           <div
             style={{
               flex: 1,
