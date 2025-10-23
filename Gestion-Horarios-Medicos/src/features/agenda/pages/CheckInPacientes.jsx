@@ -30,7 +30,20 @@ export default function CheckInPacientes() {
         estados: ["programada", "pendiente"],
         search: null
       });
-      setRows(Array.isArray(data) ? data : []);
+      const rowsForGrid = (Array.isArray(data) ? data : []).map((r, i) => ({
+        id: r.cita_id ?? r.id ?? i,
+        cita_id: r.cita_id ?? r.id ?? i,
+        fecha_hora_inicio_agendada: r.fecha_hora_inicio_agendada ?? r.fecha_hora_inicio ?? r.inicio,
+        fecha_hora_fin_agendada: r.fecha_hora_fin_agendada ?? r.fecha_hora_fin ?? r.fin,
+        estado: r.estado ?? "",
+        monto_pagado: r.monto_pagado ?? 0,
+        paciente_nombre: r.paciente_nombre ?? r.paciente ?? "",
+        paciente_rut: r.paciente_rut ?? r.rut ?? "",
+        paciente_telefono_principal: r.paciente_telefono_principal ?? "",
+        paciente_telefono_secundario: r.paciente_telefono_secundario ?? "",
+        doctor_nombre: r.doctor_nombre ?? r.doctor ?? "",
+      }));
+      setRows(rowsForGrid);
     } catch (e) {
       setSnack({ open: true, message: e?.message || "Error listando citas", severity: "error" });
     } finally {
@@ -105,16 +118,7 @@ export default function CheckInPacientes() {
         <div style={{ width: "100%" }}>
           <DataGrid
             autoHeight
-            rows={(rows || []).map((r, i) => ({
-              id: r.cita_id ?? r.id ?? i,
-              cita_id: r.cita_id ?? r.id ?? i,
-              fecha_hora_inicio_agendada: r.fecha_hora_inicio_agendada ?? r.fecha_hora_inicio ?? r.inicio,
-              fecha_hora_fin_agendada: r.fecha_hora_fin_agendada ?? r.fecha_hora_fin ?? r.fin,
-              paciente_nombre: r.paciente_nombre ?? r.paciente ?? "",
-              paciente_rut: r.paciente_rut ?? r.rut ?? "",
-              doctor_nombre: r.doctor_nombre ?? r.doctor ?? "",
-              estado: r.estado ?? "",
-            }))}
+            rows={rows}
             columns={cols}
             loading={loading}
             pageSizeOptions={[5, 10, 25]}
