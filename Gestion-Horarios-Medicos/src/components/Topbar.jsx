@@ -26,10 +26,11 @@ import { useUser } from "@/hooks/useUser";
 import { logout as logoutLocal } from "@/services/authLocal";
 
 
-const Topbar = ({ onThemeToggle }) => {
+const Topbar = () => {
   const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
-  const colorMode = useContext(ColorModeContext);
+  const { mode, toggleColorMode } = useContext(ColorModeContext);
+  const colors = tokens(mode);
+  const isDark = mode === "dark";
 
   // Menú desplegable
   const [anchorEl, setAnchorEl] = useState(null);
@@ -70,11 +71,7 @@ const Topbar = ({ onThemeToggle }) => {
 
   // Función para manejar el cambio de tema
   const handleThemeToggle = () => {
-    if (onThemeToggle) {
-      onThemeToggle(); // Llama la función que viene como prop
-    } else {
-      colorMode.toggleColorMode(); // Fallback al método original
-    }
+    toggleColorMode();
   };
 
   // Estilos dinámicos mejorados
@@ -84,17 +81,17 @@ const Topbar = ({ onThemeToggle }) => {
     alignItems: "center",
     padding: "12px 24px",
     background:
-      theme.palette.mode === "dark"
+      isDark
         ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
         : "rgba(255, 255, 255, 0.95)",
     backdropFilter: "blur(15px)",
     borderBottom:
-      theme.palette.mode === "dark"
+      isDark
         ? `1px solid ${colors.grey[700]}`
         : `1px solid rgba(0, 0, 0, 0.08)`,
     // Efecto de sombra difuminada elegante
     boxShadow:
-      theme.palette.mode === "dark"
+      isDark
         ? `
         0 4px 20px rgba(0, 0, 0, 0.4),
         0 1px 0 rgba(255, 255, 255, 0.05) inset,
@@ -118,7 +115,7 @@ const Topbar = ({ onThemeToggle }) => {
       right: 0,
       height: "20px",
       background:
-        theme.palette.mode === "dark"
+        isDark
           ? `linear-gradient(to bottom, rgba(0, 0, 0, 0.1), transparent)`
           : `linear-gradient(to bottom, rgba(0, 0, 0, 0.02), transparent)`,
       pointerEvents: "none",
@@ -129,12 +126,12 @@ const Topbar = ({ onThemeToggle }) => {
     display: "flex",
     alignItems: "center",
     backgroundColor:
-      theme.palette.mode === "dark"
+      isDark
         ? "rgba(255, 255, 255, 0.08)"
         : "rgba(255, 255, 255, 0.9)",
     borderRadius: "28px",
     border:
-      theme.palette.mode === "dark"
+      isDark
         ? `1px solid rgba(255, 255, 255, 0.1)`
         : `1px solid rgba(0, 0, 0, 0.08)`,
     padding: "4px 16px",
@@ -142,7 +139,7 @@ const Topbar = ({ onThemeToggle }) => {
     maxWidth: "400px",
     transition: "all 0.3s ease",
     boxShadow:
-      theme.palette.mode === "dark"
+      isDark
         ? `
         inset 0 2px 4px rgba(0, 0, 0, 0.3),
         0 1px 0 rgba(255, 255, 255, 0.05)
@@ -163,20 +160,20 @@ const Topbar = ({ onThemeToggle }) => {
 
   const iconButtonStyle = {
     backgroundColor:
-      theme.palette.mode === "dark"
+      isDark
         ? "rgba(255, 255, 255, 0.05)"
         : "rgba(0, 0, 0, 0.04)",
-    color: theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[700],
+    color: isDark ? colors.grey[100] : colors.grey[700],
     margin: "0 4px",
     width: "44px",
     height: "44px",
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     border:
-      theme.palette.mode === "dark"
+      isDark
         ? "1px solid rgba(255, 255, 255, 0.08)"
         : "1px solid rgba(0, 0, 0, 0.06)",
     boxShadow:
-      theme.palette.mode === "dark"
+      isDark
         ? `
         0 2px 8px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.1)
@@ -202,11 +199,11 @@ const Topbar = ({ onThemeToggle }) => {
     width: "40px",
     height: "40px",
     border: `2px solid ${
-      theme.palette.mode === "dark" ? colors.grey[600] : "rgba(0, 0, 0, 0.1)"
+      isDark ? colors.grey[600] : "rgba(0, 0, 0, 0.1)"
     }`,
     transition: "all 0.3s ease",
     boxShadow:
-      theme.palette.mode === "dark"
+      isDark
         ? "0 4px 12px rgba(0, 0, 0, 0.3)"
         : "0 4px 12px rgba(0, 0, 0, 0.1)",
     "&:hover": {
@@ -223,7 +220,7 @@ const Topbar = ({ onThemeToggle }) => {
         <SearchIcon
           sx={{
             color:
-              theme.palette.mode === "dark"
+              isDark
                 ? colors.grey[300]
                 : colors.grey[600],
             marginRight: "8px",
@@ -233,11 +230,11 @@ const Topbar = ({ onThemeToggle }) => {
           sx={{
             ml: 1,
             flex: 1,
-            color: theme.palette.mode === "dark" ? colors.grey[100] : "#000000",
+            color: isDark ? colors.grey[100] : "#000000",
             fontWeight: 500,
             "& ::placeholder": {
               color:
-                theme.palette.mode === "dark" ? colors.grey[400] : "#666666",
+                isDark ? colors.grey[400] : "#666666",
               opacity: 1,
             },
           }}
@@ -250,11 +247,11 @@ const Topbar = ({ onThemeToggle }) => {
         {/* Botón de tema */}
         <Tooltip
           title={`Cambiar a modo ${
-            theme.palette.mode === "dark" ? "claro" : "oscuro"
+            isDark ? "claro" : "oscuro"
           }`}
         >
           <IconButton onClick={handleThemeToggle} sx={iconButtonStyle}>
-            {theme.palette.mode === "dark" ? (
+            {isDark ? (
               <LightModeOutlinedIcon sx={{ color: "#000" }} />
             ) : (
               <DarkModeOutlinedIcon sx={{ color: "#000" }} />
@@ -296,13 +293,13 @@ const Topbar = ({ onThemeToggle }) => {
           sx={{
             mx: 2,
             borderColor:
-              theme.palette.mode === "dark"
+              isDark
                 ? "rgba(255, 255, 255, 0.15)"
                 : "rgba(0, 0, 0, 0.1)",
             height: "32px",
             alignSelf: "center",
             boxShadow:
-              theme.palette.mode === "dark"
+              isDark
                 ? "1px 0 0 rgba(255, 255, 255, 0.05)"
                 : "1px 0 0 rgba(255, 255, 255, 0.5)",
           }}
@@ -321,11 +318,11 @@ const Topbar = ({ onThemeToggle }) => {
               variant="subtitle2"
               sx={{
                 color:
-                  theme.palette.mode === "dark" ? colors.grey[100] : "#000000",
+                  isDark ? colors.grey[100] : "#000000",
                 fontWeight: 600,
                 lineHeight: 1.2,
                 textShadow:
-                  theme.palette.mode === "dark"
+                  isDark
                     ? "0 1px 2px rgba(0, 0, 0, 0.3)"
                     : "0 1px 2px rgba(255, 255, 255, 0.8)",
               }}
@@ -336,7 +333,7 @@ const Topbar = ({ onThemeToggle }) => {
               variant="caption"
               sx={{
                 color:
-                  theme.palette.mode === "dark" ? colors.grey[300] : "#666666",
+                  isDark ? colors.grey[300] : "#666666",
                 fontSize: "0.75rem",
                 fontWeight: 500,
               }}
@@ -384,14 +381,14 @@ const Topbar = ({ onThemeToggle }) => {
             sx: {
               mt: 1,
               backgroundColor:
-                theme.palette.mode === "dark" ? colors.primary[400] : "#ffffff",
+                isDark ? colors.primary[400] : "#ffffff",
               borderRadius: "16px",
               border:
-                theme.palette.mode === "dark"
+                isDark
                   ? `1px solid ${colors.grey[600]}`
                   : `1px solid rgba(0, 0, 0, 0.08)`,
               boxShadow:
-                theme.palette.mode === "dark"
+                isDark
                   ? `
               0 20px 40px rgba(0, 0, 0, 0.5),
               0 10px 20px rgba(0, 0, 0, 0.3),
@@ -406,7 +403,7 @@ const Topbar = ({ onThemeToggle }) => {
               backdropFilter: "blur(20px)",
               "& .MuiMenuItem-root": {
                 color:
-                  theme.palette.mode === "dark" ? colors.grey[100] : "#000000",
+                  isDark ? colors.grey[100] : "#000000",
                 padding: "12px 20px",
                 borderRadius: "12px",
                 margin: "4px 8px",
@@ -428,7 +425,7 @@ const Topbar = ({ onThemeToggle }) => {
           <Divider
             sx={{
               borderColor:
-                theme.palette.mode === "dark"
+                isDark
                   ? colors.grey[600]
                   : colors.grey[300],
               margin: "8px 16px",

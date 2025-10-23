@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -8,8 +8,9 @@ import { tokens } from "../theme";
 import { useUser } from "@/hooks/useUser";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
+import { alpha as muiAlpha } from "@mui/material/styles";
 
-const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
+const Item = ({ title, to, icon, isActive, isCollapsed }) => {
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -17,10 +18,13 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
     if (to) navigate(to);
   };
 
-  const isLight = theme.palette.mode === "light";
-  const itemColor = isLight ? "#111" : colors.grey[100];
-  const activeColor = isLight ? "#4377fe" : colors.blueAccent[400];
-  const currentColor = isActive ? activeColor : itemColor;
+  const isDark = theme.palette.mode === "dark";
+  const accent = theme.palette.primary.main;
+  const textPrimary = theme.palette.text.primary;
+  const textSecondary = theme.palette.text.secondary;
+  const hoverBg = muiAlpha(accent, isDark ? 0.2 : 0.12);
+  const activeBg = muiAlpha(accent, isDark ? 0.28 : 0.18);
+  const currentColor = isActive ? accent : textPrimary;
 
   return (
     <MenuItem
@@ -28,7 +32,7 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
       style={{
         color: currentColor,
         transition: "color 0.3s ease",
-        fontWeight: isActive ? "bold" : "normal",
+        fontWeight: isActive ? "600" : "500",
         borderRadius: "18px",
         margin: isCollapsed ? "8px 0" : "3px 0",
         padding: isCollapsed ? "2px 0" : "0",
@@ -37,11 +41,16 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
       icon={icon}
       sx={{
         "&:hover": {
-          backgroundColor: isLight
-            ? "rgba(100,100,100,0.06)"
-            : "rgba(255,255,255,0.06)",
-          color: isLight ? "#111" : colors.blueAccent[300],
+          backgroundColor: `${hoverBg} !important`,
+          color: `${textPrimary} !important`,
           borderRadius: "18px",
+        },
+        "&.active": {
+          backgroundColor: `${activeBg} !important`,
+          color: `${accent} !important`,
+        },
+        "& .pro-item-content": {
+          color: textSecondary,
         },
       }}
     >
@@ -52,7 +61,8 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
 
 export function SidebarBase({ menuGroups = [] }) {
   const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
+  const mode = theme.palette.mode;
+  const colors = tokens(mode);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isPinned, setIsPinned] = useState(false);
   const { pathname } = useLocation();
@@ -90,19 +100,23 @@ export function SidebarBase({ menuGroups = [] }) {
     setIsCollapsed((prev) => (isPinned ? true : false));
   };
 
-  const isLight = theme.palette.mode === "light";
-  const sidebarBg = isLight ? "#fafafa" : colors.primary[400];
-  const textPrimary = isLight ? "#111" : colors.grey[100];
-  const textSecondary = isLight ? "#222" : colors.grey[300];
-  const borderColor = isLight ? "#ddd" : colors.grey[700];
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty(
-      "--scrollbar-thumb",
-      isLight ? "#ccc" : colors.grey[600]
-    );
-  }, [theme.palette.mode, colors, isLight]);
+  const isDark = mode === "dark";
+  const sidebarBg = theme.palette.background.paper;
+  const textPrimary = theme.palette.text.primary;
+  const textSecondary = theme.palette.text.secondary;
+  const borderColor = theme.palette.divider;
+  const hoverBg = muiAlpha(theme.palette.primary.main, isDark ? 0.18 : 0.1);
+  const activeColor = theme.palette.primary.main;
+  const activeBg = muiAlpha(activeColor, isDark ? 0.25 : 0.18);
+  const shadow = isDark
+    ? "2px 0 14px rgba(3,7,18,0.45)"
+    : "2px 0 14px rgba(15,23,42,0.08)";
+  const pinActiveColor = theme.palette.primary.main;
+  const pinHoverBg = muiAlpha(pinActiveColor, isDark ? 0.24 : 0.12);
+  const avatarBg = isDark ? colors.blueAccent[700] : colors.blueAccent[100];
+  const groupHeadingColor = isDark
+    ? colors.grey[100]
+    : theme.palette.text.primary;
 
   return (
     <Box
@@ -113,15 +127,13 @@ export function SidebarBase({ menuGroups = [] }) {
         "& .pro-sidebar-inner": {
           background: `${sidebarBg} !important`,
           scrollbarWidth: "thin",
-          scrollbarColor: `#ccc ${sidebarBg}`,
+          scrollbarColor: `${theme.palette.divider} ${sidebarBg}`,
           "&::-webkit-scrollbar": { width: "6px" },
           "&::-webkit-scrollbar-thumb": {
             background: "var(--scrollbar-thumb)",
             borderRadius: "3px",
           },
-          boxShadow: isLight
-            ? "2px 0 8px rgba(0,0,0,0.07)"
-            : "2px 0 10px rgba(0,0,0,0.25)",
+          boxShadow: shadow,
           transition: "all 0.3s ease",
         },
         "& .pro-icon-wrapper": {
@@ -134,23 +146,17 @@ export function SidebarBase({ menuGroups = [] }) {
           transition: "all 0.3s ease !important",
         },
         "& .pro-inner-item:hover": {
-          backgroundColor: isLight
-            ? "rgba(100,100,100,0.06) !important"
-            : "rgba(255,255,255,0.06) !important",
-          color: isLight
-            ? "#111 !important"
-            : colors.blueAccent[300] + " !important",
+          backgroundColor: `${hoverBg} !important`,
+          color: `${textPrimary} !important`,
           borderRadius: "18px",
         },
         "& .pro-menu-item.active": {
-          color: "#4377fe !important",
-          backgroundColor: isLight
-            ? "rgba(50,50,50,0.09) !important"
-            : colors.blueAccent[900] + "40 !important",
+          color: `${activeColor} !important`,
+          backgroundColor: `${activeBg} !important`,
           borderRadius: "18px",
         },
         "& .pro-menu-item.active .pro-icon-wrapper": {
-          color: "#4377fe !important",
+          color: `${activeColor} !important`,
         },
       }}
       className="custom-scrollbar"
@@ -182,12 +188,10 @@ export function SidebarBase({ menuGroups = [] }) {
                     onClick={togglePin}
                     size="small"
                     sx={{
-                      color: isPinned ? "#4377fe" : textSecondary,
+                      color: isPinned ? pinActiveColor : textSecondary,
                       "&:hover": {
-                        color: "#4377fe",
-                        backgroundColor: isLight
-                          ? "rgba(0,0,0,0.04)"
-                          : "rgba(255,255,255,0.10)",
+                        color: pinActiveColor,
+                        backgroundColor: pinHoverBg,
                       },
                       transition: "all 0.2s ease",
                     }}
@@ -210,7 +214,7 @@ export function SidebarBase({ menuGroups = [] }) {
                   height: 60,
                   borderRadius: "50%",
                   marginBottom: 8,
-                  background: isLight ? "#c7d8ff" : colors.blueAccent[600],
+                  background: avatarBg,
                   border: `2px solid ${borderColor}`,
                 }}
               />
@@ -254,7 +258,7 @@ export function SidebarBase({ menuGroups = [] }) {
                 {group.heading && !isCollapsed && (
                   <Typography
                     variant="h6"
-                    color={isLight ? "#111" : colors.grey[100]}
+                    color={groupHeadingColor}
                     sx={{
                       m: "15px 0 5px 20px",
                       fontSize: "1rem",
@@ -274,7 +278,6 @@ export function SidebarBase({ menuGroups = [] }) {
                       matchChildren: item.matchChildren ?? true,
                     }) : false}
                     isCollapsed={isCollapsed}
-                    colors={colors}
                   />
                 ))}
               </Box>
