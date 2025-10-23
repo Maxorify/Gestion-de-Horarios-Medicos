@@ -1,74 +1,82 @@
 // src/features/auth/pages/AdminPanel.jsx
-import { useTheme } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { tokens } from "@/theme";
 
 export default function AdminPanel() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
 
+  const isDark = theme.palette.mode === "dark";
+  const textPrimary = isDark ? colors.grey[100] : colors.grey[900];
+  const textSecondary = isDark ? colors.grey[300] : colors.grey[600];
+  const surface = isDark ? colors.primary[600] : colors.primary[100];
+  const surfaceBorder = isDark ? colors.primary[700] : colors.grey[300];
+  const shadowColor = isDark
+    ? alpha(colors.primary[900], 0.55)
+    : alpha(colors.grey[900], 0.08);
+
   return (
-    <div
-      style={{
-        padding: "2rem",
-        color: theme.palette.mode === "dark" ? colors.grey[100] : "#111",
-        transition: "color 0.3s ease",
+    <Box
+      sx={{
+        px: { xs: 2, md: 4 },
+        py: { xs: 2, md: 3 },
+        color: textPrimary,
       }}
     >
-      <h1 style={{ fontSize: "2rem", marginBottom: "1rem" }}>
+      <Typography variant="h3" component="h1" sx={{ mb: 2 }}>
         Bienvenido Admin
-      </h1>
-      <p style={{ lineHeight: 1.6 }}>
+      </Typography>
+      <Typography variant="body1" sx={{ lineHeight: 1.7, color: textSecondary }}>
         Este es tu panel principal. Desde aquí vas a poder revisar doctores,
         asignar horarios, generar reportes y gestionar todo el sistema de la
         clínica.
-      </p>
+      </Typography>
 
-      <div
-        style={{
-          marginTop: "2rem",
+      <Box
+        sx={{
+          mt: 4,
           display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+          gap: 2,
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
         }}
       >
-        <div
-          style={{
-            backgroundColor:
-              theme.palette.mode === "dark"
-                ? colors.primary[500]
-                : colors.grey[50],
-            padding: "1.5rem",
-            borderRadius: "12px",
-            boxShadow:
-              theme.palette.mode === "dark"
-                ? "0 2px 12px rgba(0,0,0,0.4)"
-                : "0 2px 12px rgba(0,0,0,0.1)",
-          }}
-        >
-          <h3>Resumen</h3>
-          <p>Usuarios activos: 1,234</p>
-          <p>Sesiones hoy: 567</p>
-          <p>Rendimiento: 98.5%</p>
-        </div>
-
-        <div
-          style={{
-            backgroundColor:
-              theme.palette.mode === "dark"
-                ? colors.primary[500]
-                : colors.grey[50],
-            padding: "1.5rem",
-            borderRadius: "12px",
-            boxShadow:
-              theme.palette.mode === "dark"
-                ? "0 2px 12px rgba(0,0,0,0.4)"
-                : "0 2px 12px rgba(0,0,0,0.1)",
-          }}
-        >
-          <h3>Acciones rápidas</h3>
-          <p>Podés configurar doctores, horarios y reportes desde el menú.</p>
-        </div>
-      </div>
-    </div>
+        {[{
+          title: "Resumen",
+          items: [
+            "Usuarios activos: 1,234",
+            "Sesiones hoy: 567",
+            "Rendimiento: 98.5%",
+          ],
+        },
+        {
+          title: "Acciones rápidas",
+          items: [
+            "Podés configurar doctores, horarios y reportes desde el menú.",
+          ],
+        }].map((card) => (
+          <Box
+            key={card.title}
+            sx={{
+              backgroundColor: surface,
+              border: `1px solid ${surfaceBorder}`,
+              borderRadius: 3,
+              p: 3,
+              boxShadow: `0 18px 45px ${shadowColor}`,
+              backdropFilter: isDark ? "blur(6px)" : "none",
+            }}
+          >
+            <Typography variant="h5" sx={{ mb: 1.5 }}>
+              {card.title}
+            </Typography>
+            {card.items.map((item) => (
+              <Typography key={item} variant="body2" sx={{ color: textSecondary }}>
+                {item}
+              </Typography>
+            ))}
+          </Box>
+        ))}
+      </Box>
+    </Box>
   );
 }
