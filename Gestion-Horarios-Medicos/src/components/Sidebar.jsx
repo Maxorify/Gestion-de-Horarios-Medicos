@@ -126,6 +126,11 @@ const Sidebar = () => {
           to: "/admin/mis-citas",
           icon: <CalendarMonthOutlinedIcon />,
         },
+        {
+          title: "Check-in",
+          to: "/secretaria/checkin",
+          icon: <FactCheckOutlinedIcon />,
+        },
       ],
     },
     {
@@ -205,6 +210,11 @@ const Sidebar = () => {
           title: "Pacientes",
           to: "/sec/pacientes",
           icon: <AssignmentIndOutlinedIcon />,
+        },
+        {
+          title: "Check-in",
+          to: "/secretaria/checkin",
+          icon: <FactCheckOutlinedIcon />,
         },
       ],
     },
