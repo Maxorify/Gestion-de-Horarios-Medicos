@@ -55,7 +55,7 @@ export default function CheckInPacientes() {
     {
       field: "actions", headerName: "Acciones", sortable: false, flex: 1.4, minWidth: 340,
       renderCell: ({ row }) => {
-        const citaId = row.cita_id || row.id;
+        const citaId = row.cita_id ?? row.id;
         return (
           <Stack direction="row" spacing={1}>
             <Button size="small" variant="outlined" onClick={async () => {
@@ -105,7 +105,16 @@ export default function CheckInPacientes() {
         <div style={{ width: "100%" }}>
           <DataGrid
             autoHeight
-            rows={(rows || []).map((r, i) => ({ id: r.cita_id || r.id || i, ...r }))}
+            rows={(rows || []).map((r, i) => ({
+              id: r.cita_id ?? r.id ?? i,
+              cita_id: r.cita_id ?? r.id ?? i,
+              fecha_hora_inicio_agendada: r.fecha_hora_inicio_agendada ?? r.fecha_hora_inicio ?? r.inicio,
+              fecha_hora_fin_agendada: r.fecha_hora_fin_agendada ?? r.fecha_hora_fin ?? r.fin,
+              paciente_nombre: r.paciente_nombre ?? r.paciente ?? "",
+              paciente_rut: r.paciente_rut ?? r.rut ?? "",
+              doctor_nombre: r.doctor_nombre ?? r.doctor ?? "",
+              estado: r.estado ?? "",
+            }))}
             columns={cols}
             loading={loading}
             pageSizeOptions={[5, 10, 25]}
