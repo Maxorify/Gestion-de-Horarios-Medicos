@@ -17,7 +17,7 @@ export default function RequireRole({ roles = [], children }) {
       normalizedRole === "administrador"
         ? "/admin"
         : normalizedRole === "secretaria"
-        ? "/sec"
+        ? "/secretaria"
         : normalizedRole === "doctor"
         ? "/doctor"
         : "/";

@@ -65,7 +65,7 @@ export default function SecretariaPanel() {
         </p>
         <div>
           <Link
-            to="/sec/asistencias"
+            to="/secretaria/check-in"
             className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
           >
             Marcar asistencia por RUT
