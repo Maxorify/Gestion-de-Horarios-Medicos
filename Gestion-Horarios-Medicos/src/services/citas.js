@@ -2,8 +2,7 @@
 import { supabase } from "@/services/supabaseClient";
 
 /**
- * Lista citas para el panel de secretaría (check-in/anular/confirmar).
- * Usa la RPC listar_citas_para_checkin en BD.
+ * Lista citas programadas o pendientes para check-in.
  */
 export async function listarCitasParaCheckin({
   desdeISO,
@@ -25,7 +24,7 @@ export async function listarCitasParaCheckin({
 }
 
 /**
- * Marca llegada (check-in) de una cita.
+ * Marca la llegada (check-in) de un paciente.
  */
 export async function checkinPaciente({ citaId }) {
   if (!citaId) throw new Error("citaId es obligatorio");
@@ -35,7 +34,7 @@ export async function checkinPaciente({ citaId }) {
 }
 
 /**
- * Anula una cita desde programada/pendiente.
+ * Anula una cita programada o pendiente.
  */
 export async function anularCita({ citaId, motivo = null }) {
   if (!citaId) throw new Error("citaId es obligatorio");
@@ -48,8 +47,7 @@ export async function anularCita({ citaId, motivo = null }) {
 }
 
 /**
- * Confirma pago (demo) y pasa la cita a confirmada.
- * Requiere BIGINT usuarioIdLegacy en sesión.
+ * Confirma pago y cambia el estado a "confirmada".
  */
 export async function confirmarCitaSimple({
   citaId,
@@ -69,4 +67,36 @@ export async function confirmarCitaSimple({
   });
   if (error) throw error;
   return data?.[0] ?? null;
+}
+
+/**
+ * Lista las citas confirmadas para un doctor.
+ */
+export async function listarCitasDoctorConfirmadas({
+  doctorId,
+  desdeISO = null,
+  hastaISO = null,
+}) {
+  if (!doctorId) throw new Error("doctorId es obligatorio");
+  const args = { _doctor_id: doctorId };
+  if (desdeISO) args._desde = desdeISO;
+  if (hastaISO) args._hasta = hastaISO;
+  const { data, error } = await supabase.rpc("listar_citas_doctor_confirmadas", args);
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * (Legacy) Lista todas las citas por doctor.
+ * Mantiene compatibilidad con SeleccionarHorarioDoctor.jsx.
+ */
+export async function listarCitasPorDoctor(doctorId) {
+  if (!doctorId) throw new Error("doctorId es obligatorio");
+  const { data, error } = await supabase
+    .from("citas")
+    .select("*")
+    .eq("doctor_id", doctorId)
+    .is("deleted_at", null);
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
 }
