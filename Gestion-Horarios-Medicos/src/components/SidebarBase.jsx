@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import { useLocation, useNavigate } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
 
@@ -14,6 +13,7 @@ import { alpha } from "@mui/material/styles";
 const Item = ({ title, to, icon, isActive, isCollapsed }) => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const colors = tokens(theme.palette.mode);
 
   const handleClick = () => {
     if (to) navigate(to);
@@ -21,6 +21,7 @@ const Item = ({ title, to, icon, isActive, isCollapsed }) => {
 
   const isLight = theme.palette.mode === "light";
   const baseText = theme.palette.text.primary;
+  const textSecondary = theme.palette.text.secondary;
   const activeColor = isLight ? colors.blueAccent[500] : colors.blueAccent[400];
   const hoverBackground = alpha(
     isLight ? baseText : theme.palette.common.white,
@@ -28,6 +29,10 @@ const Item = ({ title, to, icon, isActive, isCollapsed }) => {
   );
   const hoverColor = isLight ? baseText : colors.blueAccent[300];
   const currentColor = isActive ? activeColor : baseText;
+  const activeBg = isLight
+    ? alpha(baseText, 0.09)
+    : alpha(colors.blueAccent[900], 0.25);
+  const accent = colors.blueAccent[500];
 
   return (
     <MenuItem
