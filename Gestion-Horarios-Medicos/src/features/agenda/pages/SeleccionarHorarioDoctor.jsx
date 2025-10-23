@@ -379,7 +379,7 @@ export default function SeleccionarHorarioDoctor() {
 
   const handleReservarSlot = async () => {
     if (!selectedSlot || !selectedDoctor || !pacienteId) return;
-    if (!user?.usuario_id) {
+    if (!user?.usuario_id_legacy) {
       setSnackbar({
         open: true,
         message: "No se pudo identificar al usuario autenticado.",
@@ -396,8 +396,8 @@ export default function SeleccionarHorarioDoctor() {
         inicioISO: selectedSlot.fechaHoraInicio,
         finISO: selectedSlot.fechaHoraFin,
         reprogramarSiExiste: false,
-        // Futuro: si el servicio soporta auditar al actor, propagar:
-        // usuario_id_legacy: user.usuario_id,
+        // Si el servicio soporta auditar al actor en el futuro:
+        // usuario_id_legacy: user.usuario_id_legacy,
       });
 
       setSnackbar({

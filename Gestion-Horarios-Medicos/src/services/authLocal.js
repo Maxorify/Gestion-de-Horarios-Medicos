@@ -93,7 +93,7 @@ export async function login(email, password) {
     error: usuarioError,
   } = await supabase
     .from("usuarios")
-    .select("id, password_hash, rol, estado, persona_id")
+    .select("id, id_legacy, password_hash, rol, estado, persona_id")
     .eq("persona_id", personaId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -112,10 +112,13 @@ export async function login(email, password) {
     throw new Error("Credenciales inválidas o usuario inactivo");
   }
 
+  const usuarioIdLegacy = usuario?.id_legacy ?? null;
+
   if (usuario.estado === "pendiente") {
     return {
       pending: true,
       usuario_id: usuario.id,
+      usuario_id_legacy: usuarioIdLegacy,
       persona_id: personaId,
       rol: usuario.rol,
       email: normalizedEmail,
@@ -127,7 +130,9 @@ export async function login(email, password) {
   }
 
   const payload = {
+    // Mantener ambos identificadores para compatibilidad con RPCs legacy.
     usuario_id: usuario.id,
+    usuario_id_legacy: usuarioIdLegacy,
     persona_id: personaId,
     rol: usuario.rol,
     email: normalizedEmail,
