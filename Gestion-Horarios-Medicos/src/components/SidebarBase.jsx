@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, Typography, useTheme, IconButton, Tooltip } from "@mui/material";
 import { alpha } from "@mui/material/styles";
@@ -9,8 +9,9 @@ import { tokens } from "../theme";
 import { useUser } from "@/hooks/useUser";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
+import { alpha } from "@mui/material/styles";
 
-const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
+const Item = ({ title, to, icon, isActive, isCollapsed }) => {
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -29,7 +30,7 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
       style={{
         color: currentColor,
         transition: "color 0.3s ease",
-        fontWeight: isActive ? "bold" : "normal",
+        fontWeight: isActive ? "600" : "500",
         borderRadius: "18px",
         margin: isCollapsed ? "8px 0" : "3px 0",
         padding: isCollapsed ? "2px 0" : "0",
@@ -44,6 +45,13 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
           color: isLight ? colors.grey[900] : colors.blueAccent[200],
           borderRadius: "18px",
         },
+        "&.active": {
+          backgroundColor: `${activeBg} !important`,
+          color: `${accent} !important`,
+        },
+        "& .pro-item-content": {
+          color: textSecondary,
+        },
       }}
     >
       {!isCollapsed && <Typography>{title}</Typography>}
@@ -53,7 +61,8 @@ const Item = ({ title, to, icon, isActive, isCollapsed, colors }) => {
 
 export function SidebarBase({ menuGroups = [] }) {
   const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
+  const mode = theme.palette.mode;
+  const colors = tokens(mode);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isPinned, setIsPinned] = useState(false);
   const { pathname } = useLocation();
@@ -280,7 +289,6 @@ export function SidebarBase({ menuGroups = [] }) {
                       matchChildren: item.matchChildren ?? true,
                     }) : false}
                     isCollapsed={isCollapsed}
-                    colors={colors}
                   />
                 ))}
               </Box>

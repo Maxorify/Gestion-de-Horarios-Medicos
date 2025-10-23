@@ -1,6 +1,6 @@
 import { ThemeProvider, CssBaseline } from "@mui/material";
 
-import { createContext, useState, useMemo } from "react";
+import { createContext, useState, useMemo, useEffect } from "react";
 import { createTheme } from "@mui/material/styles";
 
 // color design tokens export
@@ -132,10 +132,10 @@ export const themeSettings = (mode) => {
         ? {
             // palette values for dark mode
             primary: {
-              main: colors.primary[500],
+              main: colors.blueAccent[400],
             },
             secondary: {
-              main: colors.greenAccent[500],
+              main: colors.greenAccent[400],
             },
             neutral: {
               dark: colors.grey[700],
@@ -143,7 +143,13 @@ export const themeSettings = (mode) => {
               light: colors.grey[100],
             },
             background: {
-              default: colors.primary[500],
+              default: colors.primary[600],
+              paper: colors.primary[500],
+            },
+            divider: colors.primary[400],
+            text: {
+              primary: colors.grey[100],
+              secondary: colors.grey[400],
             },
           }
         : {
@@ -161,6 +167,12 @@ export const themeSettings = (mode) => {
             },
             background: {
               default: "#fcfcfc",
+              paper: "#ffffff",
+            },
+            divider: colors.grey[300],
+            text: {
+              primary: colors.grey[100],
+              secondary: colors.grey[600],
             },
           }),
     },
@@ -197,18 +209,26 @@ export const themeSettings = (mode) => {
 
 // context for color mode
 export const ColorModeContext = createContext({
+  mode: "light",
   toggleColorMode: () => {},
+  setMode: () => {},
 });
 
 export const useMode = () => {
-  const [mode, setMode] = useState("dark");
+  const [mode, setMode] = useState("light");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", mode);
+  }, [mode]);
 
   const colorMode = useMemo(
     () => ({
+      mode,
+      setMode,
       toggleColorMode: () =>
         setMode((prev) => (prev === "light" ? "dark" : "light")),
     }),
-    []
+    [mode]
   );
 
   const theme = useMemo(() => createTheme(themeSettings(mode)), [mode]);

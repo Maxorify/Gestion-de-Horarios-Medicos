@@ -5,6 +5,10 @@
    ======================================== */
 html, body, #root, .app, .content { height: 100%; width: 100%; }
 .app { display: flex; position: relative; }
+body {
+  background-color: var(--color-bg-app);
+  color: var(--color-text-primary);
+}
 
 /* Transiciones globales */
 * {
@@ -32,18 +36,28 @@ html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.4
   --border-color:#1e2946;
   --shadow-color:rgba(5,8,15,0.65);
 }
+
 [data-theme="light"] {
-  --scrollbar-track:#f2f0f0;
-  --scrollbar-thumb:#a3a3a3;
-  --scrollbar-thumb-hover:#858585;
-  --scrollbar-thumb-active:#4cceac;
-  --scrollbar-bg:#fcfcfc;
-  --bg-primary:#fcfcfc;
-  --bg-secondary:#f2f0f0;
-  --text-primary:#141414;
-  --text-secondary:#525252;
-  --border-color:#e0e0e0;
-  --shadow-color:rgba(0,0,0,0.1);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg-app:#0b1017;
+  --color-bg-surface:#1b2232;
+  --color-bg-subtle:#242c3d;
+  --color-text-primary:#f4f7fb;
+  --color-text-secondary:#b1b9cb;
+  --color-border:#2c3239;
+  --color-shadow:rgba(3,7,18,0.65);
+  --color-accent:#329bff;
+  --color-accent-soft:rgba(50,155,255,0.18);
+  --color-accent-contrast:#0b1017;
+  --color-success:#1edc84;
+  --scrollbar-track:#161c29;
+  --scrollbar-thumb:#2c3239;
+  --scrollbar-thumb-hover:#3d4658;
+  --scrollbar-thumb-active:#1edc84;
 }
 
 /* Transiciones específicas */
@@ -75,9 +89,9 @@ html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.4
 
 /* Fallback scrollbar */
 ::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-track { background:#e0e0e0; border-radius:10px; transition:background 0.3s ease; }
-::-webkit-scrollbar-thumb { background:#888; border-radius:10px; transition:background 0.3s ease; }
-::-webkit-scrollbar-thumb:hover { background:#555; }
+::-webkit-scrollbar-track { background:var(--scrollbar-track); border-radius:10px; transition:background 0.3s ease; }
+::-webkit-scrollbar-thumb { background:var(--scrollbar-thumb); border-radius:10px; transition:background 0.3s ease; }
+::-webkit-scrollbar-thumb:hover { background:var(--scrollbar-thumb-hover); }
 
 /* Sidebar */
 .pro-sidebar .pro-sidebar-inner { overflow-y:auto !important; transition: background-color 0.3s cubic-bezier(0.4,0,0.2,1); }
@@ -89,7 +103,13 @@ html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.4
 .pro-sidebar.collapsed .pro-sidebar-inner::-webkit-scrollbar-thumb { background:var(--scrollbar-thumb); border-radius:2px; transition:all 0.4s ease; }
 
 /* Main content */
-.main-content { overflow-y:auto; height:100vh; transition: background-color 0.3s cubic-bezier(0.4,0,0.2,1); }
+.main-content {
+  overflow-y:auto;
+  height:100vh;
+  transition: background-color 0.3s cubic-bezier(0.4,0,0.2,1);
+  background-color: var(--color-bg-app);
+  color: var(--color-text-primary);
+}
 .main-content::-webkit-scrollbar { width:10px; }
 .main-content::-webkit-scrollbar-track { background:var(--scrollbar-track); border-radius:5px; transition:background 0.4s ease; }
 .main-content::-webkit-scrollbar-thumb { background:var(--scrollbar-thumb); border-radius:5px; border:2px solid var(--scrollbar-track); transition:background 0.4s ease, border-color 0.4s ease; }
@@ -129,8 +149,14 @@ html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.4
 
 /* Accesibilidad y reduced motion */
 @media (prefers-contrast: high) {
-  [data-theme="dark"] { --scrollbar-thumb:#fff; --scrollbar-thumb-hover:#ccc; }
-  [data-theme="light"] { --scrollbar-thumb:#000; --scrollbar-thumb-hover:#333; }
+  [data-theme="dark"] {
+    --scrollbar-thumb:#ffffff;
+    --scrollbar-thumb-hover:#d1d5db;
+  }
+  [data-theme="light"] {
+    --scrollbar-thumb:#000000;
+    --scrollbar-thumb-hover:#333333;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition:none !important; animation:none !important; }
@@ -157,7 +183,11 @@ html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.4
 }
 
 .login-container {
-  @apply relative z-10 bg-white rounded-2xl shadow-2xl p-12 w-[500px] max-w-xl ml-32;
+  @apply relative z-10 rounded-2xl p-12 w-[500px] max-w-xl ml-32;
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 30px 60px var(--color-shadow);
+  border: 1px solid var(--color-border);
 }
 
 .login-form {
@@ -190,9 +220,9 @@ html, body, #root { transition: background-color 0.4s cubic-bezier(0.25,0.46,0.4
 
 /* Planificador semanal */
 .slot-badge {
-  background: #e6f2ff;
-  border: 1px solid #bfdfff;
-  color: #0a4baf;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
   border-radius: 8px;
   padding: 4px 8px;
   font-size: 12px;
