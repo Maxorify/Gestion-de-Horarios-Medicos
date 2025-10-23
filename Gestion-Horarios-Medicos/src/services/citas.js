@@ -3,6 +3,52 @@ import { supabase } from "@/services/supabaseClient";
 
 const ESTADOS_CITA_ACTIVAS = ["pendiente", "programada", "confirmada"];
 
+const RPC_AVAILABILITY_CACHE = new Map();
+const RPC_AVAILABILITY_STORAGE_PREFIX = "citas.rpc.";
+
+function getRpcAvailabilityFromStorage(key) {
+  if (typeof window === "undefined" || !window?.localStorage) {
+    return undefined;
+  }
+  try {
+    return window.localStorage.getItem(key) ?? undefined;
+  } catch (error) {
+    console.warn("No se pudo leer disponibilidad de RPC desde localStorage", error);
+    return undefined;
+  }
+}
+
+function setRpcAvailabilityInStorage(key, value) {
+  if (typeof window === "undefined" || !window?.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(key, value ? "1" : "0");
+  } catch (error) {
+    console.warn("No se pudo guardar disponibilidad de RPC en localStorage", error);
+  }
+}
+
+function getRpcAvailability(cacheKey) {
+  if (!cacheKey) return undefined;
+  if (RPC_AVAILABILITY_CACHE.has(cacheKey)) {
+    return RPC_AVAILABILITY_CACHE.get(cacheKey);
+  }
+  const stored = getRpcAvailabilityFromStorage(cacheKey);
+  if (stored === undefined) {
+    return undefined;
+  }
+  const normalized = stored === "1";
+  RPC_AVAILABILITY_CACHE.set(cacheKey, normalized);
+  return normalized;
+}
+
+function setRpcAvailability(cacheKey, value) {
+  if (!cacheKey) return;
+  RPC_AVAILABILITY_CACHE.set(cacheKey, Boolean(value));
+  setRpcAvailabilityInStorage(cacheKey, Boolean(value));
+}
+
 function isRpcNotFoundError(error) {
   if (!error) return false;
   const code = String(error.code ?? error.status ?? "").toUpperCase();
@@ -177,13 +223,28 @@ async function upsertCitaLocal({
 /**
  * Utilidad: safe RPC con fallback para detectar funciones mal nombradas.
  */
-async function callRpcAny(possibleNames, args) {
+async function callRpcAny(possibleNames, args, { availabilityCacheKey } = {}) {
+  const cacheKey = availabilityCacheKey
+    ? `${RPC_AVAILABILITY_STORAGE_PREFIX}${availabilityCacheKey}`
+    : null;
+
+  if (cacheKey && getRpcAvailability(cacheKey) === false) {
+    const cachedError = new Error(
+      `Ninguna RPC válida encontrada: ${possibleNames.join(", ")}`,
+    );
+    cachedError.code = "RPC_NOT_FOUND";
+    throw cachedError;
+  }
+
   let lastErr;
   let rpcNotFoundCount = 0;
   for (const name of possibleNames) {
     try {
       const { data, error } = await supabase.rpc(name, args);
       if (error) throw error;
+      if (cacheKey) {
+        setRpcAvailability(cacheKey, true);
+      }
       return data;
     } catch (e) {
       if (isRpcNotFoundError(e)) {
@@ -196,6 +257,9 @@ async function callRpcAny(possibleNames, args) {
     }
   }
   if (rpcNotFoundCount === possibleNames.length) {
+    if (cacheKey) {
+      setRpcAvailability(cacheKey, false);
+    }
     const error = new Error(`Ninguna RPC válida encontrada: ${possibleNames.join(", ")}`);
     error.code = "RPC_NOT_FOUND";
     error.cause = lastErr;
@@ -594,5 +658,34 @@ export async function reservarOCambiar({
   if (error) throw error;
   if (!data) throw new Error("No se pudo crear la cita");
 
-  return normalizeCita(data);
+  try {
+    const data = await callRpcAny(posibles, args, {
+      availabilityCacheKey: "reservarOCambiar",
+    });
+    if (!data) {
+      return null;
+    }
+    if (Array.isArray(data)) {
+      const first = data[0] ?? null;
+      return normalizarCita(first);
+    }
+    if (data.cita) {
+      return normalizarCita(data.cita);
+    }
+    return normalizarCita(data);
+  } catch (error) {
+    if (error?.code === "RPC_NOT_FOUND") {
+      return upsertCitaLocal({
+        paciente_id,
+        doctor_id,
+        disponibilidad_id,
+        inicioISO,
+        finISO,
+        reprogramarSiExiste,
+      });
+    }
+
+    handleCitasSupabaseError(error, "No se pudo completar la reserva de la cita.");
+    return null;
+  }
 }
