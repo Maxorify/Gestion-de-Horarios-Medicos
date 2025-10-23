@@ -11,6 +11,7 @@ import {
   useTheme,
   Box,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { useState } from "react";
@@ -94,35 +95,35 @@ export default function RegistroPacienteDialog({ open, onClose, onSuccess }) {
     validaTelefono(formData.telefonoNumero) &&
     formData.fechaNacimiento;
 
-  const pinBlue = "#3378FF";
+  const isDark = theme.palette.mode === "dark";
+  const fieldBackground = isDark
+    ? alpha(theme.palette.background.paper, 0.9)
+    : alpha(theme.palette.background.default, 0.9);
+  const outlineColor = alpha(theme.palette.divider, isDark ? 0.8 : 1);
+  const pickerFieldStyles = {
+    bgcolor: fieldBackground,
+    color: theme.palette.text.primary,
+    "& input": { color: theme.palette.text.primary },
+    "& .MuiOutlinedInput-notchedOutline": {
+      borderColor: outlineColor,
+      transition: "border-color 0.3s ease, box-shadow 0.3s ease",
+    },
+    "&:hover .MuiOutlinedInput-notchedOutline": {
+      borderColor: theme.palette.primary.main,
+    },
+    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+      borderColor: theme.palette.primary.main,
+      boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.18)}`,
+    },
+  };
 
-  const pickerFieldStyles =
-    theme.palette.mode === "dark"
-      ? {
-          bgcolor: "#23252b",
-          color: "#fff",
-          "& input": { color: "#fff" },
-          "& .MuiOutlinedInput-notchedOutline": {
-            borderColor: "#8883",
-          },
-          "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: pinBlue,
-          },
-        }
-      : {
-          bgcolor: "#fafbfc",
-        };
-
-  const primaryBtn =
-    theme.palette.mode === "dark"
-      ? {
-          background: "#27427c",
-          color: "#fff",
-          "&:hover": {
-            background: "#355cb6",
-          },
-        }
-      : {};
+  const primaryBtn = {
+    background: theme.palette.primary.main,
+    color: theme.palette.getContrastText(theme.palette.primary.main),
+    "&:hover": {
+      background: alpha(theme.palette.primary.main, 0.85),
+    },
+  };
 
   const resetForm = () => {
     setFormData({
