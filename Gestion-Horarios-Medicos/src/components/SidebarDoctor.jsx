@@ -1,15 +1,15 @@
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
+import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 
 import { SidebarBase } from "./SidebarBase";
 
 const doctorMenuGroups = [
   {
-    heading: null,
+    heading: "Mi agenda",
     items: [
       {
-        title: "Panel del doctor",
+        title: "Citas del día",
         to: "/doctor",
-        icon: <HomeOutlinedIcon />,
+        icon: <TodayOutlinedIcon />,
         matchChildren: false,
       },
     ],
