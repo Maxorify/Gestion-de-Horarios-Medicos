@@ -1,8 +1,6 @@
 // src/services/citas.js
 import { supabase } from "@/services/supabaseClient";
 
-const ESTADOS_CITA_ACTIVAS = ["pendiente", "programada", "confirmada"];
-
 const RPC_AVAILABILITY_CACHE = new Map();
 const RPC_AVAILABILITY_STORAGE_PREFIX = "citas.rpc.";
 
@@ -63,161 +61,6 @@ function isRpcNotFoundError(error) {
     return true;
   }
   return false;
-}
-
-function handleCitasSupabaseError(error, fallbackMessage) {
-  if (!error) return;
-  if (error?.code === "CITA_ACTIVA") {
-    throw error;
-  }
-
-  const message = String(error.message ?? "");
-  const normalized = message.toLowerCase();
-
-  if (normalized.includes("ux_citas_unica_por_paciente_activa")) {
-    const friendly = new Error("El paciente ya tiene una cita activa.");
-    friendly.code = "CITA_ACTIVA";
-    throw friendly;
-  }
-
-  if (
-    normalized.includes("duplicate key value") &&
-    (normalized.includes("citas_disponibilidad") || normalized.includes("disponibilidad"))
-  ) {
-    const friendly = new Error("Ese horario ya fue reservado por otro paciente.");
-    throw friendly;
-  }
-
-  if (normalized.includes("foreign key") && normalized.includes("disponibilidad")) {
-    const friendly = new Error("La disponibilidad seleccionada ya no existe.");
-    throw friendly;
-  }
-
-  const fallback = fallbackMessage || message || "Error inesperado de Supabase";
-  const wrapped = new Error(fallback);
-  wrapped.cause = error;
-  throw wrapped;
-}
-
-function pickFirst(obj, keys) {
-  if (!obj || typeof obj !== "object") return undefined;
-  for (const key of keys) {
-    if (key in obj && obj[key] != null) {
-      return obj[key];
-    }
-  }
-  return undefined;
-}
-
-function normalizarCita(row) {
-  if (!row || typeof row !== "object") {
-    return null;
-  }
-
-  const normalized = {
-    id: pickFirst(row, ["id", "cita_id"]),
-    paciente_id: pickFirst(row, ["paciente_id"]),
-    doctor_id: pickFirst(row, ["doctor_id"]),
-    disponibilidad_id: pickFirst(row, ["disponibilidad_id"]),
-    estado: pickFirst(row, ["estado"]),
-    fecha_hora_inicio_agendada: pickFirst(row, [
-      "fecha_hora_inicio_agendada",
-      "fecha_hora_inicio",
-      "inicio",
-    ]),
-    fecha_hora_fin_agendada: pickFirst(row, [
-      "fecha_hora_fin_agendada",
-      "fecha_hora_fin",
-      "fin",
-    ]),
-    created_at: pickFirst(row, ["created_at", "creado_en", "fecha_creacion"]),
-    updated_at: pickFirst(row, ["updated_at", "actualizado_en"]),
-  };
-
-  for (const key of Object.keys(normalized)) {
-    if (normalized[key] === undefined) {
-      delete normalized[key];
-    }
-  }
-
-  return normalized;
-}
-
-async function upsertCitaLocal({
-  paciente_id,
-  doctor_id,
-  disponibilidad_id,
-  inicioISO,
-  finISO,
-  reprogramarSiExiste,
-}) {
-  const { data: existingRows, error: lookupError } = await supabase
-    .from("citas")
-    .select(
-      "id, doctor_id, paciente_id, disponibilidad_id, estado, fecha_hora_inicio_agendada, fecha_hora_fin_agendada, created_at, updated_at, deleted_at",
-    )
-    .eq("paciente_id", paciente_id)
-    .in("estado", ESTADOS_CITA_ACTIVAS)
-    .is("deleted_at", null)
-    .order("fecha_hora_inicio_agendada", { ascending: true })
-    .limit(1);
-
-  if (lookupError) {
-    handleCitasSupabaseError(lookupError, "No se pudo verificar las citas activas del paciente.");
-  }
-
-  const existing = Array.isArray(existingRows) ? existingRows[0] : existingRows;
-
-  if (existing) {
-    if (!reprogramarSiExiste) {
-      const error = new Error("El paciente ya tiene una cita activa.");
-      error.code = "CITA_ACTIVA";
-      error.cita = normalizarCita(existing);
-      throw error;
-    }
-
-    const { data: updated, error: updateError } = await supabase
-      .from("citas")
-      .update({
-        doctor_id,
-        disponibilidad_id,
-        fecha_hora_inicio_agendada: inicioISO,
-        fecha_hora_fin_agendada: finISO,
-        estado: "programada",
-      })
-      .eq("id", existing.id)
-      .select(
-        "id, doctor_id, paciente_id, disponibilidad_id, estado, fecha_hora_inicio_agendada, fecha_hora_fin_agendada, created_at, updated_at",
-      )
-      .single();
-
-    if (updateError) {
-      handleCitasSupabaseError(updateError, "No se pudo reprogramar la cita.");
-    }
-
-    return normalizarCita(updated ?? existing);
-  }
-
-  const { data: inserted, error: insertError } = await supabase
-    .from("citas")
-    .insert({
-      paciente_id,
-      doctor_id,
-      disponibilidad_id,
-      fecha_hora_inicio_agendada: inicioISO,
-      fecha_hora_fin_agendada: finISO,
-      estado: "programada",
-    })
-    .select(
-      "id, doctor_id, paciente_id, disponibilidad_id, estado, fecha_hora_inicio_agendada, fecha_hora_fin_agendada, created_at, updated_at",
-    )
-    .single();
-
-  if (insertError) {
-    handleCitasSupabaseError(insertError, "No se pudo agendar la cita.");
-  }
-
-  return normalizarCita(inserted);
 }
 
 /**
@@ -395,40 +238,10 @@ export async function listarCitasPorDoctor(
  *     paciente_id, doctor_id, disponibilidad_id, inicioISO, finISO, reprogramarSiExiste
  *   })
  *
- * Primero intenta las RPC tradicionales; si no existen, aplica el fallback local.
+ * Implementación actual: validaciones locales y operaciones directas sobre public.citas.
  */
 // --------------------------
-// NUEVO: helper para RPC segura
-// --------------------------
-const reservarRpcNames = [
-  "reservar_o_cambiar_cita",
-  "reservar_o_cambiar",
-  "citas_reservar_ocambiar",
-];
-let reservarRpcMode = "unknown"; // "rpc" | "local" | "unknown"
-let reservarRpcPreferred = null;
-
-async function safeRpc(fnName, args) {
-  const { data, error } = await supabase.rpc(fnName, args);
-  if (!error) return { data };
-  if (isRpcMissingError(error)) return { data: null, missing: true };
-  // Error real de RPC: propagar
-  throw error;
-}
-
-function isRpcMissingError(error) {
-  const msg = String(error?.message || "").toLowerCase();
-  const code = String(error?.code || "").toUpperCase();
-  return (
-    msg.includes("not found") ||
-    (msg.includes("function") && msg.includes("does not exist")) ||
-    code === "PGRST301" ||
-    code === "404"
-  );
-}
-
-// --------------------------
-// NUEVO: validadores y utils fallback
+// Validadores y utilidades para reservarOCambiar
 // --------------------------
 async function validateAvailabilityOwnership(disponibilidad_id, doctor_id) {
   const { data, error } = await supabase
@@ -537,7 +350,7 @@ function normalizeCita(row) {
 }
 
 // -----------------------------------------------------------
-// REEMPLAZAR POR COMPLETO la implementación de reservarOCambiar
+// Nueva implementación local de reservarOCambiar
 // -----------------------------------------------------------
 export async function reservarOCambiar({
   paciente_id,
@@ -551,54 +364,11 @@ export async function reservarOCambiar({
     throw new Error("Faltan parámetros para reservarOCambiar");
   }
 
-  // 1) Intento RPC (si existen)
-  const rpcArgs = {
-    _paciente_id: paciente_id,
-    _doctor_id: doctor_id,
-    _disponibilidad_id: disponibilidad_id,
-    _inicio: inicioISO,
-    _fin: finISO,
-    _reprogramar: reprogramarSiExiste,
-  };
-
-  if (reservarRpcMode !== "local") {
-    const candidates =
-      reservarRpcMode === "rpc" && reservarRpcPreferred
-        ? [reservarRpcPreferred]
-        : reservarRpcNames;
-
-    for (const name of candidates) {
-      try {
-        const { data, missing } = await safeRpc(name, rpcArgs);
-        if (!missing && data) {
-          reservarRpcMode = "rpc";
-          reservarRpcPreferred = name;
-          // RPC existente y exitosa
-          return data;
-        }
-        if (missing) {
-          continue; // probar siguiente
-        }
-      } catch (e) {
-        // Error real de RPC => propagar
-        throw e;
-      }
-    }
-
-    // Si llegamos aquí es porque ninguna RPC respondió; usar fallback en adelante
-    reservarRpcMode = "local";
-    reservarRpcPreferred = null;
-  }
-
-  // 2) Fallback local: validaciones + insert/update directo en public.citas
-
-  // 2.1 validar disponibilidad del doctor
+  // Validar disponibilidad y rango
   const disp = await validateAvailabilityOwnership(disponibilidad_id, doctor_id);
-
-  // 2.2 validar que el rango cabe en la disponibilidad
   validateFitsRange(inicioISO, finISO, disp);
 
-  // 2.3 detectar cita activa del paciente
+  // ¿Paciente ya tiene cita activa?
   const activa = await findActiveAppointmentForPatient(paciente_id);
 
   if (activa && !reprogramarSiExiste) {
@@ -609,7 +379,6 @@ export async function reservarOCambiar({
   }
 
   if (activa && reprogramarSiExiste) {
-    // 2.4 solapes al reprogramar (excluir la misma cita)
     await checkOverlaps({
       doctor_id,
       paciente_id,
@@ -636,10 +405,9 @@ export async function reservarOCambiar({
     return normalizeCita(data);
   }
 
-  // 2.5 solapes al crear
+  // Nueva cita
   await checkOverlaps({ doctor_id, paciente_id, inicioISO, finISO });
 
-  // 2.6 crear nueva
   const { data, error } = await supabase
     .from("citas")
     .insert([
@@ -657,35 +425,5 @@ export async function reservarOCambiar({
 
   if (error) throw error;
   if (!data) throw new Error("No se pudo crear la cita");
-
-  try {
-    const data = await callRpcAny(posibles, args, {
-      availabilityCacheKey: "reservarOCambiar",
-    });
-    if (!data) {
-      return null;
-    }
-    if (Array.isArray(data)) {
-      const first = data[0] ?? null;
-      return normalizarCita(first);
-    }
-    if (data.cita) {
-      return normalizarCita(data.cita);
-    }
-    return normalizarCita(data);
-  } catch (error) {
-    if (error?.code === "RPC_NOT_FOUND") {
-      return upsertCitaLocal({
-        paciente_id,
-        doctor_id,
-        disponibilidad_id,
-        inicioISO,
-        finISO,
-        reprogramarSiExiste,
-      });
-    }
-
-    handleCitasSupabaseError(error, "No se pudo completar la reserva de la cita.");
-    return null;
-  }
+  return normalizeCita(data);
 }
