@@ -1,6 +1,9 @@
-from fastapi import FastAPI
-import os 
 from fastapi.middleware.cors import CORSMiddleware
+from src.utils.supabase import supabase_client
+from fastapi import FastAPI
+import os
+
+
 app = FastAPI()
 
 app.add_middleware(
@@ -11,11 +14,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def inicio() -> dict:
-    return {"message": "Gestion de horarios médicos,", 
+    return {"message": "Gestion de horarios médicos,",
             "Database": "Supabase",
-            "Version": "0.0.1",
             "Framework": "FastAPI",
+            "Version": "0.0.1",
             "Autor": "Max Ovalle"}
-    
+
+
+
+@app.get("/connection")
+async def test_connection():
+    if supabase_client:
+        return {"status": "success", "message": "Cliente inicializado correctamente"}
+    else:
+        return {"status": "error", "message": "Cliente no está inicializado"}
