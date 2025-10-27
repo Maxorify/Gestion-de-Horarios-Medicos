@@ -1,80 +1,130 @@
 // src/services/citas.js
 import { supabase } from "@/services/supabaseClient";
 
+const ESTADOS_CITA_ACTIVAS = ["pendiente", "programada", "confirmada"];
+
 const RPC_AVAILABILITY_CACHE = new Map();
 const RPC_AVAILABILITY_STORAGE_PREFIX = "citas.rpc.";
 
+/* ----------------------------- localStorage cache ----------------------------- */
 function getRpcAvailabilityFromStorage(key) {
-  if (typeof window === "undefined" || !window?.localStorage) {
-    return undefined;
-  }
+  if (typeof window === "undefined" || !window?.localStorage) return undefined;
   try {
     return window.localStorage.getItem(key) ?? undefined;
-  } catch (error) {
-    console.warn("No se pudo leer disponibilidad de RPC desde localStorage", error);
+  } catch {
     return undefined;
   }
 }
-
 function setRpcAvailabilityInStorage(key, value) {
-  if (typeof window === "undefined" || !window?.localStorage) {
-    return;
-  }
+  if (typeof window === "undefined" || !window?.localStorage) return;
   try {
     window.localStorage.setItem(key, value ? "1" : "0");
-  } catch (error) {
-    console.warn("No se pudo guardar disponibilidad de RPC en localStorage", error);
-  }
+  } catch {}
 }
-
 function getRpcAvailability(cacheKey) {
   if (!cacheKey) return undefined;
   if (RPC_AVAILABILITY_CACHE.has(cacheKey)) {
     return RPC_AVAILABILITY_CACHE.get(cacheKey);
   }
   const stored = getRpcAvailabilityFromStorage(cacheKey);
-  if (stored === undefined) {
-    return undefined;
-  }
+  if (stored === undefined) return undefined;
   const normalized = stored === "1";
   RPC_AVAILABILITY_CACHE.set(cacheKey, normalized);
   return normalized;
 }
-
 function setRpcAvailability(cacheKey, value) {
   if (!cacheKey) return;
   RPC_AVAILABILITY_CACHE.set(cacheKey, Boolean(value));
   setRpcAvailabilityInStorage(cacheKey, Boolean(value));
 }
 
+/* ---------------------------------- helpers ---------------------------------- */
 function isRpcNotFoundError(error) {
   if (!error) return false;
   const code = String(error.code ?? error.status ?? "").toUpperCase();
-  if (code === "404" || code === "PGRST301" || code === "PGRST404") {
-    return true;
-  }
+  if (code === "404" || code === "PGRST301" || code === "PGRST404") return true;
   const message = String(error.message ?? "").toLowerCase();
-  if (message.includes("could not find") && message.includes("function")) {
-    return true;
-  }
-  if (message.includes("not found") && message.includes("function")) {
-    return true;
-  }
-  return false;
+  return (
+    (message.includes("could not find") && message.includes("function")) ||
+    (message.includes("not found") && message.includes("function"))
+  );
 }
 
-/**
- * Utilidad: safe RPC con fallback para detectar funciones mal nombradas.
- */
+function handleCitasSupabaseError(error, fallbackMessage) {
+  if (!error) return;
+  if (error?.code === "CITA_ACTIVA") throw error;
+
+  const message = String(error.message ?? "");
+  const normalized = message.toLowerCase();
+
+  // Un paciente ya tiene una activa (si tu unique se llama así)
+  if (normalized.includes("ux_citas_unica_por_paciente_activa")) {
+    const friendly = new Error("El paciente ya tiene una cita activa.");
+    friendly.code = "CITA_ACTIVA";
+    throw friendly;
+  }
+
+  // Choque típico de reserva/solape
+  if (
+    normalized.includes("duplicate key value") &&
+    (normalized.includes("citas_disponibilidad") || normalized.includes("disponibilidad"))
+  ) {
+    throw new Error("Ese horario ya fue reservado por otro paciente.");
+  }
+
+  if (normalized.includes("foreign key") && normalized.includes("disponibilidad")) {
+    throw new Error("La disponibilidad seleccionada ya no existe.");
+  }
+
+  const fallback = fallbackMessage || message || "Error inesperado de Supabase";
+  const wrapped = new Error(fallback);
+  wrapped.cause = error;
+  throw wrapped;
+}
+
+function pickFirst(obj, keys) {
+  if (!obj || typeof obj !== "object") return undefined;
+  for (const key of keys) {
+    if (key in obj && obj[key] != null) return obj[key];
+  }
+  return undefined;
+}
+
+function normalizarCita(row) {
+  if (!row || typeof row !== "object") return null;
+  const normalized = {
+    id: pickFirst(row, ["id", "cita_id"]),
+    paciente_id: pickFirst(row, ["paciente_id"]),
+    doctor_id: pickFirst(row, ["doctor_id"]),
+    disponibilidad_id: pickFirst(row, ["disponibilidad_id"]),
+    estado: pickFirst(row, ["estado"]),
+    fecha_hora_inicio_agendada: pickFirst(row, [
+      "fecha_hora_inicio_agendada",
+      "fecha_hora_inicio",
+      "inicio",
+    ]),
+    fecha_hora_fin_agendada: pickFirst(row, [
+      "fecha_hora_fin_agendada",
+      "fecha_hora_fin",
+      "fin",
+    ]),
+    created_at: pickFirst(row, ["created_at", "creado_en", "fecha_creacion"]),
+    updated_at: pickFirst(row, ["updated_at", "actualizado_en"]),
+  };
+  for (const key of Object.keys(normalized)) {
+    if (normalized[key] === undefined) delete normalized[key];
+  }
+  return normalized;
+}
+
+/* ---------------------------- callRpc con fallback ---------------------------- */
 async function callRpcAny(possibleNames, args, { availabilityCacheKey } = {}) {
   const cacheKey = availabilityCacheKey
     ? `${RPC_AVAILABILITY_STORAGE_PREFIX}${availabilityCacheKey}`
     : null;
 
   if (cacheKey && getRpcAvailability(cacheKey) === false) {
-    const cachedError = new Error(
-      `Ninguna RPC válida encontrada: ${possibleNames.join(", ")}`,
-    );
+    const cachedError = new Error(`Ninguna RPC válida encontrada: ${possibleNames.join(", ")}`);
     cachedError.code = "RPC_NOT_FOUND";
     throw cachedError;
   }
@@ -85,9 +135,7 @@ async function callRpcAny(possibleNames, args, { availabilityCacheKey } = {}) {
     try {
       const { data, error } = await supabase.rpc(name, args);
       if (error) throw error;
-      if (cacheKey) {
-        setRpcAvailability(cacheKey, true);
-      }
+      if (cacheKey) setRpcAvailability(cacheKey, true);
       return data;
     } catch (e) {
       if (isRpcNotFoundError(e)) {
@@ -99,10 +147,9 @@ async function callRpcAny(possibleNames, args, { availabilityCacheKey } = {}) {
       break;
     }
   }
+
   if (rpcNotFoundCount === possibleNames.length) {
-    if (cacheKey) {
-      setRpcAvailability(cacheKey, false);
-    }
+    if (cacheKey) setRpcAvailability(cacheKey, false);
     const error = new Error(`Ninguna RPC válida encontrada: ${possibleNames.join(", ")}`);
     error.code = "RPC_NOT_FOUND";
     error.cause = lastErr;
@@ -111,10 +158,8 @@ async function callRpcAny(possibleNames, args, { availabilityCacheKey } = {}) {
   throw lastErr ?? new Error(`Ninguna RPC válida encontrada: ${possibleNames.join(", ")}`);
 }
 
-/**
- * Lista citas programadas o pendientes para check-in (secretaría).
- * RPC: listar_citas_para_checkin(_desde,_hasta,_doctor_id,_estado,_search)
- */
+/* --------------------------------- servicios --------------------------------- */
+/** Check-in list (secretaría) */
 export async function listarCitasParaCheckin({
   desdeISO,
   hastaISO,
@@ -122,21 +167,12 @@ export async function listarCitasParaCheckin({
   estados = ["programada", "pendiente"],
   search = null,
 }) {
-  const args = {
-    _desde: desdeISO,
-    _hasta: hastaISO,
-    _doctor_id: doctorId,
-    _estado: estados,
-    _search: search,
-  };
+  const args = { _desde: desdeISO, _hasta: hastaISO, _doctor_id: doctorId, _estado: estados, _search: search };
   const data = await callRpcAny(["listar_citas_para_checkin"], args);
   return Array.isArray(data) ? data : [];
 }
 
-/**
- * Marca llegada (check-in).
- * RPC: checkin_paciente(_cita_id)
- */
+/** Check-in */
 export async function checkinPaciente({ citaId }) {
   if (!citaId) throw new Error("citaId es obligatorio");
   const { data, error } = await supabase.rpc("checkin_paciente", { _cita_id: citaId });
@@ -144,31 +180,16 @@ export async function checkinPaciente({ citaId }) {
   return data?.[0] ?? null;
 }
 
-/**
- * Anula cita programada/pendiente.
- * RPC: anular_cita(_cita_id,_motivo)
- */
+/** Anular cita */
 export async function anularCita({ citaId, motivo = null }) {
   if (!citaId) throw new Error("citaId es obligatorio");
-  const { data, error } = await supabase.rpc("anular_cita", {
-    _cita_id: citaId,
-    _motivo: motivo,
-  });
+  const { data, error } = await supabase.rpc("anular_cita", { _cita_id: citaId, _motivo: motivo });
   if (error) throw error;
   return data?.[0] ?? null;
 }
 
-/**
- * Confirma pago (demo) y pasa a "confirmada".
- * RPC: confirmar_cita_simple(_cita_id,_usuario_id_legacy,_monto,_metodo,_obs)
- */
-export async function confirmarCitaSimple({
-  citaId,
-  usuarioIdLegacy,
-  monto = 0,
-  metodo = null,
-  obs = null,
-}) {
+/** Confirmar (pago demo) → confirmada */
+export async function confirmarCitaSimple({ citaId, usuarioIdLegacy, monto = 0, metodo = null, obs = null }) {
   if (!citaId) throw new Error("citaId es obligatorio");
   if (!usuarioIdLegacy) throw new Error("usuarioIdLegacy requerido");
   const { data, error } = await supabase.rpc("confirmar_cita_simple", {
@@ -182,15 +203,8 @@ export async function confirmarCitaSimple({
   return data?.[0] ?? null;
 }
 
-/**
- * Lista citas confirmadas del doctor.
- * RPC: listar_citas_doctor_confirmadas(_doctor_id,_desde,_hasta)
- */
-export async function listarCitasDoctorConfirmadas({
-  doctorId,
-  desdeISO = null,
-  hastaISO = null,
-}) {
+/** Listar confirmadas del doctor */
+export async function listarCitasDoctorConfirmadas({ doctorId, desdeISO = null, hastaISO = null }) {
   if (!doctorId) throw new Error("doctorId es obligatorio");
   const args = { _doctor_id: doctorId };
   if (desdeISO) args._desde = desdeISO;
@@ -199,17 +213,8 @@ export async function listarCitasDoctorConfirmadas({
   return Array.isArray(data) ? data : [];
 }
 
-/**
- * (LEGACY) Lista citas por doctor con filtro opcional de rango.
- * Firma usada hoy por SeleccionarHorarioDoctor:
- *   listarCitasPorDoctor(doctorId, { startUtcISO, endUtcISO })
- *
- * Implementación: query directa a la tabla 'citas' por compatibilidad.
- */
-export async function listarCitasPorDoctor(
-  doctorId,
-  { startUtcISO = null, endUtcISO = null } = {}
-) {
+/** (LEGACY) Citas por doctor con rango */
+export async function listarCitasPorDoctor(doctorId, { startUtcISO = null, endUtcISO = null } = {}) {
   if (!doctorId) throw new Error("doctorId es obligatorio");
   let q = supabase
     .from("citas")
@@ -219,30 +224,37 @@ export async function listarCitasPorDoctor(
     .eq("doctor_id", doctorId)
     .is("deleted_at", null);
 
-  if (startUtcISO) {
-    q = q.gte("fecha_hora_inicio_agendada", startUtcISO);
-  }
-  if (endUtcISO) {
-    q = q.lt("fecha_hora_inicio_agendada", endUtcISO);
-  }
+  if (startUtcISO) q = q.gte("fecha_hora_inicio_agendada", startUtcISO);
+  if (endUtcISO) q = q.lt("fecha_hora_inicio_agendada", endUtcISO);
 
   const { data, error } = await q;
   if (error) throw error;
   return Array.isArray(data) ? data : [];
 }
 
-/**
- * Reservar o reprogramar una cita.
- * Firmas esperadas por SeleccionarHorarioDoctor:
- *   reservarOCambiar({
- *     paciente_id, doctor_id, disponibilidad_id, inicioISO, finISO, reprogramarSiExiste
- *   })
- *
- * Implementación actual: validaciones locales y operaciones directas sobre public.citas.
- */
-// --------------------------
-// Validadores y utilidades para reservarOCambiar
-// --------------------------
+/* ----------------------- reservar o reprogramar (final) ---------------------- */
+const reservarRpcNames = ["reservar_o_cambiar_cita", "reservar_o_cambiar", "citas_reservar_ocambiar"];
+let reservarRpcMode = "unknown"; // "rpc" | "local" | "unknown"
+let reservarRpcPreferred = null;
+
+async function safeRpc(fnName, args) {
+  const { data, error } = await supabase.rpc(fnName, args);
+  if (!error) return { data };
+  if (isRpcMissingError(error)) return { data: null, missing: true };
+  throw error;
+}
+function isRpcMissingError(error) {
+  const msg = String(error?.message || "").toLowerCase();
+  const code = String(error?.code || "").toUpperCase();
+  return (
+    msg.includes("not found") ||
+    (msg.includes("function") && msg.includes("does not exist")) ||
+    code === "PGRST301" ||
+    code === "404"
+  );
+}
+
+/* ------ validaciones para fallback local ------ */
 async function validateAvailabilityOwnership(disponibilidad_id, doctor_id) {
   const { data, error } = await supabase
     .from("disponibilidad")
@@ -250,32 +262,23 @@ async function validateAvailabilityOwnership(disponibilidad_id, doctor_id) {
     .eq("id", disponibilidad_id)
     .maybeSingle();
   if (error) throw error;
-  if (!data || data.deleted_at) {
-    throw new Error("La disponibilidad no existe o fue eliminada");
-  }
-  if (Number(data.doctor_id) !== Number(doctor_id)) {
-    throw new Error("La disponibilidad no corresponde a ese doctor");
-  }
-  return data; // incluye fechas de la disponibilidad
+  if (!data || data.deleted_at) throw new Error("La disponibilidad no existe o fue eliminada");
+  if (Number(data.doctor_id) !== Number(doctor_id)) throw new Error("La disponibilidad no corresponde a ese doctor");
+  return data;
 }
-
 function validateFitsRange(inicioISO, finISO, disp) {
   if (!inicioISO || !finISO) throw new Error("Rango de horario inválido");
   const inicio = new Date(inicioISO).toISOString();
   const fin = new Date(finISO).toISOString();
   const dIni = new Date(disp.fecha_hora_inicio).toISOString();
   const dFin = new Date(disp.fecha_hora_fin).toISOString();
-
   if (inicio >= fin) throw new Error("El bloque horario es inválido");
-  if (inicio < dIni || fin > dFin) {
-    throw new Error("El horario no cabe dentro de la disponibilidad");
-  }
+  if (inicio < dIni || fin > dFin) throw new Error("El horario no cabe dentro de la disponibilidad");
 }
-
 async function checkOverlaps({ doctor_id, paciente_id, inicioISO, finISO, excludeCitaId = null }) {
   const estadosActivos = ["programada", "pendiente", "confirmada"];
 
-  // Solape doctor
+  // doctor
   {
     let q = supabase
       .from("citas")
@@ -285,17 +288,13 @@ async function checkOverlaps({ doctor_id, paciente_id, inicioISO, finISO, exclud
       .is("deleted_at", null)
       .lt("fecha_hora_inicio_agendada", finISO)
       .gt("fecha_hora_fin_agendada", inicioISO);
-
     if (excludeCitaId) q = q.neq("id", excludeCitaId);
-
     const { data, error } = await q;
     if (error) throw error;
-    if (Array.isArray(data) && data.length > 0) {
-      throw new Error("El bloque ya está ocupado para el doctor");
-    }
+    if (Array.isArray(data) && data.length > 0) throw new Error("El bloque ya está ocupado para el doctor");
   }
 
-  // Solape paciente
+  // paciente
   {
     let q = supabase
       .from("citas")
@@ -305,27 +304,21 @@ async function checkOverlaps({ doctor_id, paciente_id, inicioISO, finISO, exclud
       .is("deleted_at", null)
       .lt("fecha_hora_inicio_agendada", finISO)
       .gt("fecha_hora_fin_agendada", inicioISO);
-
     if (excludeCitaId) q = q.neq("id", excludeCitaId);
-
     const { data, error } = await q;
     if (error) throw error;
-    if (Array.isArray(data) && data.length > 0) {
-      throw new Error("El paciente ya tiene otra cita que se solapa");
-    }
+    if (Array.isArray(data) && data.length > 0) throw new Error("El paciente ya tiene otra cita que se solapa");
   }
 }
-
 async function findActiveAppointmentForPatient(paciente_id) {
   const nowISO = new Date().toISOString();
-  const estadosActivos = ["programada", "pendiente", "confirmada"];
   const { data, error } = await supabase
     .from("citas")
     .select(
       "id, paciente_id, doctor_id, disponibilidad_id, estado, fecha_hora_inicio_agendada, fecha_hora_fin_agendada, created_at, updated_at"
     )
     .eq("paciente_id", paciente_id)
-    .in("estado", estadosActivos)
+    .in("estado", ESTADOS_CITA_ACTIVAS)
     .is("deleted_at", null)
     .gte("fecha_hora_inicio_agendada", nowISO)
     .order("fecha_hora_inicio_agendada", { ascending: true })
@@ -334,24 +327,7 @@ async function findActiveAppointmentForPatient(paciente_id) {
   return Array.isArray(data) && data.length > 0 ? data[0] : null;
 }
 
-function normalizeCita(row) {
-  if (!row || typeof row !== "object") return null;
-  return {
-    id: row.id,
-    paciente_id: row.paciente_id,
-    doctor_id: row.doctor_id,
-    disponibilidad_id: row.disponibilidad_id,
-    estado: row.estado,
-    fecha_hora_inicio_agendada: row.fecha_hora_inicio_agendada,
-    fecha_hora_fin_agendada: row.fecha_hora_fin_agendada,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
-
-// -----------------------------------------------------------
-// Nueva implementación local de reservarOCambiar
-// -----------------------------------------------------------
+/* --------------------------- reservar / reprogramar -------------------------- */
 export async function reservarOCambiar({
   paciente_id,
   doctor_id,
@@ -364,28 +340,55 @@ export async function reservarOCambiar({
     throw new Error("Faltan parámetros para reservarOCambiar");
   }
 
-  // Validar disponibilidad y rango
+  // 1) RPC (si existen)
+  if (reservarRpcMode !== "local") {
+    const rpcArgs = {
+      _paciente_id: paciente_id,
+      _doctor_id: doctor_id,
+      _disponibilidad_id: disponibilidad_id,
+      _inicio: inicioISO,
+      _fin: finISO,
+      _reprogramar: reprogramarSiExiste,
+    };
+
+    const candidates = reservarRpcMode === "rpc" && reservarRpcPreferred ? [reservarRpcPreferred] : reservarRpcNames;
+    for (const name of candidates) {
+      try {
+        const { data, missing } = await safeRpc(name, rpcArgs);
+        if (missing) continue;
+        if (data) {
+          reservarRpcMode = "rpc";
+          reservarRpcPreferred = name;
+          // Normalizar respuesta de RPC (sea array u objeto)
+          const payload = Array.isArray(data) ? data[0] ?? null : data?.cita ?? data;
+          return normalizarCita(payload);
+        }
+      } catch (e) {
+        // Error real de RPC → parar aquí y propagar
+        throw e;
+      }
+    }
+    // Si ninguna está, marcamos local
+    reservarRpcMode = "local";
+    reservarRpcPreferred = null;
+  }
+
+  // 2) Fallback local
   const disp = await validateAvailabilityOwnership(disponibilidad_id, doctor_id);
   validateFitsRange(inicioISO, finISO, disp);
 
-  // ¿Paciente ya tiene cita activa?
   const activa = await findActiveAppointmentForPatient(paciente_id);
 
   if (activa && !reprogramarSiExiste) {
     const err = new Error("El paciente ya tiene una cita activa");
     err.code = "CITA_ACTIVA";
-    err.cita = normalizeCita(activa);
+    err.cita = normalizarCita(activa);
     throw err;
   }
 
+  // Reprogramación
   if (activa && reprogramarSiExiste) {
-    await checkOverlaps({
-      doctor_id,
-      paciente_id,
-      inicioISO,
-      finISO,
-      excludeCitaId: activa.id,
-    });
+    await checkOverlaps({ doctor_id, paciente_id, inicioISO, finISO, excludeCitaId: activa.id });
 
     const { data, error } = await supabase
       .from("citas")
@@ -400,12 +403,12 @@ export async function reservarOCambiar({
       .select("*")
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) handleCitasSupabaseError(error, "No se pudo reprogramar la cita.");
     if (!data) throw new Error("No se pudo reprogramar la cita");
-    return normalizeCita(data);
+    return normalizarCita(data);
   }
 
-  // Nueva cita
+  // Nueva reserva
   await checkOverlaps({ doctor_id, paciente_id, inicioISO, finISO });
 
   const { data, error } = await supabase
@@ -423,7 +426,8 @@ export async function reservarOCambiar({
     .select("*")
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) handleCitasSupabaseError(error, "No se pudo agendar la cita.");
   if (!data) throw new Error("No se pudo crear la cita");
-  return normalizeCita(data);
+
+  return normalizarCita(data);
 }
