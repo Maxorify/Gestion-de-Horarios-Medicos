@@ -1,10 +1,13 @@
 from fastapi.middleware.cors import CORSMiddleware
 from src.utils.supabase import supabase_client
 from fastapi import FastAPI
+from src.routers.user_administration import user_router
 import os
 
 
 app = FastAPI()
+
+app.include_router(user_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,7 +25,6 @@ def inicio() -> dict:
             "Framework": "FastAPI",
             "Version": "0.0.1",
             "Autor": "Max Ovalle"}
-
 
 
 @app.get("/connection")
