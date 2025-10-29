@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from src.models.users import Rol
 from src.utils.supabase import supabase_client
 
-user_router = APIRouter(tags=["User Data"], prefix="/users")
+user_router = APIRouter(tags=["Funciones de roles"], prefix="/Roles")
 
 @user_router.post("/crear-rol")
 async def crear_rol(rol: Rol):
@@ -149,6 +149,31 @@ async def eliminar_rol(rol_id: int):
             raise HTTPException(status_code=500, detail="No se pudo eliminar el rol.")
 
         return {"mensaje": f"Rol '{nombre}' eliminado correctamente."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@user_router.get("/listar-roles")
+async def listar_roles():
+    """
+    Devuelve todos los roles existentes en la tabla 'rol'.
+    """
+    try:
+        res = (
+            supabase_client
+            .table("rol")
+            .select("*")
+            .order("id", desc=False)
+            .execute()
+        )
+
+        if not res.data:
+            raise HTTPException(status_code=404, detail="No hay roles registrados.")
+
+        return {"roles": res.data}
 
     except HTTPException:
         raise
