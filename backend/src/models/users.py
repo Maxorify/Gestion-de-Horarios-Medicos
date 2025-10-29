@@ -10,3 +10,8 @@ class Usuario(BaseModel):
     direccion: str
     rol_id: int
     especialidad_id: str
+
+class Rol(BaseModel):
+    nombre: str
+    descripcion: str    
+
