@@ -15,3 +15,15 @@ class Rol(BaseModel):
     nombre: str
     descripcion: str    
 
+class Especialidad(BaseModel):
+    nombre: str
+    descripcion: str
+
+
+class SubEspecialidad(BaseModel):
+    nombre: str
+    descripcion: str
+
+class VinculoEspSub(BaseModel):
+    especialidad_id: int
+    sub_especialidad_id: int    
