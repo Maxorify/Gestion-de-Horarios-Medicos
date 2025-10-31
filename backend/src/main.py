@@ -6,6 +6,7 @@ from src.routers.doctor_administration import doctor_router
 import os
 
 
+
 app = FastAPI()
 
 app.include_router(user_router)

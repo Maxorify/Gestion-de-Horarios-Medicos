@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List
 
 class Usuario(BaseModel):
     nombre: str
@@ -7,6 +8,7 @@ class Usuario(BaseModel):
     rut: str
     email: str
     celular: str
+    cel_secundario: str
     direccion: str
     rol_id: int
     especialidad_id: str
@@ -27,3 +29,8 @@ class SubEspecialidad(BaseModel):
 class VinculoEspSub(BaseModel):
     especialidad_id: int
     sub_especialidad_id: int    
+
+
+class VinculoEspSubBatch(BaseModel):
+    especialidad_id: int
+    sub_especialidad_ids: List[int]    
